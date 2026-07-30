@@ -1,0 +1,3 @@
+package ru.ultimavox.itsm.servicedesk.application;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem; import java.time.Instant; import java.util.*; import org.springframework.stereotype.Service;
+@Service public class WorkItemQuery { private final List<WorkItem> items=List.of(new WorkItem(UUID.fromString("b2ff9175-7a70-4d16-b60b-051deb0d2e01"),"INC-1842","incident","Недоступен VPN для удалённых сотрудников",WorkItem.Priority.CRITICAL,"Алексей К.",Instant.now()),new WorkItem(UUID.fromString("64e011c1-d2f9-4563-aed0-98c7a9e133a2"),"REQ-9217","request","Доступ к финансовой витрине данных",WorkItem.Priority.HIGH,"Мария В.",Instant.now())); public List<WorkItem> findVisibleTo(String subject){ return items; } }

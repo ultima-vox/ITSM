@@ -1,0 +1,6 @@
+package ru.ultimavox.itsm.platform.sla;
+import static org.assertj.core.api.Assertions.assertThat; import java.time.*; import java.util.*; import org.junit.jupiter.api.Test;
+class SlaDeadlineCalculatorTest { private final WorkingCalendar calendar=new WorkingCalendar(ZoneId.of("Europe/Amsterdam"),Set.of(DayOfWeek.MONDAY,DayOfWeek.TUESDAY,DayOfWeek.WEDNESDAY,DayOfWeek.THURSDAY,DayOfWeek.FRIDAY),LocalTime.of(9,0),LocalTime.of(18,0),Set.of()); private final SlaDeadlineCalculator calculator=new SlaDeadlineCalculator();
+ @Test void carries_target_across_weekend(){Instant started=ZonedDateTime.of(2026,7,31,17,0,0,0,calendar.zone()).toInstant(); Instant due=calculator.deadline(started,Duration.ofHours(2),calendar); assertThat(due).isEqualTo(ZonedDateTime.of(2026,8,3,10,0,0,0,calendar.zone()).toInstant());}
+ @Test void starts_at_next_opening_when_created_outside_calendar(){Instant started=ZonedDateTime.of(2026,8,1,12,0,0,0,calendar.zone()).toInstant(); Instant due=calculator.deadline(started,Duration.ofMinutes(30),calendar); assertThat(due).isEqualTo(ZonedDateTime.of(2026,8,3,9,30,0,0,calendar.zone()).toInstant());}
+}

@@ -1,1 +1,13 @@
 .grok/
+node_modules/
+dist/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+target/
+.DS_Store
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts

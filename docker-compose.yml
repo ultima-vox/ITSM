@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: { POSTGRES_DB: itsm, POSTGRES_USER: itsm, POSTGRES_PASSWORD: itsm }
+    ports: ["5432:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U itsm -d itsm"], interval: 5s, timeout: 3s, retries: 10 }
+  redis: { image: redis:7-alpine, ports: ["6379:6379"] }
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports: ["5672:5672", "15672:15672"]
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    environment: { discovery.type: single-node, DISABLE_SECURITY_PLUGIN: "true", OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m" }
+    ports: ["9200:9200"]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ':9001'
+    environment: { MINIO_ROOT_USER: minioadmin, MINIO_ROOT_PASSWORD: minioadmin }
+    ports: ["9000:9000", "9001:9001"]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev
+    environment: { KC_BOOTSTRAP_ADMIN_USERNAME: admin, KC_BOOTSTRAP_ADMIN_PASSWORD: admin }
+    ports: ["8081:8080"]
