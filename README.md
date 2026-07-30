@@ -467,3 +467,32 @@ The exact structure may evolve through Architecture Decision Records, but archit
 The objective is a complete enterprise ITSM/ESM platform whose quality is evident not from claims of being "AAA", but from measurable characteristics: coherent UX, strong information architecture, reliable workflows, secure authorization, extensibility, localization, performance, accessibility, observability, test coverage and maintainable engineering.
 
 Build for production from the beginning.
+
+## Implemented foundation
+
+This repository now contains the first production-oriented vertical foundation:
+
+- **`frontend/`** — Vite + React + TypeScript operator workspace, responsive design-system tokens, Russian-default / English per-user language chooser, accessible controls, search filtering, creation menu and explicit empty state.
+- **`backend/`** — Java 25 / Spring Boot modular-monolith foundation, OIDC resource server configuration, OpenAPI, health probes, Service Desk public read boundary, PostgreSQL migration with immutable-oriented audit and transactional outbox tables.
+- **`docker-compose.yml`** — local PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO and Keycloak dependencies.
+- **`docs/`** — module boundaries, first ADR, quality gates and vertical-slice acceptance criteria.
+
+### Run the workspace
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The interface starts in Russian; use **RU** in the header to switch to English. The choice is stored per browser user profile.
+
+### Run infrastructure and backend
+
+```bash
+docker compose up -d
+cd backend
+mvn spring-boot:run
+```
+
+The backend requires Java 25 and Maven. It exposes health at `/actuator/health` and OpenAPI UI at `/swagger-ui.html`; protected business endpoints require a valid OIDC JWT.
