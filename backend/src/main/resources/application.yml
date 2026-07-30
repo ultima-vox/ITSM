@@ -3,14 +3,13 @@ spring:
   datasource: { url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/itsm}, username: ${DATABASE_USER:itsm}, password: ${DATABASE_PASSWORD:itsm} }
   security: { oauth2: { resourceserver: { jwt: { issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/itsm} } } } }
   flyway: { enabled: true }
-management: { endpoints: { web: { exposure: { include: health,info,metrics } } }, endpoint: { health: { probes: { enabled: true } } } }
-springdoc: { swagger-ui: { path: /swagger-ui.html } }
-itsm:
-  outbox:
-    poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
-spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+management: { endpoints: { web: { exposure: { include: health,info,metrics } } }, endpoint: { health: { probes: { enabled: true } } } }
+springdoc: { swagger-ui: { path: /swagger-ui.html } }
+itsm:
+  outbox:
+    poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
