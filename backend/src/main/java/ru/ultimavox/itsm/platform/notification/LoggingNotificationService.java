@@ -5,13 +5,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Default notification adapter: logs structured delivery intent.
+ * Default notification adapter: logs structured delivery intent and retains
+ * a short in-memory history for the demo GET /api/v1/notifications endpoint.
  * Replace with SMTP / push / webhook adapters without changing callers.
  */
 @Service
 public class LoggingNotificationService implements NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingNotificationService.class);
+
+    private final InMemoryNotificationStore store;
+
+    public LoggingNotificationService(InMemoryNotificationStore store) {
+        this.store = store;
+    }
 
     @Override
     public void send(NotificationRequest request) {
@@ -24,5 +31,6 @@ public class LoggingNotificationService implements NotificationService {
                 request.correlationId(),
                 request.variables().keySet()
         );
+        store.add(StoredNotification.from(request));
     }
 }

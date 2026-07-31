@@ -50,6 +50,10 @@ import {
   ModuleDetailDrawer,
   type ModuleRelatedItem,
 } from '@/components/modules/ModuleDetailDrawer';
+import {
+  ModuleBulkBar,
+  ModuleKbdHint,
+} from '@/components/modules/ModuleBulkBar';
 import { formatDate, formatDateTime } from '@/lib/format';
 import {
   resolveRelatedHref,
@@ -685,7 +689,10 @@ export function ChangesPage() {
                   </button>
                   <span className="muted">
                     {' '}
-                    · {c.dayKey} · CI {c.ciIds.join(', ')}
+                    · {c.dayKey} ·{' '}
+                    {t('changes.conflict.cis', {
+                      names: c.ciIds.map((id) => resolveRelatedLabel(id)).join(', '),
+                    })}
                   </span>
                 </li>
               ))}
@@ -825,62 +832,32 @@ export function ChangesPage() {
         </section>
       </div>
 
-      {!loading && list.length > 0 && (
-        <div className="grid-kbd-hint" aria-hidden>
-          <kbd>↑</kbd>
-          <kbd>↓</kbd>
-          <span>/</span>
-          <kbd>J</kbd>
-          <kbd>K</kbd>
-          <span>{t('grid.kbdNav')}</span>
-          <kbd>Enter</kbd>
-          <span>{t('grid.kbdOpen')}</span>
-          <kbd>Space</kbd>
-          <span>{t('grid.kbdSelect')}</span>
-          <kbd>Ctrl</kbd>
-          <kbd>A</kbd>
-          <span>{t('grid.selectAll')}</span>
-        </div>
-      )}
+      {!loading && list.length > 0 && <ModuleKbdHint />}
 
-      {selectedIds.size > 0 && (
-        <div className="bulk-bar" role="toolbar" aria-label={t('grid.bulkActions')}>
-          <span className="bulk-bar__count">
-            {t('grid.selected', { n: selectedIds.size })}
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => void handleBulkAssign()}>
-            {t('grid.assignToMe')}
-          </Button>
-          <div className="bulk-bar__priority">
-            <span>{t('module.bulk.changeStatus')}</span>
-            {(
-              [
-                'cab_review',
-                'scheduled',
-                'in_progress',
-                'completed',
-                'cancelled',
-              ] as ChangeStatus[]
-            ).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="chip chip--toggle"
-                onClick={() => void handleBulkStatus(s)}
-              >
-                {t(`status.${s}`)}
-              </button>
-            ))}
-          </div>
+      <ModuleBulkBar
+        selectedCount={selectedIds.size}
+        onAssign={() => void handleBulkAssign()}
+        onClear={() => setSelectedIds(new Set())}
+      >
+        {(
+          [
+            'cab_review',
+            'scheduled',
+            'in_progress',
+            'completed',
+            'cancelled',
+          ] as ChangeStatus[]
+        ).map((s) => (
           <button
+            key={s}
             type="button"
-            className="text-link bulk-bar__clear"
-            onClick={() => setSelectedIds(new Set())}
+            className="chip chip--toggle"
+            onClick={() => void handleBulkStatus(s)}
           >
-            {t('grid.clearSelection')}
+            {t(`status.${s}`)}
           </button>
-        </div>
-      )}
+        ))}
+      </ModuleBulkBar>
 
       <div
         className={`panel panel--flush data-table-wrap module-table${

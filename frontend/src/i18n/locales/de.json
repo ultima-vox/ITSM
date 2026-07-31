@@ -92,7 +92,8 @@
     "bulkPriorityChanged": "Priorität geändert für {n}: {p}",
     "kbdNav": "navigieren",
     "kbdOpen": "öffnen",
-    "kbdSelect": "auswählen"
+    "kbdSelect": "auswählen",
+    "kbdClear": "Auswahl löschen"
   },
   "notifications": {
     "unread": "{n} neu",
@@ -516,7 +517,7 @@
     "mapTitle": "Abhängigkeitskarte",
     "mapService": "Northstar-Servicegraph",
     "mapFocus": "Fokus: {name}",
-    "mapHint": "Knoten klicken, um Nachbarn zu prüfen",
+    "mapHint": "Klick = auswählen · Doppelklick = Detail fokussieren",
     "mapEmptyTitle": "Keine Graphknoten",
     "mapEmptyHint": "CIs mit bekanntem Layout hinzufügen, um die Karte zu füllen.",
     "mapNodeService": "Northstar Portal",
@@ -532,6 +533,10 @@
     "fieldCriticality": "Kritikalität",
     "relationships": "Beziehungen",
     "noRelations": "Keine Beziehungen für dieses CI erfasst.",
+    "exportCsv": "CI-CSV exportieren",
+    "exportDone": "{n} Konfigurationselement(e) exportiert",
+    "healthLegend": "Legende Betriebszustand",
+    "retiredLegend": "Außer Betrieb",
     "relForm": {
       "title": "Beziehung hinzufügen",
       "target": "Ziel-CI",
@@ -539,6 +544,9 @@
       "type": "Typ",
       "add": "Beziehung hinzufügen",
       "remove": "Beziehung entfernen",
+      "editType": "Typ ändern",
+      "editHint": "Doppelklick oder „Typ ändern“ für Beziehungstyp",
+      "updated": "Beziehungstyp aktualisiert",
       "added": "Beziehung hinzugefügt",
       "removed": "Beziehung entfernt",
       "required": "Ziel-CI auswählen",
@@ -556,6 +564,7 @@
     },
     "rel": {
       "depends_on": "Hängt ab von",
+      "hosted_on": "Gehostet auf",
       "runs_on": "Läuft auf",
       "uses": "Nutzt",
       "connects_to": "Verbindet mit",
@@ -563,7 +572,8 @@
     },
     "relIn": {
       "depends_on": "Benötigt von",
-      "runs_on": "Hostet",
+      "hosted_on": "Hostet",
+      "runs_on": "Hostet Laufzeit für",
       "uses": "Genutzt von",
       "connects_to": "Verbunden von",
       "hosts": "Gehostet auf"
@@ -829,7 +839,8 @@
     },
     "conflict": {
       "title": "Freeze / CI-Konflikt",
-      "body": "{n} Konfliktpaar(e) — zwei NORMAL-Changes am selben Tag auf verwandten CIs: {pairs}"
+      "body": "{n} Konfliktpaar(e) — zwei NORMAL-Changes am selben Tag auf verwandten CIs: {pairs}",
+      "cis": "CIs: {names}"
     }
   },
   "reports": {
@@ -860,18 +871,29 @@
     "urgentQueueHint": "SLA verletzt, gefährdet oder kritisch",
     "noUrgent": "Derzeit keine dringenden Tickets.",
     "exportCsv": "CSV exportieren",
+    "print": "Drucken",
     "filterType": "Typ",
     "filterPriority": "Priorität",
     "filterCount": "{n} Tickets",
     "trendTitle": "7-Tage-Trend",
     "trendHint": "Eröffnet vs. gelöst (Store + leichtes Synthetic-Fill)",
+    "trendHintStore": "Eröffnet vs. gelöst aus Store-Zeitstempeln (ohne Fill)",
+    "trendHintSynthetic": "Keine Store-Aktivität diese Woche — illustratives Fill (markiert)",
+    "trendSyntheticBanner": "Balken mit * sind nur Illustration — kein Live-Ticketvolumen.",
+    "trendSyntheticTag": "Synthetisch",
     "trendOpened": "Eröffnet",
     "trendResolved": "Gelöst",
     "resolutionRate": "Lösungsquote",
     "resolutionRateHint": "Gelöst ÷ (gelöst + aktiv)",
     "mttr": "MTTR (Mock)",
     "mttrHint": "Ø Stunden von Erstellung bis Lösung",
-    "mttrValue": "{n} Std."
+    "mttrValue": "{n} Std.",
+    "slaCompliance": "SLA-Compliance (7T Mock)",
+    "slaComplianceHistory": "Aus Aktivitäts-Historie · met {met} / breached {breached}",
+    "slaComplianceSnapshot": "Aus aktuellem slaState · met/on-track {met} · breached {breached}",
+    "byAssignee": "Bearbeiter-Last",
+    "byAssigneeHint": "Top 5 Bearbeiter nach Ticketanzahl (Filter)",
+    "noAssignees": "Keine zugewiesenen Tickets im aktuellen Filter."
   },
   "settings": {
     "title": "Einstellungen",

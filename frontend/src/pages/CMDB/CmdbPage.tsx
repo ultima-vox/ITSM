@@ -11,6 +11,7 @@ import {
   Boxes,
   CheckCircle2,
   Cloud,
+  Download,
   Network,
   Plus,
   Search,
@@ -31,6 +32,7 @@ import {
   fetchCiRelations,
   fetchConfigurationItems,
   subscribeConfigurationItems,
+  updateCiRelation,
 } from '@/api';
 import {
   Button,
@@ -50,12 +52,64 @@ import type {
   ImpactLevel,
 } from '@/types';
 
-/** Relation types offered in the detail form (DEPENDS_ON / HOSTED_ON / RUNS_ON) */
+/** Full relation type set matching mock graph vocabulary */
 const EDITABLE_REL_TYPES: CiRelationType[] = [
   'depends_on',
-  'hosts',
+  'hosted_on',
   'runs_on',
+  'connects_to',
+  'uses',
 ];
+
+function displayRelType(type: CiRelationType): CiRelationType {
+  return type === 'hosts' ? 'hosted_on' : type;
+}
+
+function csvEscape(value: string): string {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+function downloadCiListCsv(
+  items: ConfigurationItem[],
+  kindLabel: (key: string) => string,
+  statusLabel: (s: CiStatus) => string,
+  filename: string,
+) {
+  const headers = [
+    'id',
+    'name',
+    'kind',
+    'status',
+    'owner',
+    'environment',
+    'criticality',
+    'icon',
+  ];
+  const rows = items.map((c) =>
+    [
+      c.id,
+      c.name,
+      kindLabel(c.kindKey),
+      statusLabel(c.status),
+      c.owner,
+      c.environment ?? '',
+      c.criticality ?? '',
+      c.icon,
+    ]
+      .map((v) => csvEscape(String(v)))
+      .join(','),
+  );
+  const blob = new Blob([[headers.join(','), ...rows].join('\n')], {
+    type: 'text/csv;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const icons = {
   server: Server,
@@ -259,7 +313,9 @@ export function CmdbPage() {
   const [relType, setRelType] = useState<CiRelationType>('depends_on');
   const [relBusy, setRelBusy] = useState(false);
   const [relError, setRelError] = useState<string | null>(null);
+  const [editingRelId, setEditingRelId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const itemsAsync = useAsync(() => fetchConfigurationItems(), []);
   const relationsAsync = useAsync(() => fetchCiRelations(), []);
@@ -368,7 +424,35 @@ export function CmdbPage() {
     setSelectedId(id);
     setRelError(null);
     setRelTargetId('');
+    setEditingRelId(null);
   }, []);
+
+  /** Double-click / focus: select and bring detail panel into view */
+  const focusCi = useCallback(
+    (id: string) => {
+      selectCi(id);
+      // Defer scroll so selection paint runs first
+      requestAnimationFrame(() => {
+        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        listRef.current
+          ?.querySelector<HTMLElement>(`[data-ci-id="${id}"]`)
+          ?.focus();
+      });
+    },
+    [selectCi],
+  );
+
+  const exportCiCsv = useCallback(() => {
+    const source = list.length ? list : (data ?? []);
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCiListCsv(
+      source,
+      (key) => t(key),
+      (s) => t(`status.${s}`),
+      `itsm-cmdb-cis-${stamp}.csv`,
+    );
+    success(t('cmdb.exportDone', { n: source.length }));
+  }, [list, data, t, success]);
 
   const targetCiOptions = useMemo(() => {
     if (!selectedId) return [];
@@ -416,8 +500,34 @@ export function CmdbPage() {
         return;
       }
       success(t('cmdb.relForm.removed'));
+      setEditingRelId(null);
       setLocalRelations((prev) =>
         (prev ?? relations).filter((r) => r.id !== id),
+      );
+    } finally {
+      setRelBusy(false);
+    }
+  };
+
+  const handleUpdateRelationType = async (
+    id: string,
+    nextType: CiRelationType,
+  ) => {
+    setRelBusy(true);
+    setRelError(null);
+    try {
+      const result = await updateCiRelation(id, { type: nextType });
+      if (!result.ok) {
+        setRelError(t(result.errorKey));
+        toastError(t(result.errorKey));
+        return;
+      }
+      success(t('cmdb.relForm.updated'));
+      setEditingRelId(null);
+      setLocalRelations((prev) =>
+        (prev ?? relations).map((r) =>
+          r.id === id ? result.relation : r,
+        ),
       );
     } finally {
       setRelBusy(false);
@@ -506,13 +616,24 @@ export function CmdbPage() {
           <h1>{t('cmdb.title')}</h1>
           <p className="page-subtitle">{t('cmdb.subtitle')}</p>
         </div>
-        <Button
-          variant="primary"
-          icon={<Plus size={18} />}
-          onClick={() => setShowAdd(true)}
-        >
-          {t('cmdb.addCi')}
-        </Button>
+        <div className="page-head__meta">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download size={16} />}
+            onClick={exportCiCsv}
+            disabled={!data?.length}
+          >
+            {t('cmdb.exportCsv')}
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Plus size={18} />}
+            onClick={() => setShowAdd(true)}
+          >
+            {t('cmdb.addCi')}
+          </Button>
+        </div>
       </div>
 
       <div className="cmdb-stats">
@@ -625,7 +746,9 @@ export function CmdbPage() {
                     aria-selected={isSelected}
                     className={`ci-row${isSelected ? ' is-selected' : ''}`}
                     key={ci.id}
+                    data-ci-id={ci.id}
                     onClick={() => selectCi(ci.id)}
+                    onDoubleClick={() => focusCi(ci.id)}
                   >
                     <span className={`ci-icon ci-icon--${ci.tone}`}>
                       <Icon size={16} />
@@ -678,23 +801,39 @@ export function CmdbPage() {
               neighborIds={neighborIds}
               neighborEdges={neighborEdges}
               onSelect={selectCi}
+              onFocus={focusCi}
               label={t('cmdb.mapTitle')}
             />
           )}
 
-          <div className="map-footer">
-            <span>
+          <div
+            className="map-footer map-footer--legend"
+            role="list"
+            aria-label={t('cmdb.healthLegend')}
+          >
+            <span role="listitem" className="map-footer__item">
               <i className="is-ok" aria-hidden />
-              <span className="map-footer__label">{t('cmdb.healthy')}</span>
+              <span className="map-footer__label">
+                {t('cmdb.healthy')} — {t('status.operational')}
+              </span>
             </span>
-            <span>
+            <span role="listitem" className="map-footer__item">
               <i className="is-warn" aria-hidden />
-              <span className="map-footer__label">{t('cmdb.attention')}</span>
+              <span className="map-footer__label">
+                {t('cmdb.attention')} — {t('status.degraded')} /{' '}
+                {t('status.maintenance')}
+              </span>
+            </span>
+            <span role="listitem" className="map-footer__item">
+              <i className="is-retired" aria-hidden />
+              <span className="map-footer__label">
+                {t('cmdb.retiredLegend')} — {t('status.retired')}
+              </span>
             </span>
             <span className="map-footer__hint">{t('cmdb.mapHint')}</span>
           </div>
 
-          <div className="ci-detail">
+          <div className="ci-detail" ref={detailRef}>
             {selected ? (
               <>
                 <div className="ci-detail__head">
@@ -728,35 +867,86 @@ export function CmdbPage() {
                     <p className="ci-detail__empty">{t('cmdb.noRelations')}</p>
                   ) : (
                     <ul>
-                      {selectedRelations.map(({ relation, other, direction }) => (
-                        <li key={relation.id} className="ci-rel-row">
-                          <button
-                            type="button"
-                            className="ci-rel"
-                            disabled={!other}
-                            onClick={() => other && selectCi(other.id)}
-                          >
-                            <span className="ci-rel__type">
-                              {direction === 'out'
-                                ? t(`cmdb.rel.${relation.type}`)
-                                : t(`cmdb.relIn.${relation.type}`)}
-                            </span>
-                            <span className="ci-rel__name">
-                              {other?.name ?? t('cmdb.unknownCi')}
-                            </span>
-                            {other && <StatusChip status={other.status} />}
-                          </button>
-                          <button
-                            type="button"
-                            className="ci-rel__remove icon-btn"
-                            aria-label={t('cmdb.relForm.remove')}
-                            disabled={relBusy}
-                            onClick={() => void handleRemoveRelation(relation.id)}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </li>
-                      ))}
+                      {selectedRelations.map(({ relation, other, direction }) => {
+                        const relTypeKey = displayRelType(relation.type);
+                        const isEditing = editingRelId === relation.id;
+                        return (
+                          <li key={relation.id} className="ci-rel-row">
+                            {isEditing ? (
+                              <div className="ci-rel-edit">
+                                <Select
+                                  label={t('cmdb.relForm.type')}
+                                  value={relTypeKey}
+                                  onChange={(e) =>
+                                    void handleUpdateRelationType(
+                                      relation.id,
+                                      e.target.value as CiRelationType,
+                                    )
+                                  }
+                                  options={EDITABLE_REL_TYPES.map((rt) => ({
+                                    value: rt,
+                                    label: t(`cmdb.rel.${rt}`),
+                                  }))}
+                                  disabled={relBusy}
+                                />
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={relBusy}
+                                  onClick={() => setEditingRelId(null)}
+                                >
+                                  {t('app.cancel')}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ci-rel"
+                                disabled={!other}
+                                onClick={() => other && selectCi(other.id)}
+                                onDoubleClick={(e) => {
+                                  e.preventDefault();
+                                  setEditingRelId(relation.id);
+                                }}
+                                title={t('cmdb.relForm.editHint')}
+                              >
+                                <span className="ci-rel__type">
+                                  {direction === 'out'
+                                    ? t(`cmdb.rel.${relTypeKey}`)
+                                    : t(`cmdb.relIn.${relTypeKey}`)}
+                                </span>
+                                <span className="ci-rel__name">
+                                  {other?.name ?? t('cmdb.unknownCi')}
+                                </span>
+                                {other && <StatusChip status={other.status} />}
+                              </button>
+                            )}
+                            <div className="ci-rel-row__actions">
+                              {!isEditing && (
+                                <button
+                                  type="button"
+                                  className="text-button ci-rel__edit"
+                                  disabled={relBusy}
+                                  onClick={() => setEditingRelId(relation.id)}
+                                >
+                                  {t('cmdb.relForm.editType')}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="ci-rel__remove icon-btn"
+                                aria-label={t('cmdb.relForm.remove')}
+                                disabled={relBusy}
+                                onClick={() =>
+                                  void handleRemoveRelation(relation.id)
+                                }
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   <form
@@ -875,6 +1065,7 @@ function DependencyGraph({
   neighborIds,
   neighborEdges,
   onSelect,
+  onFocus,
   label,
 }: {
   items: ConfigurationItem[];
@@ -885,6 +1076,8 @@ function DependencyGraph({
   neighborIds: Set<string>;
   neighborEdges: Set<string>;
   onSelect: (id: string) => void;
+  /** Double-click focuses CI detail (scroll + select) */
+  onFocus: (id: string) => void;
   label: string;
 }) {
   const t = useT();
@@ -1002,6 +1195,11 @@ function DependencyGraph({
               }
               aria-pressed={isSel}
               onClick={() => onSelect(ci.id)}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onFocus(ci.id);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();

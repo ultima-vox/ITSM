@@ -17,6 +17,7 @@ import {
   listCiRelations,
   listConfigurationItems,
   removeCiRelation as storeRemoveCiRelation,
+  updateCiRelation as storeUpdateCiRelation,
   subscribeConfigurationItems,
   subscribeSecondaryModules,
   transitionAsset as storeTransitionAsset,
@@ -85,6 +86,25 @@ export async function deleteCiRelation(
   try {
     await apiRequest(`/cmdb/relations/${id}`, { method: 'DELETE' });
     return { ok: true };
+  } catch {
+    return { ok: false, errorKey: 'cmdb.relForm.error' };
+  }
+}
+
+export async function updateCiRelation(
+  id: string,
+  patch: { type: CiRelationType },
+): Promise<{ ok: true; relation: CiRelation } | { ok: false; errorKey: string }> {
+  if (useMock()) {
+    await delay(80);
+    return storeUpdateCiRelation(id, patch);
+  }
+  try {
+    const relation = await apiRequest<CiRelation>(`/cmdb/relations/${id}`, {
+      method: 'PATCH',
+      body: patch,
+    });
+    return { ok: true, relation };
   } catch {
     return { ok: false, errorKey: 'cmdb.relForm.error' };
   }

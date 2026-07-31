@@ -20,6 +20,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.notification.NotificationRequest;
+import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
@@ -42,6 +44,8 @@ class TransitionWorkItemTest {
   @Mock IntegrationEventOutbox outbox;
   @Mock ObjectProvider<WorkflowEngine> workflowEngineProvider;
   @Mock WorkflowEngine workflowEngine;
+  @Mock NotificationService notifications;
+  @Mock WorkItemSearchIndexer searchIndexer;
 
   private TransitionWorkItem service;
   private final UUID id = UUID.fromString("b2ff9175-7a70-4d16-b60b-051deb0d2e01");
@@ -50,7 +54,9 @@ class TransitionWorkItemTest {
   @BeforeEach
   void setUp() {
     when(workflowEngineProvider.getIfAvailable()).thenReturn(null);
-    service = new TransitionWorkItem(store, audit, outbox, workflowEngineProvider);
+    service = new TransitionWorkItem(
+        store, audit, outbox, workflowEngineProvider, notifications, searchIndexer
+    );
   }
 
   @Test
@@ -69,6 +75,13 @@ class TransitionWorkItemTest {
     assertThat(captor.getValue().state()).isEqualTo(State.IN_PROGRESS);
     verify(audit).append(any());
     verify(outbox).record(any());
+    verify(searchIndexer).index(any(WorkItem.class));
+
+    ArgumentCaptor<NotificationRequest> notif = ArgumentCaptor.forClass(NotificationRequest.class);
+    verify(notifications).send(notif.capture());
+    assertThat(notif.getValue().templateKey()).isEqualTo("work-item.transitioned");
+    assertThat(notif.getValue().recipientSubject()).isEqualTo("agent-9");
+    assertThat(notif.getValue().channel()).isEqualTo(NotificationRequest.Channel.IN_APP);
   }
 
   @Test
@@ -82,6 +95,7 @@ class TransitionWorkItemTest {
     )).isInstanceOf(IllegalStateException.class);
 
     verify(store, never()).update(any());
+    verify(notifications, never()).send(any());
   }
 
   @Test

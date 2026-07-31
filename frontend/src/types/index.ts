@@ -138,9 +138,11 @@ export type CiStatus = 'operational' | 'degraded' | 'maintenance' | 'retired';
 export type CiIcon = 'server' | 'cloud' | 'network' | 'database' | 'app';
 export type CiRelationType =
   | 'depends_on'
+  | 'hosted_on'
   | 'runs_on'
   | 'uses'
   | 'connects_to'
+  /** @deprecated use hosted_on — kept for hydrated session stores */
   | 'hosts';
 
 export interface ConfigurationItem {
