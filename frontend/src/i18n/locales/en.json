@@ -706,7 +706,9 @@
     "bulk": {
       "changeStatus": "Status:",
       "assigned": "Assigned to you: {n}",
-      "statusChanged": "Status updated for {n}: {status}"
+      "statusChanged": "Status updated for {n}: {status}",
+      "statusChangedPartial": "Updated {n}; skipped {skipped} ({status})",
+      "skippedDetail": "Skipped {n}: {reason}"
     },
     "errors": {
       "notFound": "Record not found",
@@ -1033,6 +1035,7 @@
     "breachedDetail": "{n} also at risk",
     "satisfaction": "CSAT",
     "satisfactionDetail": "Trailing period",
+    "satisfactionFilteredDetail": "Filtered set · resolved without breach (proxy CSAT)",
     "slaSummary": "SLA heat",
     "slaSummaryHint": "Jump into the matching queue filter",
     "placeholderNote": "Counts update when you assign or resolve work items.",

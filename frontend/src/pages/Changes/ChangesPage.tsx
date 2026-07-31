@@ -363,12 +363,35 @@ export function ChangesPage() {
 
   const handleBulkStatus = async (next: ChangeStatus) => {
     try {
-      const n = await bulkSetChangeStatus([...selectedIds], next);
-      if (n === 0) {
-        toastError(t('module.errors.bulkNoneSucceeded'));
+      const result = await bulkSetChangeStatus([...selectedIds], next);
+      if (result.ok === 0) {
+        const first = result.skipped[0];
+        toastError(
+          first
+            ? t('module.bulk.skippedDetail', {
+                n: result.skipped.length,
+                reason: t(first.errorKey),
+              })
+            : t('module.errors.bulkNoneSucceeded'),
+        );
         return;
       }
-      success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+      if (result.skipped.length > 0) {
+        success(
+          t('module.bulk.statusChangedPartial', {
+            n: result.ok,
+            skipped: result.skipped.length,
+            status: t(`status.${next}`),
+          }),
+        );
+      } else {
+        success(
+          t('module.bulk.statusChanged', {
+            n: result.ok,
+            status: t(`status.${next}`),
+          }),
+        );
+      }
       setSelectedIds(new Set());
     } catch (err) {
       toastError(

@@ -21,7 +21,7 @@ import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { fetchDashboardMetrics, fetchWorkItems } from '@/api';
-import { activities as seedActivities } from '@/mock/data';
+import { getActivities } from '@/mock/store';
 import type { Priority, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
 import { Button, ErrorState, Select, Skeleton } from '@/components/ui';
 import { MetricCard, PriorityBadge, StatusChip } from '@/components/data-display';
@@ -155,9 +155,9 @@ function buildTrend(list: WorkItem[]) {
 }
 
 /**
- * SLA compliance mock for last 7 days:
- * 1) From history (activity kind=sla, text sla_breached / sla_met) if any
- * 2) Else current slaState distribution among met vs breached
+ * SLA compliance for last 7 days on the **filtered** work-item set (S15).
+ * 1) History from store activities for those ids only (not global seed dump)
+ * 2) Else current slaState snapshot on the same list
  */
 function computeSlaCompliance(list: WorkItem[]): {
   pct: number | null;
@@ -171,8 +171,8 @@ function computeSlaCompliance(list: WorkItem[]): {
 
   let histMet = 0;
   let histBreached = 0;
-  for (const acts of Object.values(seedActivities)) {
-    for (const a of acts) {
+  for (const w of list) {
+    for (const a of getActivities(w.id)) {
       if (a.kind !== 'sla') continue;
       const at = new Date(a.at).getTime();
       if (Number.isNaN(at) || at < weekStartMs) continue;
@@ -193,7 +193,6 @@ function computeSlaCompliance(list: WorkItem[]): {
   const breached = list.filter((w) => w.slaState === 'breached').length;
   const denom = met + breached;
   if (denom === 0) {
-    // Broader snapshot: treat non-breached terminal-ish as compliant share of all with SLA
     const onTrack = list.filter(
       (w) => w.slaState === 'on_track' || w.slaState === 'met',
     ).length;
@@ -214,6 +213,17 @@ function computeSlaCompliance(list: WorkItem[]): {
     breached,
     source: 'snapshot',
   };
+}
+
+/**
+ * CSAT proxy from **filtered** resolved items (S14) — not global dashboard seed.
+ * Share of resolved items that did not breach SLA (mock stand-in for surveys).
+ */
+function computeFilteredCsat(list: WorkItem[]): number | null {
+  const resolved = list.filter((w) => isResolvedStatus(w.status));
+  if (resolved.length === 0) return null;
+  const happy = resolved.filter((w) => w.slaState !== 'breached').length;
+  return Math.round((happy / resolved.length) * 100);
 }
 
 export function ReportsPage() {
@@ -292,6 +302,7 @@ export function ReportsPage() {
     const maxAssignee = Math.max(1, ...topAssignees.map((a) => a.count), 1);
 
     const slaCompliance = computeSlaCompliance(list);
+    const filteredCsat = computeFilteredCsat(list);
 
     return {
       resolved: resolved.length,
@@ -313,6 +324,7 @@ export function ReportsPage() {
       topAssignees,
       maxAssignee,
       slaCompliance,
+      filteredCsat,
       topUrgent: list
         .filter(
           (w) =>
@@ -462,9 +474,13 @@ export function ReportsPage() {
             <MetricCard
               icon={<Gauge size={18} />}
               color="amber"
-              value={metrics.data ? `${metrics.data.satisfaction}%` : '—'}
+              value={
+                derived.filteredCsat != null
+                  ? `${derived.filteredCsat}%`
+                  : '—'
+              }
               label={t('reports.satisfaction')}
-              detail={t('reports.satisfactionDetail')}
+              detail={t('reports.satisfactionFilteredDetail')}
             />
           </>
         )}

@@ -706,7 +706,9 @@
     "bulk": {
       "changeStatus": "Status:",
       "assigned": "Ihnen zugewiesen: {n}",
-      "statusChanged": "Status geändert für {n}: {status}"
+      "statusChanged": "Status geändert für {n}: {status}",
+      "statusChangedPartial": "Aktualisiert {n}; übersprungen {skipped} ({status})",
+      "skippedDetail": "Übersprungen {n}: {reason}"
     },
     "errors": {
       "notFound": "Datensatz nicht gefunden",
@@ -1033,6 +1035,7 @@
     "breachedDetail": "noch {n} gefährdet",
     "satisfaction": "CSAT",
     "satisfactionDetail": "Zeitraum",
+    "satisfactionFilteredDetail": "Filter · gelöst ohne Breach (CSAT-Proxy)",
     "slaSummary": "SLA-Heat",
     "slaSummaryHint": "Zur passenden Warteschlangen-Ansicht",
     "placeholderNote": "Zähler aktualisieren sich bei Zuweisung und Lösung.",

@@ -4,6 +4,7 @@ import {
   addChange as storeAddChange,
   bulkAssignChanges as storeBulkAssignChanges,
   bulkSetChangeStatus as storeBulkSetChangeStatus,
+  type BulkStatusResult,
   cabChairApproveAllowed as storeCabChairApproveAllowed,
   castCabMemberVote as storeCastCabVote,
   countCabApproves as storeCountCabApproves,
@@ -170,17 +171,33 @@ export async function bulkAssignChanges(ids: string[]): Promise<number> {
   refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }
 
+export type { BulkStatusResult };
+
 export async function bulkSetChangeStatus(
   ids: string[],
   status: ChangeStatus,
-): Promise<number> {
+): Promise<BulkStatusResult> {
   if (useMock()) {
     await delay(80);
     return storeBulkSetChangeStatus(ids, status);
   }
-  // Live: per-item transitions (honest count of successes).
-  const results = await Promise.all(
-    ids.map((id) => transitionChangeStatus(id, status)),
+  // Live: per-item transitions (honest count of successes + skips).
+  const settled = await Promise.all(
+    ids.map(async (id) => {
+      const r = await transitionChangeStatus(id, status);
+      return { id, r };
+    }),
   );
-  return results.filter((r) => r.ok).length;
+  const skipped: BulkStatusResult['skipped'] = [];
+  let ok = 0;
+  for (const x of settled) {
+    if (x.r.ok) ok += 1;
+    else
+      skipped.push({
+        id: x.id,
+        number: x.id,
+        errorKey: x.r.errorKey,
+      });
+  }
+  return { ok, skipped };
 }
