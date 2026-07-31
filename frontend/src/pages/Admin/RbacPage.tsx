@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyRound, Shield, Users } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import {
   assignUserRole,
+  fetchRbacRoles,
+  fetchRbacUsers,
   getPermissionDescription,
-  listRbacRoles,
-  listRbacUsers,
+  rbacWritable,
   subscribeRbac,
-} from '@/mock/rbac';
+  useMock,
+} from '@/api';
 import type { LocaleCode, RbacRole, RbacRoleKey, RbacUser, RbacUserStatus } from '@/types';
 import { Badge, EmptyState, ErrorState, Select, Tabs } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -39,30 +41,31 @@ export function RbacPage() {
   const t = useT();
   const { locale } = useI18n();
   const { success } = useToast();
+  const writable = rbacWritable();
+  const liveMode = !useMock();
   const [tab, setTab] = useState<'roles' | 'users'>('roles');
-  const [roles, setRoles] = useState<RbacRole[]>(() => listRbacRoles());
-  const [users, setUsers] = useState<RbacUser[]>(() => listRbacUsers());
+  const [roles, setRoles] = useState<RbacRole[]>([]);
+  const [users, setUsers] = useState<RbacUser[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     try {
-      setRoles(listRbacRoles());
-      setUsers(listRbacUsers());
+      const [r, u] = await Promise.all([fetchRbacRoles(), fetchRbacUsers()]);
+      setRoles(r);
+      setUsers(u);
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
-    return subscribeRbac(() => {
-      try {
-        setRoles(listRbacRoles());
-        setUsers(listRbacUsers());
-        setLoadError(false);
-      } catch {
-        setLoadError(true);
-      }
-    });
   }, []);
+
+  useEffect(() => {
+    void reload();
+    return subscribeRbac(() => {
+      void reload();
+    });
+  }, [reload]);
 
   const selected: RbacRole | null = useMemo(() => {
     if (!roles.length) return null;
@@ -80,11 +83,16 @@ export function RbacPage() {
   );
 
   const handleAssign = (user: RbacUser, roleKey: RbacRoleKey) => {
+    if (!writable) return;
     if (user.roleKey === roleKey) return;
-    const next = assignUserRole(user.id, roleKey);
-    if (next) {
-      success(t('rbacAdmin.roleAssignedToast', { name: user.name, role: roleKey }));
-    }
+    void assignUserRole(user.id, roleKey).then((next) => {
+      if (next) {
+        success(
+          t('rbacAdmin.roleAssignedToast', { name: user.name, role: roleKey }),
+        );
+        void reload();
+      }
+    });
   };
 
   if (loadError) {
@@ -96,17 +104,7 @@ export function RbacPage() {
             <p className="page-subtitle">{t('rbacAdmin.subtitle')}</p>
           </div>
         </div>
-        <ErrorState
-          onRetry={() => {
-            try {
-              setRoles(listRbacRoles());
-              setUsers(listRbacUsers());
-              setLoadError(false);
-            } catch {
-              setLoadError(true);
-            }
-          }}
-        />
+        <ErrorState onRetry={() => void reload()} />
       </section>
     );
   }
@@ -127,7 +125,9 @@ export function RbacPage() {
             <Users size={14} aria-hidden />
             {t('rbacAdmin.userCount', { n: users.length })}
           </span>
-          <span className="chip chip--muted">{t('rbacAdmin.mockHint')}</span>
+          <span className={`chip${liveMode ? '' : ' chip--muted'}`}>
+            {liveMode ? t('settings.apiModeLive') : t('rbacAdmin.mockHint')}
+          </span>
         </div>
       </div>
 
@@ -310,6 +310,7 @@ export function RbacPage() {
                           aria-label={t('rbacAdmin.assignRoleAria', { name: u.name })}
                           options={roleOptions}
                           value={u.roleKey}
+                          disabled={!writable}
                           onChange={(e) =>
                             handleAssign(u, e.target.value as RbacRoleKey)
                           }

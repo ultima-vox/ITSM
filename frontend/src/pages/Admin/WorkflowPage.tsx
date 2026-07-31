@@ -1,36 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GitBranch, Workflow } from 'lucide-react';
 import { useT } from '@/i18n';
 import {
-  listWorkflowDefinitions,
+  fetchWorkflowDefinitions,
   setWorkflowActiveVersion,
   subscribeWorkflowDefinitions,
-} from '@/mock/workflow';
+  useMock,
+  workflowDefinitionsWritable,
+} from '@/api';
 import type { WorkflowDefinition } from '@/types';
 import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
 
 export function WorkflowPage() {
   const t = useT();
-  const [defs, setDefs] = useState<WorkflowDefinition[]>(() => listWorkflowDefinitions());
+  const writable = workflowDefinitionsWritable();
+  const liveMode = !useMock();
+  const [defs, setDefs] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     try {
-      setDefs(listWorkflowDefinitions());
+      const list = await fetchWorkflowDefinitions();
+      setDefs(list);
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
-    return subscribeWorkflowDefinitions(() => {
-      try {
-        setDefs(listWorkflowDefinitions());
-        setLoadError(false);
-      } catch {
-        setLoadError(true);
-      }
-    });
   }, []);
+
+  useEffect(() => {
+    void reload();
+    return subscribeWorkflowDefinitions(() => {
+      void reload();
+    });
+  }, [reload]);
 
   const selected: WorkflowDefinition | null = useMemo(() => {
     if (!defs.length) return null;
@@ -45,7 +49,8 @@ export function WorkflowPage() {
   );
 
   const handleActiveToggle = (def: WorkflowDefinition, next: boolean) => {
-    setWorkflowActiveVersion(def.id, next);
+    if (!writable) return;
+    void setWorkflowActiveVersion(def.id, next).then(() => reload());
   };
 
   if (loadError) {
@@ -57,16 +62,7 @@ export function WorkflowPage() {
             <p className="page-subtitle">{t('workflowAdmin.subtitle')}</p>
           </div>
         </div>
-        <ErrorState
-          onRetry={() => {
-            try {
-              setDefs(listWorkflowDefinitions());
-              setLoadError(false);
-            } catch {
-              setLoadError(true);
-            }
-          }}
-        />
+        <ErrorState onRetry={() => void reload()} />
       </section>
     );
   }
@@ -89,7 +85,9 @@ export function WorkflowPage() {
           <span className="chip chip--muted">
             {t('workflowAdmin.activeCount', { n: activeCount })}
           </span>
-          <span className="chip chip--muted">{t('workflowAdmin.mockHint')}</span>
+          <span className={`chip${liveMode ? '' : ' chip--muted'}`}>
+            {liveMode ? t('settings.apiModeLive') : t('workflowAdmin.mockHint')}
+          </span>
         </div>
       </div>
 
@@ -180,6 +178,7 @@ export function WorkflowPage() {
                   <Toggle
                     id={`wf-active-${selected.id}`}
                     checked={selected.active}
+                    disabled={!writable}
                     onChange={(next) => handleActiveToggle(selected, next)}
                     label={
                       selected.active

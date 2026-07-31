@@ -45,6 +45,26 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public List<WorkflowDefinitionView> listAll() {
+        return jdbc.query(
+                """
+                SELECT id, object_key, version, active, definition::text
+                FROM workflow_definition
+                ORDER BY object_key, version DESC
+                """,
+                (rs, i) -> new WorkflowDefinitionView(
+                        map(
+                                rs.getObject("id", UUID.class),
+                                rs.getString("object_key"),
+                                rs.getInt("version"),
+                                rs.getString("definition")
+                        ),
+                        rs.getBoolean("active")
+                )
+        );
+    }
+
     private WorkflowDefinition map(UUID id, String objectKey, int version, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);
