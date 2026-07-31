@@ -114,24 +114,57 @@ export interface KnowledgeTopic {
   count: number;
 }
 
+export type CiStatus = 'operational' | 'degraded' | 'maintenance' | 'retired';
+export type CiIcon = 'server' | 'cloud' | 'network' | 'database' | 'app';
+export type CiRelationType =
+  | 'depends_on'
+  | 'runs_on'
+  | 'uses'
+  | 'connects_to'
+  | 'hosts';
+
 export interface ConfigurationItem {
   id: string;
   name: string;
   kindKey: string;
-  status: 'operational' | 'degraded' | 'maintenance' | 'retired';
+  status: CiStatus;
   owner: string;
-  icon: 'server' | 'cloud' | 'network' | 'database' | 'app';
+  icon: CiIcon;
   tone: 'violet' | 'cyan' | 'amber' | 'mint';
   environment?: string;
   criticality?: Priority;
 }
+
+/** Directed edge in the CMDB dependency graph */
+export interface CiRelation {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: CiRelationType;
+}
+
+/** Impact analysis node (1–2 hop) for a planned change */
+export interface CiImpactEntry {
+  ciId: string;
+  hop: 1 | 2;
+  impact: ImpactLevel;
+  usersAffected?: number;
+  serviceKey?: string;
+}
+
+export type AssetStatus = 'in_use' | 'stock' | 'repair' | 'retired';
+export type AssetTypeKey =
+  | 'assets.types.laptop'
+  | 'assets.types.monitor'
+  | 'assets.types.phone'
+  | 'assets.types.peripheral';
 
 export interface Asset {
   id: string;
   tag: string;
   name: string;
   typeKey: string;
-  status: 'in_use' | 'stock' | 'repair' | 'retired';
+  status: AssetStatus;
   assignedTo: string | null;
   location: string;
   purchasedAt: string;
@@ -140,6 +173,8 @@ export interface Asset {
   vendor?: string;
   costCenter?: string;
   notes?: string;
+  relatedCiIds?: string[];
+  updatedAt?: string;
 }
 
 export interface Problem {
@@ -152,27 +187,89 @@ export interface Problem {
   relatedIncidents: number;
   assignee: Person | null;
   updatedAt: string;
+  createdAt?: string;
   description?: string;
   rootCause?: string;
   workaround?: string;
   service?: string;
+  relatedWorkItemIds?: string[];
+  relatedCiIds?: string[];
 }
+
+export type ChangeType = 'standard' | 'normal' | 'emergency';
+export type ChangeStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'cab_review';
 
 export interface Change {
   id: string;
   number: string;
   title: string;
-  type: 'standard' | 'normal' | 'emergency';
-  status: 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'cab_review';
+  type: ChangeType;
+  status: ChangeStatus;
   risk: Priority;
   plannedStart: string;
   plannedEnd: string;
   assignee: Person | null;
   updatedAt: string;
+  createdAt?: string;
   description?: string;
   implementationPlan?: string;
   backoutPlan?: string;
   service?: string;
+  cabApproved?: boolean;
+  relatedWorkItemIds?: string[];
+  relatedCiIds?: string[];
+}
+
+/** Shared activity/history entry for secondary modules (assets / problems / changes) */
+export interface ModuleActivity {
+  id: string;
+  at: string;
+  actor: Person;
+  kind: 'status' | 'field' | 'system' | 'comment';
+  /** i18n key under module.activity.* or plain label */
+  textKey: string;
+  detail?: string;
+}
+
+export interface CreateAssetPayload {
+  tag: string;
+  name: string;
+  typeKey: string;
+  status?: AssetStatus;
+  assignedTo?: string | null;
+  location: string;
+  serial?: string;
+  model?: string;
+  vendor?: string;
+  notes?: string;
+}
+
+export interface CreateProblemPayload {
+  title: string;
+  description?: string;
+  priority?: Priority;
+  service?: string;
+  knownError?: boolean;
+  rootCause?: string;
+  workaround?: string;
+}
+
+export interface CreateChangePayload {
+  title: string;
+  description?: string;
+  type?: ChangeType;
+  risk?: Priority;
+  service?: string;
+  plannedStart?: string;
+  plannedEnd?: string;
+  implementationPlan?: string;
+  backoutPlan?: string;
 }
 
 export interface DashboardMetrics {

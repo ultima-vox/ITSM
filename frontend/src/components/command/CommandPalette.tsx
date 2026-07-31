@@ -5,6 +5,7 @@ import {
   BookOpen,
   Boxes,
   ClipboardList,
+  Database,
   FilePlus2,
   Gauge,
   GitBranch,
@@ -245,6 +246,15 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         icon: Gauge,
         run: () => go('/reports'),
         keywords: 'reports analytics metrics',
+      },
+      {
+        id: 'nav-metadata',
+        kind: 'nav',
+        label: t('nav.metadata'),
+        hint: t('command.navigate'),
+        icon: Database,
+        run: () => go('/admin/metadata'),
+        keywords: 'metadata objects attributes admin schema',
       },
       {
         id: 'nav-settings',

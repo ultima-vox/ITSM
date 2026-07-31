@@ -3,6 +3,8 @@ import type {
   CatalogCategory,
   CatalogService,
   Change,
+  CiImpactEntry,
+  CiRelation,
   ConfigurationItem,
   DashboardMetrics,
   KnowledgeArticle,
@@ -571,7 +573,7 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     helpfulScore: 96,
     verified: true,
     icon: 'shield',
-    topicId: 'topic-security',
+    topicId: 'topic-access',
     updatedAt: '2026-07-18T10:00:00Z',
   },
   {
@@ -586,13 +588,37 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     topicId: 'topic-workplace',
     updatedAt: '2026-07-15T10:00:00Z',
   },
+  {
+    id: 'kb-mfa',
+    titleKey: 'knowledge.articles.mfa.title',
+    summaryKey: 'knowledge.articles.mfa.summary',
+    tagKey: 'knowledge.articles.mfa.tag',
+    readMinutes: 3,
+    helpfulScore: 91,
+    verified: true,
+    icon: 'shield',
+    topicId: 'topic-access',
+    updatedAt: '2026-07-22T09:00:00Z',
+  },
+  {
+    id: 'kb-outlook',
+    titleKey: 'knowledge.articles.outlook.title',
+    summaryKey: 'knowledge.articles.outlook.summary',
+    tagKey: 'knowledge.articles.outlook.tag',
+    readMinutes: 5,
+    helpfulScore: 88,
+    verified: false,
+    icon: 'book',
+    topicId: 'topic-apps',
+    updatedAt: '2026-07-25T14:30:00Z',
+  },
 ];
 
 export const knowledgeTopics: KnowledgeTopic[] = [
-  { id: 'topic-start', titleKey: 'knowledge.topics.gettingStarted', count: 12 },
-  { id: 'topic-access', titleKey: 'knowledge.topics.access', count: 18 },
-  { id: 'topic-workplace', titleKey: 'knowledge.topics.workplace', count: 9 },
-  { id: 'topic-apps', titleKey: 'knowledge.topics.apps', count: 24 },
+  { id: 'topic-start', titleKey: 'knowledge.topics.gettingStarted', count: 2 },
+  { id: 'topic-access', titleKey: 'knowledge.topics.access', count: 3 },
+  { id: 'topic-workplace', titleKey: 'knowledge.topics.workplace', count: 1 },
+  { id: 'topic-apps', titleKey: 'knowledge.topics.apps', count: 1 },
 ];
 
 export const configurationItems: ConfigurationItem[] = [
@@ -653,6 +679,86 @@ export const configurationItems: ConfigurationItem[] = [
   },
 ];
 
+/** Dependency edges for interactive map + impact hops */
+export const ciRelations: CiRelation[] = [
+  {
+    id: 'rel-portal-api',
+    fromId: 'ci-portal',
+    toId: 'ci-prod-api',
+    type: 'depends_on',
+  },
+  {
+    id: 'rel-portal-vpn',
+    fromId: 'ci-portal',
+    toId: 'ci-vpn-gw',
+    type: 'uses',
+  },
+  {
+    id: 'rel-api-pg',
+    fromId: 'ci-prod-api',
+    toId: 'ci-pg-cluster',
+    type: 'depends_on',
+  },
+  {
+    id: 'rel-api-net',
+    fromId: 'ci-prod-api',
+    toId: 'ci-net-ams01',
+    type: 'runs_on',
+  },
+  {
+    id: 'rel-vpn-net',
+    fromId: 'ci-vpn-gw',
+    toId: 'ci-net-ams01',
+    type: 'connects_to',
+  },
+  {
+    id: 'rel-pg-net',
+    fromId: 'ci-pg-cluster',
+    toId: 'ci-net-ams01',
+    type: 'runs_on',
+  },
+];
+
+/** Planned change impact on PostgreSQL Cluster (1–2 hops upstream) */
+export const ciImpactScenario: {
+  changeKey: string;
+  rootCiId: string;
+  entries: CiImpactEntry[];
+} = {
+  changeKey: 'cmdb.impact.changePg',
+  rootCiId: 'ci-pg-cluster',
+  entries: [
+    {
+      ciId: 'ci-prod-api',
+      hop: 1,
+      impact: 'high',
+      usersAffected: 420,
+      serviceKey: 'cmdb.impact.svcApi',
+    },
+    {
+      ciId: 'ci-portal',
+      hop: 2,
+      impact: 'high',
+      usersAffected: 1842,
+      serviceKey: 'cmdb.impact.svcPortal',
+    },
+    {
+      ciId: 'ci-vpn-gw',
+      hop: 2,
+      impact: 'medium',
+      usersAffected: 910,
+      serviceKey: 'cmdb.impact.svcVpn',
+    },
+    {
+      ciId: 'ci-net-ams01',
+      hop: 1,
+      impact: 'low',
+      usersAffected: 0,
+      serviceKey: 'cmdb.impact.svcNet',
+    },
+  ],
+};
+
 export const assets: Asset[] = [
   {
     id: 'as-1001',
@@ -668,6 +774,8 @@ export const assets: Asset[] = [
     vendor: 'Apple',
     costCenter: 'IT-WKS-01',
     notes: 'Standard Northstar Dev image.',
+    relatedCiIds: ['ci-portal'],
+    updatedAt: '2026-07-28T10:00:00Z',
   },
   {
     id: 'as-2044',
@@ -682,6 +790,7 @@ export const assets: Asset[] = [
     model: 'U2723QE',
     vendor: 'Dell',
     costCenter: 'IT-WKS-02',
+    updatedAt: '2026-07-20T09:00:00Z',
   },
   {
     id: 'as-0881',
@@ -697,6 +806,7 @@ export const assets: Asset[] = [
     vendor: 'Lenovo',
     costCenter: 'IT-STOCK',
     notes: 'Ready for assignment.',
+    updatedAt: '2026-01-20T11:00:00Z',
   },
   {
     id: 'as-5510',
@@ -712,6 +822,7 @@ export const assets: Asset[] = [
     vendor: 'Apple',
     costCenter: 'IT-MOB-01',
     notes: 'Screen replacement in progress.',
+    updatedAt: '2026-07-29T14:00:00Z',
   },
 ];
 
@@ -726,11 +837,14 @@ export const problems: Problem[] = [
     relatedIncidents: 14,
     assignee: people.alexey,
     updatedAt: '2026-07-30T08:00:00Z',
+    createdAt: '2026-07-28T09:00:00Z',
     description:
       'Коррелированные инциденты VPN handshake failures. Подозрение на intermediate cert expiry race.',
     rootCause: 'Intermediate CA cache TTL mismatch on AMS LB pair.',
     workaround: 'Force reconnect + clear client TLS session cache.',
     service: 'Workplace and network',
+    relatedWorkItemIds: ['wi-1842'],
+    relatedCiIds: ['ci-vpn-gw'],
   },
   {
     id: 'pr-76',
@@ -742,8 +856,11 @@ export const problems: Problem[] = [
     relatedIncidents: 6,
     assignee: null,
     updatedAt: '2026-07-29T18:00:00Z',
+    createdAt: '2026-07-29T18:00:00Z',
     description: 'TTFB spikes during morning peak. CDN cache hit ratio drops.',
     service: 'Northstar Portal',
+    relatedWorkItemIds: ['wi-1842'],
+    relatedCiIds: ['ci-portal'],
   },
   {
     id: 'pr-61',
@@ -755,10 +872,12 @@ export const problems: Problem[] = [
     relatedIncidents: 9,
     assignee: people.maria,
     updatedAt: '2026-07-28T12:00:00Z',
+    createdAt: '2026-07-24T08:00:00Z',
     description: 'SAML assertion errors after cert rotation.',
     rootCause: 'Stale SP metadata on SAP side.',
     workaround: 'Re-import IdP metadata on SP.',
     service: 'Access and accounts',
+    relatedCiIds: ['ci-prod-api'],
   },
 ];
 
@@ -774,10 +893,13 @@ export const changes: Change[] = [
     plannedEnd: '2026-08-03T02:00:00Z',
     assignee: people.dmitry,
     updatedAt: '2026-07-30T07:50:00Z',
+    createdAt: '2026-07-28T11:00:00Z',
     description: 'Minor upgrade 15.6 → 15.8 on finance prod cluster.',
     implementationPlan: 'Rolling upgrade replica → promote → upgrade former primary.',
     backoutPlan: 'Promote previous primary from backup snapshot if replica lag > 30s.',
     service: 'Data platform',
+    cabApproved: false,
+    relatedCiIds: ['ci-pg-cluster'],
   },
   {
     id: 'ch-418',
@@ -790,10 +912,14 @@ export const changes: Change[] = [
     plannedEnd: '2026-07-30T11:00:00Z',
     assignee: people.alexey,
     updatedAt: '2026-07-30T08:40:00Z',
+    createdAt: '2026-07-30T06:00:00Z',
     description: 'Emergency cert rotation after TLS handshake failures.',
     implementationPlan: 'Deploy new cert on standby GW, failover, validate, rotate active.',
     backoutPlan: 'Rollback to previous cert package via Ansible tag.',
     service: 'Workplace and network',
+    cabApproved: true,
+    relatedCiIds: ['ci-vpn-gw'],
+    relatedWorkItemIds: ['wi-1842'],
   },
   {
     id: 'ch-401',
@@ -806,10 +932,13 @@ export const changes: Change[] = [
     plannedEnd: '2026-08-05T02:00:00Z',
     assignee: people.olga,
     updatedAt: '2026-07-27T15:00:00Z',
+    createdAt: '2026-07-25T10:00:00Z',
     description: 'Standard CDN policy update for portal static assets.',
     implementationPlan: 'Push policy via CI pipeline, warm cache.',
     backoutPlan: 'Revert pipeline deploy to v2 tag.',
     service: 'Northstar Portal',
+    cabApproved: true,
+    relatedCiIds: ['ci-portal'],
   },
 ];
 

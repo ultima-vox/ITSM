@@ -1,0 +1,196 @@
+import { delay, useMock, apiRequest } from './client';
+
+export interface MetadataAttribute {
+  key: string;
+  type: string;
+  required: boolean;
+  searchable: boolean;
+  labels: Record<string, string>;
+  enumValues?: string[];
+}
+
+export interface MetadataRelation {
+  key: string;
+  targetObjectKey: string;
+  cardinality: string;
+  required: boolean;
+  labels: Record<string, string>;
+}
+
+export interface ObjectDefinition {
+  key: string;
+  version: number;
+  labels: Record<string, string>;
+  attributes: MetadataAttribute[];
+  relations: MetadataRelation[];
+}
+
+/** Sample UI catalog keys for Translation admin (work-item namespace). */
+export interface SampleTranslationRow {
+  namespace: string;
+  key: string;
+  en: string;
+  ru: string;
+  de: string;
+}
+
+const MOCK_OBJECTS: ObjectDefinition[] = [
+  {
+    key: 'work-item',
+    version: 1,
+    labels: { en: 'Work Item', ru: 'Рабочий элемент', de: 'Arbeitselement' },
+    attributes: [
+      { key: 'number', type: 'TEXT', required: false, searchable: true, labels: { en: 'Number', ru: 'Номер', de: 'Nummer' } },
+      {
+        key: 'type',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Type', ru: 'Тип', de: 'Typ' },
+        enumValues: ['INCIDENT', 'SERVICE_REQUEST'],
+      },
+      { key: 'title', type: 'TEXT', required: true, searchable: true, labels: { en: 'Title', ru: 'Заголовок', de: 'Titel' } },
+      { key: 'description', type: 'RICH_TEXT', required: true, searchable: true, labels: { en: 'Description', ru: 'Описание', de: 'Beschreibung' } },
+      { key: 'service', type: 'TEXT', required: true, searchable: true, labels: { en: 'Service', ru: 'Услуга', de: 'Service' } },
+      {
+        key: 'state',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'State', ru: 'Состояние', de: 'Status' },
+        enumValues: ['NEW', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED', 'CANCELLED'],
+      },
+      {
+        key: 'priority',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Priority', ru: 'Приоритет', de: 'Priorität' },
+        enumValues: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
+      },
+      { key: 'requester_id', type: 'USER', required: true, searchable: false, labels: { en: 'Requester', ru: 'Заявитель', de: 'Anforderer' } },
+      { key: 'assignee_id', type: 'USER', required: false, searchable: true, labels: { en: 'Assignee', ru: 'Исполнитель', de: 'Bearbeiter' } },
+      { key: 'created_at', type: 'DATE_TIME', required: false, searchable: false, labels: { en: 'Created', ru: 'Создано', de: 'Erstellt' } },
+      { key: 'updated_at', type: 'DATE_TIME', required: false, searchable: false, labels: { en: 'Updated', ru: 'Обновлено', de: 'Aktualisiert' } },
+    ],
+    relations: [
+      {
+        key: 'related_ci',
+        targetObjectKey: 'configuration-item',
+        cardinality: 'MANY_TO_MANY',
+        required: false,
+        labels: { en: 'Related CIs', ru: 'Связанные КЕ', de: 'Zugehörige CIs' },
+      },
+    ],
+  },
+  {
+    key: 'change',
+    version: 1,
+    labels: { en: 'Change', ru: 'Изменение', de: 'Change' },
+    attributes: [
+      { key: 'number', type: 'TEXT', required: false, searchable: true, labels: { en: 'Number', ru: 'Номер', de: 'Nummer' } },
+      { key: 'title', type: 'TEXT', required: true, searchable: true, labels: { en: 'Title', ru: 'Заголовок', de: 'Titel' } },
+      {
+        key: 'type',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Type', ru: 'Тип', de: 'Typ' },
+        enumValues: ['STANDARD', 'NORMAL', 'EMERGENCY'],
+      },
+      {
+        key: 'status',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Status', ru: 'Статус', de: 'Status' },
+        enumValues: ['DRAFT', 'SCHEDULED', 'CAB_REVIEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+      },
+      {
+        key: 'risk',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Risk', ru: 'Риск', de: 'Risiko' },
+        enumValues: ['LOW', 'MEDIUM', 'HIGH'],
+      },
+      { key: 'window_start', type: 'DATE_TIME', required: false, searchable: false, labels: { en: 'Window start', ru: 'Начало окна', de: 'Fensterbeginn' } },
+      { key: 'window_end', type: 'DATE_TIME', required: false, searchable: false, labels: { en: 'Window end', ru: 'Конец окна', de: 'Fensterende' } },
+      { key: 'assignee_id', type: 'USER', required: false, searchable: true, labels: { en: 'Assignee', ru: 'Исполнитель', de: 'Bearbeiter' } },
+      { key: 'implementation_plan', type: 'RICH_TEXT', required: false, searchable: false, labels: { en: 'Implementation plan', ru: 'План внедрения', de: 'Umsetzungsplan' } },
+      { key: 'backout_plan', type: 'RICH_TEXT', required: false, searchable: false, labels: { en: 'Backout plan', ru: 'План отката', de: 'Rückfallplan' } },
+    ],
+    relations: [
+      {
+        key: 'affected_ci',
+        targetObjectKey: 'configuration-item',
+        cardinality: 'MANY_TO_MANY',
+        required: false,
+        labels: { en: 'Affected CIs', ru: 'Затронутые КЕ', de: 'Betroffene CIs' },
+      },
+    ],
+  },
+  {
+    key: 'problem',
+    version: 1,
+    labels: { en: 'Problem', ru: 'Проблема', de: 'Problem' },
+    attributes: [
+      { key: 'number', type: 'TEXT', required: false, searchable: true, labels: { en: 'Number', ru: 'Номер', de: 'Nummer' } },
+      { key: 'title', type: 'TEXT', required: true, searchable: true, labels: { en: 'Title', ru: 'Заголовок', de: 'Titel' } },
+      {
+        key: 'status',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Status', ru: 'Статус', de: 'Status' },
+        enumValues: ['NEW', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED'],
+      },
+      {
+        key: 'priority',
+        type: 'ENUM',
+        required: true,
+        searchable: true,
+        labels: { en: 'Priority', ru: 'Приоритет', de: 'Priorität' },
+        enumValues: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
+      },
+      { key: 'known_error', type: 'BOOLEAN', required: false, searchable: true, labels: { en: 'Known error', ru: 'Известная ошибка', de: 'Known Error' } },
+      { key: 'root_cause', type: 'RICH_TEXT', required: false, searchable: true, labels: { en: 'Root cause', ru: 'Корневая причина', de: 'Ursache' } },
+      { key: 'workaround', type: 'RICH_TEXT', required: false, searchable: true, labels: { en: 'Workaround', ru: 'Обходной путь', de: 'Workaround' } },
+      { key: 'assignee_id', type: 'USER', required: false, searchable: true, labels: { en: 'Assignee', ru: 'Исполнитель', de: 'Bearbeiter' } },
+    ],
+    relations: [
+      {
+        key: 'related_incidents',
+        targetObjectKey: 'work-item',
+        cardinality: 'MANY_TO_MANY',
+        required: false,
+        labels: { en: 'Related incidents', ru: 'Связанные инциденты', de: 'Zugehörige Incidents' },
+      },
+    ],
+  },
+];
+
+/** Static sample rows for Settings → Translation admin (demo). */
+export const SAMPLE_WORK_ITEM_TRANSLATIONS: SampleTranslationRow[] = [
+  { namespace: 'object.work-item', key: 'label', en: 'Work Item', ru: 'Рабочий элемент', de: 'Arbeitselement' },
+  { namespace: 'object.work-item', key: 'attr.title', en: 'Title', ru: 'Заголовок', de: 'Titel' },
+  { namespace: 'object.work-item', key: 'attr.description', en: 'Description', ru: 'Описание', de: 'Beschreibung' },
+  { namespace: 'object.work-item', key: 'attr.service', en: 'Service', ru: 'Услуга', de: 'Service' },
+  { namespace: 'object.work-item', key: 'attr.priority', en: 'Priority', ru: 'Приоритет', de: 'Priorität' },
+  { namespace: 'object.work-item', key: 'attr.state', en: 'State', ru: 'Состояние', de: 'Status' },
+  { namespace: 'object.work-item', key: 'attr.type', en: 'Type', ru: 'Тип', de: 'Typ' },
+  { namespace: 'object.work-item', key: 'attr.assignee_id', en: 'Assignee', ru: 'Исполнитель', de: 'Bearbeiter' },
+  { namespace: 'object.work-item', key: 'attr.requester_id', en: 'Requester', ru: 'Заявитель', de: 'Anforderer' },
+  { namespace: 'workflow.work-item', key: 'state.NEW', en: 'New', ru: 'Новый', de: 'Neu' },
+  { namespace: 'workflow.work-item', key: 'state.IN_PROGRESS', en: 'In Progress', ru: 'В работе', de: 'In Bearbeitung' },
+  { namespace: 'workflow.work-item', key: 'state.RESOLVED', en: 'Resolved', ru: 'Решён', de: 'Gelöst' },
+];
+
+/** GET /api/v1/metadata/objects — mock object definitions when VITE_USE_MOCK. */
+export async function fetchObjectDefinitions(): Promise<ObjectDefinition[]> {
+  if (useMock()) {
+    await delay(220);
+    return structuredClone(MOCK_OBJECTS);
+  }
+  return apiRequest<ObjectDefinition[]>('/metadata/objects');
+}

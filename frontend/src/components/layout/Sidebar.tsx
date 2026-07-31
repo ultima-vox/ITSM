@@ -5,6 +5,7 @@ import {
   Boxes,
   ChevronDown,
   ClipboardList,
+  Database,
   Gauge,
   GitBranch,
   Grid2X2,
@@ -38,7 +39,9 @@ const primaryNav = [
   { to: '/changes', key: 'changes', icon: GitBranch },
 ] as const;
 
+/** Management section — Metadata always shown for demo configurability. */
 const secondaryNav = [
+  { to: '/admin/metadata', key: 'metadata', icon: Database },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;
 

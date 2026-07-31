@@ -11,6 +11,7 @@ import { ProblemsPage } from '@/pages/Problems/ProblemsPage';
 import { ChangesPage } from '@/pages/Changes/ChangesPage';
 import { SettingsPage } from '@/pages/Settings/SettingsPage';
 import { ReportsPage } from '@/pages/Reports/ReportsPage';
+import { MetadataPage } from '@/pages/Admin/MetadataPage';
 import { WorkItemDetailPage } from '@/pages/WorkItemDetail/WorkItemDetailPage';
 import { AuthCallbackPage } from '@/pages/Auth/CallbackPage';
 
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'changes', element: <ChangesPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'admin/metadata', element: <MetadataPage /> },
       { path: 'work-items/:id', element: <WorkItemDetailPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

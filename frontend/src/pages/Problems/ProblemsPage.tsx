@@ -1,45 +1,269 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
+import { ArrowDown, ArrowUp, ChevronUp, Plus, Search } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
-import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useToast } from '@/hooks/useToast';
-import { fetchProblems } from '@/api';
 import {
+  createProblem,
+  fetchProblems,
+  getProblemTransitions,
+  patchProblem,
+  subscribeSecondaryModules,
+  transitionProblemStatus,
+} from '@/api';
+import {
+  Avatar,
   Button,
   EmptyState,
   ErrorState,
+  Input,
+  Modal,
   Select,
   SkeletonRows,
-  Avatar,
+  Textarea,
 } from '@/components/ui';
 import { PriorityBadge, StatusChip } from '@/components/data-display';
+import {
+  ModuleDetailDrawer,
+  type ModuleRelatedItem,
+} from '@/components/modules/ModuleDetailDrawer';
 import { formatRelative } from '@/lib/format';
+import {
+  resolveRelatedHref,
+  resolveRelatedLabel,
+} from '@/lib/resolveRelated';
+import { getModuleActivities } from '@/mock/store';
 import type { Priority, Problem, WorkItemStatus } from '@/types';
+
+/** Forward path first; cancel last. Primary vs secondary hierarchy. */
+const PROBLEM_ACTION_RANK: Record<string, number> = {
+  in_progress: 0,
+  resolved: 1,
+  waiting: 2,
+  closed: 3,
+  cancelled: 4,
+};
+
+function problemActionVariant(
+  status: WorkItemStatus,
+): 'primary' | 'secondary' | 'danger' {
+  if (status === 'cancelled') return 'danger';
+  if (status === 'in_progress' || status === 'resolved') return 'primary';
+  return 'secondary';
+}
+
+type SortKey = 'number' | 'priority' | 'status' | 'updated' | 'incidents';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_RANK: Record<Priority, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+const STATUS_RANK: Record<string, number> = {
+  new: 0,
+  in_progress: 1,
+  waiting: 2,
+  resolved: 3,
+  closed: 4,
+  cancelled: 5,
+};
 
 export function ProblemsPage() {
   const t = useT();
   const { isCompact, toggleDensity } = useDensity();
-  const { info } = useToast();
+  const { success, error: toastError } = useToast();
   const { data, loading, error, reload } = useAsync(() => fetchProblems(), []);
   const [query, setQuery] = useState('');
   const [priority, setPriority] = useState('');
   const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState<Problem | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('priority');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [focusIndex, setFocusIndex] = useState(-1);
+  const [validation, setValidation] = useState<string | null>(null);
+  const [rootCauseDraft, setRootCauseDraft] = useState('');
+  const [workaroundDraft, setWorkaroundDraft] = useState('');
+  const listRef = useRef<HTMLTableSectionElement>(null);
+
+  useEffect(() => {
+    return subscribeSecondaryModules(() => reload());
+  }, [reload]);
 
   const list = useMemo(() => {
-    return (data ?? []).filter((p) => {
+    const filtered = (data ?? []).filter((p) => {
       if (priority && p.priority !== (priority as Priority)) return false;
       if (status && p.status !== (status as WorkItemStatus)) return false;
       if (!query.trim()) return true;
       const q = query.toLowerCase();
       return (
         p.number.toLowerCase().includes(q) ||
-        p.title.toLowerCase().includes(q)
+        p.title.toLowerCase().includes(q) ||
+        (p.service?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [data, query, priority, status]);
+    const dir = sortDir === 'asc' ? 1 : -1;
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'priority')
+        cmp = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+      else if (sortKey === 'status')
+        cmp = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9);
+      else if (sortKey === 'updated') cmp = a.updatedAt.localeCompare(b.updatedAt);
+      else if (sortKey === 'incidents')
+        cmp = a.relatedIncidents - b.relatedIncidents;
+      else cmp = a.number.localeCompare(b.number);
+      return cmp * dir;
+    });
+    return filtered;
+  }, [data, query, priority, status, sortKey, sortDir]);
+
+  const selected = useMemo(
+    () =>
+      selectedId
+        ? (data ?? []).find((p) => p.id === selectedId) ?? null
+        : null,
+    [data, selectedId],
+  );
+
+  useEffect(() => {
+    if (selected) {
+      setRootCauseDraft(selected.rootCause ?? '');
+      setWorkaroundDraft(selected.workaround ?? '');
+    }
+  }, [selected?.id]);
+
+  const activities = useMemo(
+    () => (selected ? getModuleActivities(selected.id) : []),
+    [selected, data],
+  );
+
+  const related: ModuleRelatedItem[] = useMemo(() => {
+    if (!selected) return [];
+    const items: ModuleRelatedItem[] = [];
+    selected.relatedWorkItemIds?.forEach((id) => {
+      items.push({
+        id,
+        label: resolveRelatedLabel(id),
+        meta: t('module.relatedWorkItem'),
+        href: resolveRelatedHref(id) ?? `/work-items/${id}`,
+      });
+    });
+    selected.relatedCiIds?.forEach((id) => {
+      items.push({
+        id,
+        label: resolveRelatedLabel(id),
+        meta: t('module.relatedCi'),
+        href: resolveRelatedHref(id) ?? '/cmdb',
+      });
+    });
+    if (selected.relatedIncidents > 0 && !selected.relatedWorkItemIds?.length) {
+      items.push({
+        id: 'inc-count',
+        label: t('problems.relatedIncidentCount', {
+          n: selected.relatedIncidents,
+        }),
+        meta: t('problems.colIncidents'),
+      });
+    }
+    return items;
+  }, [selected, t]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir(key === 'updated' ? 'desc' : 'asc');
+    }
+  };
+
+  const openRow = useCallback((p: Problem) => {
+    setSelectedId(p.id);
+    setValidation(null);
+  }, []);
+
+  const onListKeyDown = (e: ReactKeyboardEvent) => {
+    if (list.length === 0) return;
+    const key = e.key.toLowerCase();
+    if (e.key === 'ArrowDown' || key === 'j') {
+      e.preventDefault();
+      setFocusIndex((i) => Math.min(i < 0 ? 0 : i + 1, list.length - 1));
+    } else if (e.key === 'ArrowUp' || key === 'k') {
+      e.preventDefault();
+      setFocusIndex((i) => Math.max(i < 0 ? 0 : i - 1, 0));
+    } else if (e.key === 'Enter' && focusIndex >= 0) {
+      e.preventDefault();
+      openRow(list[focusIndex]);
+    } else if (e.key === 'Escape') setFocusIndex(-1);
+  };
+
+  useEffect(() => {
+    if (focusIndex < 0) return;
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `[data-row-index="${focusIndex}"]`,
+    );
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusIndex]);
+
+  const runTransition = async (next: WorkItemStatus) => {
+    if (!selected) return;
+    setValidation(null);
+    const result = await transitionProblemStatus(selected.id, next, {
+      rootCause: rootCauseDraft,
+      workaround: workaroundDraft,
+    });
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      toastError(t(result.errorKey));
+      return;
+    }
+    success(t('problems.transitionOk', { status: t(`status.${next}`) }));
+    setSelectedId(result.problem.id);
+  };
+
+  const toggleKnownError = async () => {
+    if (!selected) return;
+    setValidation(null);
+    const result = await patchProblem(selected.id, {
+      knownError: !selected.knownError,
+      rootCause: rootCauseDraft,
+      workaround: workaroundDraft,
+    });
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      toastError(t(result.errorKey));
+      return;
+    }
+    success(
+      result.problem.knownError
+        ? t('problems.knownErrorMarked')
+        : t('problems.knownErrorCleared'),
+    );
+  };
+
+  const saveRca = async () => {
+    if (!selected) return;
+    const result = await patchProblem(selected.id, {
+      rootCause: rootCauseDraft,
+      workaround: workaroundDraft,
+    });
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      return;
+    }
+    success(t('problems.rcaSaved'));
+  };
 
   if (error && !loading && !data) {
     return (
@@ -54,6 +278,23 @@ export function ProblemsPage() {
       </section>
     );
   }
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col)
+      return <ChevronUp size={12} className="sort-icon sort-icon--idle" />;
+    return sortDir === 'asc' ? (
+      <ArrowUp size={12} className="sort-icon" />
+    ) : (
+      <ArrowDown size={12} className="sort-icon" />
+    );
+  };
+
+  const transitions = selected
+    ? [...getProblemTransitions(selected.status)].sort(
+        (a, b) =>
+          (PROBLEM_ACTION_RANK[a] ?? 9) - (PROBLEM_ACTION_RANK[b] ?? 9),
+      )
+    : [];
 
   return (
     <section className="page">
@@ -74,7 +315,7 @@ export function ProblemsPage() {
           <Button
             variant="primary"
             icon={<Plus size={18} />}
-            onClick={() => info(t('problems.createMock'))}
+            onClick={() => setCreateOpen(true)}
           >
             {t('problems.create')}
           </Button>
@@ -116,25 +357,71 @@ export function ProblemsPage() {
             { value: 'in_progress', label: t('status.in_progress') },
             { value: 'waiting', label: t('status.waiting') },
             { value: 'resolved', label: t('status.resolved') },
+            { value: 'closed', label: t('status.closed') },
           ]}
         />
       </div>
 
-      <div className="panel panel--flush data-table-wrap">
-        <table className="data-table data-table--clickable">
+      {!loading && list.length > 0 && (
+        <div className="grid-kbd-hint" aria-hidden>
+          <kbd>↑</kbd>
+          <kbd>↓</kbd>
+          <span>/</span>
+          <kbd>J</kbd>
+          <kbd>K</kbd>
+          <span>{t('grid.kbdNav')}</span>
+          <kbd>Enter</kbd>
+          <span>{t('grid.kbdOpen')}</span>
+        </div>
+      )}
+
+      <div
+        className={`panel panel--flush data-table-wrap module-table${
+          isCompact ? ' is-compact' : ''
+        }`}
+      >
+        <table
+          className="data-table data-table--clickable data-table--sortable"
+          aria-label={t('problems.title')}
+        >
           <thead>
             <tr>
-              <th scope="col">{t('problems.colNumber')}</th>
+              <th scope="col">
+                <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
+                  {t('problems.colNumber')}
+                  <SortIcon col="number" />
+                </button>
+              </th>
               <th scope="col">{t('problems.colTitle')}</th>
-              <th scope="col">{t('problems.colStatus')}</th>
-              <th scope="col">{t('problems.colPriority')}</th>
+              <th scope="col">
+                <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
+                  {t('problems.colStatus')}
+                  <SortIcon col="status" />
+                </button>
+              </th>
+              <th scope="col">
+                <button type="button" className="th-sort" onClick={() => toggleSort('priority')}>
+                  {t('problems.colPriority')}
+                  <SortIcon col="priority" />
+                </button>
+              </th>
               <th scope="col">{t('problems.colKnownError')}</th>
-              <th scope="col">{t('problems.colIncidents')}</th>
+              <th scope="col">
+                <button type="button" className="th-sort" onClick={() => toggleSort('incidents')}>
+                  {t('problems.colIncidents')}
+                  <SortIcon col="incidents" />
+                </button>
+              </th>
               <th scope="col">{t('problems.colAssignee')}</th>
-              <th scope="col">{t('problems.colUpdated')}</th>
+              <th scope="col">
+                <button type="button" className="th-sort" onClick={() => toggleSort('updated')}>
+                  {t('problems.colUpdated')}
+                  <SortIcon col="updated" />
+                </button>
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
             {loading ? (
               <tr>
                 <td colSpan={8}>
@@ -157,15 +444,23 @@ export function ProblemsPage() {
                 </td>
               </tr>
             ) : (
-              list.map((p) => (
+              list.map((p, index) => (
                 <tr
                   key={p.id}
-                  tabIndex={0}
-                  onClick={() => setSelected(p)}
+                  tabIndex={focusIndex === index ? 0 : -1}
+                  data-row-index={index}
+                  className={
+                    focusIndex === index
+                      ? 'is-focused'
+                      : selectedId === p.id
+                        ? 'is-selected'
+                        : undefined
+                  }
+                  onClick={() => openRow(p)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setSelected(p);
+                      openRow(p);
                     }
                   }}
                 >
@@ -180,9 +475,13 @@ export function ProblemsPage() {
                     <PriorityBadge priority={p.priority} />
                   </td>
                   <td>
-                    {p.knownError
-                      ? t('problems.knownErrorYes')
-                      : t('problems.knownErrorNo')}
+                    {p.knownError ? (
+                      <span className="chip chip--warn">
+                        {t('problems.knownErrorYes')}
+                      </span>
+                    ) : (
+                      t('problems.knownErrorNo')
+                    )}
                   </td>
                   <td>{p.relatedIncidents}</td>
                   <td>
@@ -204,118 +503,248 @@ export function ProblemsPage() {
       </div>
 
       {selected && (
-        <div
-          className="drawer-backdrop"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setSelected(null);
+        <ModuleDetailDrawer
+          open
+          onClose={() => {
+            setSelectedId(null);
+            setValidation(null);
           }}
-        >
-          <ProblemDrawer problem={selected} onClose={() => setSelected(null)} />
-        </div>
+          code={selected.number}
+          title={selected.title}
+          chips={
+            <>
+              <StatusChip status={selected.status} />
+              <PriorityBadge priority={selected.priority} />
+              {selected.knownError && (
+                <span className="chip chip--warn">{t('problems.knownErrorYes')}</span>
+              )}
+            </>
+          }
+          validationMessage={validation}
+          activities={activities}
+          history={activities.filter(
+            (a) => a.kind === 'field' || a.kind === 'status',
+          )}
+          related={related}
+          relatedEmptyHint={t('module.relatedEmptyHint')}
+          relatedEmptyAction={{
+            label: t('problems.relatedEmptyCta'),
+            href: '/queues',
+          }}
+          overview={
+            <>
+              <dl className="module-detail-dl">
+                <div>
+                  <dt>{t('problems.colIncidents')}</dt>
+                  <dd>
+                    {selected.relatedIncidents > 0
+                      ? t('problems.relatedIncidentCount', {
+                          n: selected.relatedIncidents,
+                        })
+                      : selected.relatedIncidents}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('problems.colAssignee')}</dt>
+                  <dd>
+                    {selected.assignee ? (
+                      <span className="inline-person">
+                        <Avatar initials={selected.assignee.initials} size="sm" />
+                        {selected.assignee.name}
+                      </span>
+                    ) : (
+                      t('overview.unassigned')
+                    )}
+                  </dd>
+                </div>
+                {selected.service && (
+                  <div>
+                    <dt>{t('workItem.service')}</dt>
+                    <dd>{selected.service}</dd>
+                  </div>
+                )}
+                {selected.description && (
+                  <div className="module-detail-dl__wide">
+                    <dt>{t('workItem.description')}</dt>
+                    <dd>{selected.description}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="module-rca">
+                <Textarea
+                  label={t('problems.rootCause')}
+                  value={rootCauseDraft}
+                  onChange={(e) => setRootCauseDraft(e.target.value)}
+                  rows={3}
+                  hint={t('problems.rootCauseHint')}
+                />
+                <Textarea
+                  label={t('problems.workaround')}
+                  value={workaroundDraft}
+                  onChange={(e) => setWorkaroundDraft(e.target.value)}
+                  rows={2}
+                />
+                <div className="module-rca__actions">
+                  <Button size="sm" variant="secondary" onClick={() => void saveRca()}>
+                    {t('problems.saveRca')}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void toggleKnownError()}>
+                    {selected.knownError
+                      ? t('problems.clearKnownError')
+                      : t('problems.markKnownError')}
+                  </Button>
+                </div>
+              </div>
+            </>
+          }
+          actions={
+            transitions.length > 0 ? (
+              <div className="module-workflow__stack">
+                <div className="module-workflow__primary">
+                  {transitions
+                    .filter((s) => problemActionVariant(s) === 'primary')
+                    .map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant="primary"
+                        onClick={() => void runTransition(s)}
+                      >
+                        {t(`problems.actions.to_${s}`)}
+                      </Button>
+                    ))}
+                </div>
+                <div className="module-workflow__secondary">
+                  {transitions
+                    .filter((s) => problemActionVariant(s) !== 'primary')
+                    .map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={problemActionVariant(s)}
+                        onClick={() => void runTransition(s)}
+                      >
+                        {t(`problems.actions.to_${s}`)}
+                      </Button>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <span className="muted">{t('module.noTransitions')}</span>
+            )
+          }
+        />
       )}
+
+      <CreateProblemModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(p) => {
+          setCreateOpen(false);
+          success(t('problems.created', { number: p.number }));
+          setSelectedId(p.id);
+          reload();
+        }}
+      />
     </section>
   );
 }
 
-function ProblemDrawer({
-  problem,
+function CreateProblemModal({
+  open,
   onClose,
+  onCreated,
 }: {
-  problem: Problem;
+  open: boolean;
   onClose: () => void;
+  onCreated: (p: Problem) => void;
 }) {
   const t = useT();
-  const ref = useRef<HTMLElement>(null);
-  useFocusTrap(ref, true);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [service, setService] = useState('');
+  const [priority, setPriority] = useState<Priority>('medium');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [onClose]);
+    if (!open) {
+      setTitle('');
+      setDescription('');
+      setService('');
+      setPriority('medium');
+      setErrors({});
+      setSubmitting(false);
+    }
+  }, [open]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const next: Record<string, string> = {};
+    if (!title.trim()) next.title = t('problems.validation.title');
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSubmitting(true);
+    try {
+      const created = await createProblem({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        service: service.trim() || undefined,
+        priority,
+      });
+      onCreated(created);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <aside
-      ref={ref}
-      className="service-drawer module-detail-drawer"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="problem-detail-title"
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('problems.create')}
+      labelledBy="create-problem-title"
     >
-      <div className="service-drawer__head">
-        <p className="eyebrow mono accent">{problem.number}</p>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('app.close')}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <h2 id="problem-detail-title">{problem.title}</h2>
-      <div className="module-detail-chips">
-        <StatusChip status={problem.status} />
-        <PriorityBadge priority={problem.priority} />
-        {problem.knownError && (
-          <span className="chip chip--warn">{t('problems.knownErrorYes')}</span>
-        )}
-      </div>
-      <dl className="module-detail-dl">
-        <div>
-          <dt>{t('problems.colIncidents')}</dt>
-          <dd>{problem.relatedIncidents}</dd>
+      <form className="module-create-form" onSubmit={(e) => void submit(e)}>
+        <Input
+          label={t('problems.colTitle')}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          error={errors.title}
+          required
+          autoFocus
+        />
+        <Textarea
+          label={t('workItem.description')}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+        <Input
+          label={t('workItem.service')}
+          value={service}
+          onChange={(e) => setService(e.target.value)}
+        />
+        <Select
+          label={t('problems.colPriority')}
+          value={priority}
+          onChange={(e) => setPriority(e.target.value as Priority)}
+          options={[
+            { value: 'critical', label: t('priority.critical') },
+            { value: 'high', label: t('priority.high') },
+            { value: 'medium', label: t('priority.medium') },
+            { value: 'low', label: t('priority.low') },
+          ]}
+        />
+        <div className="module-create-form__actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {t('app.cancel')}
+          </Button>
+          <Button type="submit" variant="primary" disabled={submitting}>
+            {t('app.create')}
+          </Button>
         </div>
-        <div>
-          <dt>{t('problems.colAssignee')}</dt>
-          <dd>
-            {problem.assignee ? (
-              <span className="inline-person">
-                <Avatar initials={problem.assignee.initials} size="sm" />
-                {problem.assignee.name}
-              </span>
-            ) : (
-              t('overview.unassigned')
-            )}
-          </dd>
-        </div>
-        {problem.service && (
-          <div>
-            <dt>{t('workItem.service')}</dt>
-            <dd>{problem.service}</dd>
-          </div>
-        )}
-        {problem.description && (
-          <div className="module-detail-dl__wide">
-            <dt>{t('workItem.description')}</dt>
-            <dd>{problem.description}</dd>
-          </div>
-        )}
-        {problem.rootCause && (
-          <div className="module-detail-dl__wide">
-            <dt>{t('problems.rootCause')}</dt>
-            <dd>{problem.rootCause}</dd>
-          </div>
-        )}
-        {problem.workaround && (
-          <div className="module-detail-dl__wide">
-            <dt>{t('problems.workaround')}</dt>
-            <dd>{problem.workaround}</dd>
-          </div>
-        )}
-      </dl>
-      <div className="service-drawer__actions">
-        <Button variant="secondary" fullWidth onClick={onClose}>
-          {t('app.close')}
-        </Button>
-      </div>
-    </aside>
+      </form>
+    </Modal>
   );
 }
