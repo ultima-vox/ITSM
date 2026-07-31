@@ -19,6 +19,11 @@ import {
   type AppNotification,
   type NotificationKind,
 } from '@/api';
+import {
+  filterNotificationsByPrefs,
+  loadNotificationPrefs,
+  subscribeNotificationPrefs,
+} from '@/lib/notificationPrefs';
 import { Button, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 
 const kindIcon: Record<NotificationKind, typeof Bell> = {
@@ -81,13 +86,21 @@ export function NotificationsPage() {
     return subscribeNotifications(() => setMockTick((n) => n + 1));
   }, [liveMode]);
 
+  const [prefsTick, setPrefsTick] = useState(0);
+  useEffect(
+    () => subscribeNotificationPrefs(() => setPrefsTick((n) => n + 1)),
+    [],
+  );
+
   const mockItems = useMemo(() => {
     if (liveMode) return [] as AppNotification[];
     void mockTick;
     return listNotifications();
   }, [liveMode, mockTick]);
 
-  const items = liveMode ? (liveItems ?? []) : mockItems;
+  const prefs = prefsTick >= 0 ? loadNotificationPrefs() : loadNotificationPrefs();
+  const rawItems = liveMode ? (liveItems ?? []) : mockItems;
+  const items = filterNotificationsByPrefs(rawItems, prefs);
   const unread = items.filter((n) => n.unread).length;
 
   const visible = useMemo(() => {
@@ -184,7 +197,11 @@ export function NotificationsPage() {
       {!loading && !error && visible.length === 0 && (
         <EmptyState
           title={t('notifications.empty')}
-          description={t('notifications.emptyHint')}
+          description={
+            rawItems.length > 0 && items.length === 0
+              ? t('notifications.filteredEmpty')
+              : t('notifications.emptyHint')
+          }
         />
       )}
 

@@ -1513,10 +1513,15 @@ export function WorkItemDetailPage() {
                   <ul className="related-list">
                     {relatedKb.map((a) => (
                       <li key={a.id}>
-                        <Link to="/knowledge" className="text-link">
-                          <b>{t(a.titleKey)}</b>
+                        <Link
+                          to={`/knowledge?article=${encodeURIComponent(a.id)}`}
+                          className="text-link"
+                        >
+                          <b>{a.title?.trim() ? a.title : t(a.titleKey)}</b>
                         </Link>
-                        <span>{t(a.summaryKey)}</span>
+                        <span>
+                          {a.summary?.trim() ? a.summary : t(a.summaryKey)}
+                        </span>
                       </li>
                     ))}
                   </ul>

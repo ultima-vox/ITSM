@@ -23,6 +23,7 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useToast } from '@/hooks/useToast';
 import {
   createKnowledgeArticle,
+  createWorkItem,
   fetchKnowledgeArticles,
   fetchKnowledgeTopics,
   isLiveFeatureUnsupported,
@@ -623,6 +624,35 @@ function ArticleReader({
     }
   };
 
+  /** S10 / S36: open incident pre-filled from this article. */
+  const [usingInTicket, setUsingInTicket] = useState(false);
+  const useInTicket = async () => {
+    setUsingInTicket(true);
+    try {
+      const title = articleTitle(article, t);
+      const summary = articleSummary(article, t);
+      const created = await createWorkItem({
+        kind: 'incident',
+        title: t('knowledge.useInTicketTitle', { title }),
+        description: t('knowledge.useInTicketBody', {
+          title,
+          summary,
+          articleId: article.id,
+        }),
+        service: t('knowledge.useInTicketService'),
+        priority: 'medium',
+      });
+      success(t('knowledge.useInTicketSuccess', { number: created.number }), {
+        label: t('knowledge.useInTicketOpen'),
+        href: `/work-items/${created.id}`,
+      });
+    } catch {
+      toastError(t('knowledge.useInTicketFailed'));
+    } finally {
+      setUsingInTicket(false);
+    }
+  };
+
   const related = useMemo(() => {
     return all
       .filter((a) => a.id !== article.id)
@@ -878,6 +908,14 @@ function ArticleReader({
                     {publishing ? t('app.loading') : t('knowledge.publish')}
                   </Button>
                 )}
+                <Button
+                  variant="secondary"
+                  onClick={() => void useInTicket()}
+                  disabled={usingInTicket}
+                  title={t('knowledge.useInTicketHint')}
+                >
+                  {usingInTicket ? t('app.loading') : t('knowledge.useInTicket')}
+                </Button>
                 <Button variant="secondary" onClick={onClose}>
                   {t('app.close')}
                 </Button>

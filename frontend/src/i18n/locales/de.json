@@ -124,7 +124,8 @@
     "filterAll": "Alle",
     "filterUnread": "Ungelesen",
     "loadFailed": "Benachrichtigungen konnten nicht geladen werden",
-    "loadFailedHint": "Live-Benachrichtigungsdienst nicht erreichbar. Erneut versuchen oder API prüfen — Mock-Seed wird nicht still als Fallback gezeigt."
+    "loadFailedHint": "Live-Benachrichtigungsdienst nicht erreichbar. Erneut versuchen oder API prüfen — Mock-Seed wird nicht still als Fallback gezeigt.",
+    "filteredEmpty": "Keine Benachrichtigungen passend zu Ihren Einstellungen. SLA-, Zuweisungs- oder Erwähnungsalarme in Einstellungen aktivieren."
   },
   "form": {
     "engineChip": "Formular v{v}",
@@ -461,6 +462,14 @@
     "contributeMock": "Artikelvorschlag ist in diesem Build nur Mock",
     "cmsLiveBanner": "Authoring im Live-API-Modus ist schreibgeschützt. Beitragen, Bearbeiten und Veröffentlichen brauchen Mock-Sitzung oder künftige Write-API.",
     "cmsLiveUnsupported": "Knowledge-CMS-Schreiben ist gegen die Live-API nicht verfügbar",
+    "useInTicket": "In Ticket verwenden",
+    "useInTicketHint": "Incident mit Verweis auf diesen Artikel erstellen",
+    "useInTicketTitle": "Follow-up: {title}",
+    "useInTicketBody": "Operator hat dieses Ticket aus Wissensartikel „{title}“ geöffnet.\n\n{summary}\n\nArtikel-ID: {articleId}",
+    "useInTicketService": "Knowledge / Service Desk",
+    "useInTicketSuccess": "Incident {number} aus Wissen erstellt",
+    "useInTicketOpen": "Ticket öffnen",
+    "useInTicketFailed": "Ticket aus Artikel konnte nicht erstellt werden",
     "contributeModalTitle": "Wissensartikel vorschlagen",
     "contributeModalHint": "Entwurf wird in dieser Sitzung als ausstehend gespeichert und erscheint sofort in der Liste.",
     "contributeFieldTitle": "Titel",
