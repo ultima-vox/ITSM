@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
+import { delay, useMock, apiRequest, getApiActorId } from './client';
 import {
   mapAsset,
   mapCiRelationship,
@@ -246,7 +246,7 @@ export async function bulkAssignAssets(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignAssets(ids);
   }
-  const actor = (await import('./client')).getApiActorId();
+  const actor = getApiActorId();
   const settled = await Promise.all(
     ids.map(async (id) => {
       try {
