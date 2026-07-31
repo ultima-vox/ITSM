@@ -1,4 +1,19 @@
-import type { Asset, ConfigurationItem, Priority } from '@/types';
+import type {
+  Asset,
+  CiRelation,
+  CiRelationType,
+  ConfigurationItem,
+  Priority,
+} from '@/types';
+
+/** Backend JSON for CiRelationship record. */
+export interface BackendCiRelationship {
+  id: string;
+  sourceCiId?: string;
+  targetCiId?: string;
+  type?: string;
+  relationshipType?: string;
+}
 
 export interface BackendCi {
   id: string;
@@ -117,5 +132,33 @@ export function mapAsset(dto: BackendAsset): Asset {
     notes: dto.configurationItemId
       ? `CI: ${dto.configurationItemId}`
       : undefined,
+  };
+}
+
+export function mapCiRelationType(raw?: string | null): CiRelationType {
+  switch ((raw ?? 'DEPENDS_ON').toUpperCase()) {
+    case 'HOSTED_ON':
+    case 'HOSTS':
+      return 'hosted_on';
+    case 'RUNS_ON':
+      return 'runs_on';
+    case 'USES':
+    case 'LOCATED_IN':
+      return 'uses';
+    case 'CONNECTED_TO':
+    case 'CONNECTS_TO':
+      return 'connects_to';
+    case 'DEPENDS_ON':
+    default:
+      return 'depends_on';
+  }
+}
+
+export function mapCiRelationship(dto: BackendCiRelationship): CiRelation {
+  return {
+    id: String(dto.id),
+    fromId: String(dto.sourceCiId ?? ''),
+    toId: String(dto.targetCiId ?? ''),
+    type: mapCiRelationType(dto.type ?? dto.relationshipType),
   };
 }

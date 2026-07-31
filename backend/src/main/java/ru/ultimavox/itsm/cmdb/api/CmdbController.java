@@ -59,6 +59,26 @@ class CmdbController {
     return query.relationshipsFor(id);
   }
 
+  @GetMapping("/orphans")
+  @Operation(summary = "List configuration items with no relationships (orphan detection)")
+  List<ConfigurationItem> orphans(
+      Authentication authentication,
+      @RequestParam(required = false, defaultValue = "100") int limit
+  ) {
+    access.require(authentication.getName(), "cmdb.read", "configuration-item", null);
+    return query.listOrphans(limit);
+  }
+
+  @GetMapping({"/relations", "/relationships"})
+  @Operation(summary = "List CI relationships for the dependency graph")
+  List<CiRelationship> listRelationships(
+      Authentication authentication,
+      @RequestParam(required = false, defaultValue = "2000") int limit
+  ) {
+    access.require(authentication.getName(), "cmdb.read", "configuration-item", null);
+    return query.listAllRelationships(limit);
+  }
+
   @GetMapping("/cis/{id}/impact")
   @Operation(summary = "Impact analysis (BFS over CI relationships, up to 8 hops)")
   CmdbQuery.ImpactResult impact(

@@ -1,9 +1,11 @@
 import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
 import {
   mapAsset,
+  mapCiRelationship,
   mapConfigurationItem,
   type BackendAsset,
   type BackendCi,
+  type BackendCiRelationship,
 } from './mappers/cmdb';
 import { ciImpactScenario } from '@/mock/data';
 import {
@@ -47,13 +49,29 @@ export async function fetchCiRelations(): Promise<CiRelation[]> {
     await delay(120);
     return listCiRelations();
   }
-  // Backend may not expose relations yet — empty graph is honest
   try {
-    const list = await apiRequest<CiRelation[]>('/cmdb/relations');
-    return list ?? [];
+    const list = await apiRequest<BackendCiRelationship[]>('/cmdb/relations');
+    return (list ?? []).map(mapCiRelationship);
   } catch {
     return [];
   }
+}
+
+/** CIs with zero relationships — live orphan detection. */
+export async function fetchOrphanCis(): Promise<ConfigurationItem[]> {
+  if (useMock()) {
+    await delay(80);
+    const cis = listConfigurationItems();
+    const rels = listCiRelations();
+    const linked = new Set<string>();
+    for (const r of rels) {
+      linked.add(r.fromId);
+      linked.add(r.toId);
+    }
+    return cis.filter((c) => !linked.has(c.id));
+  }
+  const list = await apiRequest<BackendCi[]>('/cmdb/orphans?limit=200');
+  return (list ?? []).map(mapConfigurationItem);
 }
 
 export async function createCiRelation(input: {
@@ -110,7 +128,10 @@ export async function updateCiRelation(
   }
 }
 
-export async function fetchCiImpact(): Promise<{
+export async function fetchCiImpact(options?: {
+  rootCiId?: string;
+  hops?: number;
+}): Promise<{
   changeKey: string;
   rootCiId: string;
   entries: CiImpactEntry[];
@@ -119,14 +140,41 @@ export async function fetchCiImpact(): Promise<{
     await delay(160);
     return {
       changeKey: ciImpactScenario.changeKey,
-      rootCiId: ciImpactScenario.rootCiId,
+      rootCiId: options?.rootCiId || ciImpactScenario.rootCiId,
       entries: ciImpactScenario.entries.map((e) => ({ ...e })),
     };
   }
-  try {
-    return await apiRequest('/cmdb/impact');
-  } catch {
+  const root = options?.rootCiId?.trim();
+  if (!root) {
     return { changeKey: 'cmdb.impact.changePg', rootCiId: '', entries: [] };
+  }
+  try {
+    const hops = options?.hops ?? 3;
+    const result = await apiRequest<{
+      rootCiId?: string;
+      rootName?: string;
+      hops?: number;
+      impacted?: Array<{
+        id: string;
+        name?: string | null;
+        hop: number;
+        viaRelationship?: string | null;
+      }>;
+    }>(`/cmdb/cis/${encodeURIComponent(root)}/impact?hops=${hops}`);
+    const entries: CiImpactEntry[] = (result.impacted ?? []).map((n) => ({
+      ciId: String(n.id),
+      hop: (n.hop <= 1 ? 1 : 2) as 1 | 2,
+      impact: n.hop <= 1 ? 'high' : 'medium',
+    }));
+    return {
+      changeKey: result.rootName
+        ? `Impact: ${result.rootName}`
+        : 'cmdb.impact.changePg',
+      rootCiId: String(result.rootCiId ?? root),
+      entries,
+    };
+  } catch {
+    return { changeKey: 'cmdb.impact.changePg', rootCiId: root, entries: [] };
   }
 }
 

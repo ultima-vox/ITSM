@@ -69,13 +69,60 @@ public class CmdbQuery {
             WHERE source_ci_id = ? OR target_ci_id = ?
             ORDER BY relationship_type, id
             """,
-        (rs, i) -> new CiRelationship(
-            (UUID) rs.getObject("id"),
-            (UUID) rs.getObject("source_ci_id"),
-            (UUID) rs.getObject("target_ci_id"),
-            CiRelationship.Type.valueOf(rs.getString("relationship_type"))
-        ),
+        (rs, i) -> mapRelationship(rs),
         ciId, ciId
+    );
+  }
+
+  /** All relationships (graph edges) for live CMDB map. */
+  public List<CiRelationship> listAllRelationships(int limit) {
+    int cap = Math.min(Math.max(limit, 1), 5000);
+    return jdbc.query(
+        """
+            SELECT id, source_ci_id, target_ci_id, relationship_type
+            FROM ci_relationship
+            ORDER BY relationship_type, id
+            LIMIT ?
+            """,
+        (rs, i) -> mapRelationship(rs),
+        cap
+    );
+  }
+
+  private static CiRelationship mapRelationship(java.sql.ResultSet rs) throws java.sql.SQLException {
+    return new CiRelationship(
+        (UUID) rs.getObject("id"),
+        (UUID) rs.getObject("source_ci_id"),
+        (UUID) rs.getObject("target_ci_id"),
+        CiRelationship.Type.valueOf(rs.getString("relationship_type"))
+    );
+  }
+
+  /**
+   * CIs with zero relationships (neither source nor target).
+   * Useful for graph hygiene / orphan detection in the CMDB map.
+   */
+  public List<ConfigurationItem> listOrphans(int limit) {
+    int cap = Math.min(Math.max(limit, 1), 500);
+    return jdbc.query(
+        """
+            SELECT ci.id, ci.name, ci.class_key, ci.status, ci.attributes::text AS attributes
+            FROM configuration_item ci
+            WHERE NOT EXISTS (
+              SELECT 1 FROM ci_relationship r
+              WHERE r.source_ci_id = ci.id OR r.target_ci_id = ci.id
+            )
+            ORDER BY ci.name
+            LIMIT ?
+            """,
+        (rs, i) -> mapCi(
+            (UUID) rs.getObject("id"),
+            rs.getString("name"),
+            rs.getString("class_key"),
+            rs.getString("status"),
+            rs.getString("attributes")
+        ),
+        cap
     );
   }
 
