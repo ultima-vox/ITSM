@@ -10,12 +10,14 @@ import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import ru.ultimavox.itsm.cmdb.application.CmdbCommands;
@@ -122,6 +124,63 @@ class CmdbController {
   ) {
     access.require(authentication.getName(), "cmdb.read", "configuration-item", null);
     return query.listAllRelationships(limit);
+  }
+
+  @PostMapping({"/relations", "/relationships"})
+  @Operation(summary = "Create a CI relationship")
+  @ResponseStatus(HttpStatus.CREATED)
+  CiRelationship createRelationship(
+      Authentication authentication,
+      @Valid @RequestBody CreateRelationRequest body
+  ) {
+    access.require(authentication.getName(), "cmdb.write", "configuration-item", null);
+    try {
+      UUID source = body.sourceCiId() != null ? body.sourceCiId() : body.fromId();
+      UUID target = body.targetCiId() != null ? body.targetCiId() : body.toId();
+      CiRelationship.Type type = body.type() != null
+          ? body.type()
+          : mapFrontendRelType(body.relationType());
+      return commands.createRelationship(source, target, type, authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping({"/relations/{id}", "/relationships/{id}"})
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Delete a CI relationship")
+  void deleteRelationship(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "cmdb.write", "configuration-item", id.toString());
+    try {
+      commands.deleteRelationship(id, authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
+  record CreateRelationRequest(
+      UUID sourceCiId,
+      UUID targetCiId,
+      UUID fromId,
+      UUID toId,
+      CiRelationship.Type type,
+      String relationType
+  ) {}
+
+  private static CiRelationship.Type mapFrontendRelType(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return CiRelationship.Type.DEPENDS_ON;
+    }
+    String n = raw.trim().toUpperCase().replace('-', '_');
+    return switch (n) {
+      case "HOSTED_ON", "HOSTS" -> CiRelationship.Type.HOSTED_ON;
+      case "RUNS_ON" -> CiRelationship.Type.RUNS_ON;
+      case "USES", "LOCATED_IN" -> CiRelationship.Type.USES;
+      case "CONNECTED_TO", "CONNECTS_TO" -> CiRelationship.Type.CONNECTED_TO;
+      default -> CiRelationship.Type.DEPENDS_ON;
+    };
   }
 
   @GetMapping("/cis/{id}/impact")

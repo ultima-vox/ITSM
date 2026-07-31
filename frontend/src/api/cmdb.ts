@@ -84,11 +84,18 @@ export async function createCiRelation(input: {
     return storeAddCiRelation(input);
   }
   try {
-    const relation = await apiRequest<CiRelation>('/cmdb/relations', {
+    const dto = await apiRequest<BackendCiRelationship>('/cmdb/relations', {
       method: 'POST',
-      body: input,
+      body: {
+        fromId: input.fromId,
+        toId: input.toId,
+        sourceCiId: input.fromId,
+        targetCiId: input.toId,
+        relationType: input.type,
+        type: input.type?.toUpperCase?.() ?? input.type,
+      },
     });
-    return { ok: true, relation };
+    return { ok: true, relation: mapCiRelationship(dto) };
   } catch {
     return { ok: false, errorKey: 'cmdb.relForm.error' };
   }
