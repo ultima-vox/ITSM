@@ -500,6 +500,10 @@ export function listCiRelations(): CiRelation[] {
   return relationItems.map(cloneRelation);
 }
 
+function normalizeRelType(type: CiRelationType): CiRelationType {
+  return type === 'hosts' ? 'hosted_on' : type;
+}
+
 export function addCiRelation(input: {
   fromId: string;
   toId: string;
@@ -514,11 +518,12 @@ export function addCiRelation(input: {
   if (!cis.some((c) => c.id === input.fromId) || !cis.some((c) => c.id === input.toId)) {
     return { ok: false, errorKey: 'cmdb.relForm.unknownCi' };
   }
+  const type = normalizeRelType(input.type);
   const dup = relationItems.some(
     (r) =>
       r.fromId === input.fromId &&
       r.toId === input.toId &&
-      r.type === input.type,
+      normalizeRelType(r.type) === type,
   );
   if (dup) {
     return { ok: false, errorKey: 'cmdb.relForm.duplicate' };
@@ -527,7 +532,7 @@ export function addCiRelation(input: {
     id: `rel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     fromId: input.fromId,
     toId: input.toId,
-    type: input.type,
+    type,
   };
   relationItems = [...relationItems, relation];
   notifyCis();
@@ -543,6 +548,36 @@ export function removeCiRelation(
   relationItems = relationItems.filter((r) => r.id !== id);
   notifyCis();
   return { ok: true };
+}
+
+/** Inline change of relation type (same endpoints). Normalizes hosts → hosted_on. */
+export function updateCiRelation(
+  id: string,
+  patch: { type: CiRelationType },
+): { ok: true; relation: CiRelation } | { ok: false; errorKey: string } {
+  const idx = relationItems.findIndex((r) => r.id === id);
+  if (idx < 0) {
+    return { ok: false, errorKey: 'cmdb.relForm.notFound' };
+  }
+  const nextType = normalizeRelType(patch.type);
+  const cur = relationItems[idx];
+  if (normalizeRelType(cur.type) === nextType) {
+    return { ok: true, relation: cloneRelation({ ...cur, type: nextType }) };
+  }
+  const dup = relationItems.some(
+    (r) =>
+      r.id !== id &&
+      r.fromId === cur.fromId &&
+      r.toId === cur.toId &&
+      normalizeRelType(r.type) === nextType,
+  );
+  if (dup) {
+    return { ok: false, errorKey: 'cmdb.relForm.duplicate' };
+  }
+  const updated: CiRelation = { ...cur, type: nextType };
+  relationItems = relationItems.map((r, i) => (i === idx ? updated : r));
+  notifyCis();
+  return { ok: true, relation: cloneRelation(updated) };
 }
 
 export function addConfigurationItem(input: {
@@ -1224,15 +1259,17 @@ export function getChangeTransitions(status: ChangeStatus): ChangeStatus[] {
   return CHANGE_TRANSITIONS[status] ?? [];
 }
 
-export function transitionChange(
-  id: string,
+/**
+ * Shared policy gates for single + bulk change transitions.
+ * Returns an i18n error key when blocked, or null when allowed.
+ */
+function changeTransitionBlockReason(
+  current: Change,
   next: ChangeStatus,
-): { ok: true; change: Change } | { ok: false; errorKey: string } {
-  const current = changeItems.find((x) => x.id === id || x.number === id);
-  if (!current) return { ok: false, errorKey: 'module.errors.notFound' };
+): string | null {
   const allowed = CHANGE_TRANSITIONS[current.status] ?? [];
   if (!allowed.includes(next)) {
-    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+    return 'module.errors.invalidTransition';
   }
 
   // Normal cannot draft → schedule (must pass CAB). Emergency may skip with warning.
@@ -1242,58 +1279,71 @@ export function transitionChange(
     current.type === 'normal' &&
     current.status === 'draft'
   ) {
-    return { ok: false, errorKey: 'changes.validation.cabRequired' };
+    return 'changes.validation.cabRequired';
   }
   if (next === 'scheduled') {
     if (!current.implementationPlan?.trim()) {
-      return { ok: false, errorKey: 'changes.validation.planRequired' };
+      return 'changes.validation.planRequired';
     }
     if (!current.backoutPlan?.trim()) {
-      return { ok: false, errorKey: 'changes.validation.backoutRequired' };
+      return 'changes.validation.backoutRequired';
     }
     if (current.cabRejected) {
-      return { ok: false, errorKey: 'changes.validation.cabRejected' };
+      return 'changes.validation.cabRejected';
     }
     // Explicit CAB approve required for NORMAL — no silent flip on schedule
     if (current.type === 'normal' && !current.cabApproved) {
-      return { ok: false, errorKey: 'changes.validation.cabApprovalRequired' };
+      return 'changes.validation.cabApprovalRequired';
     }
   }
   if (next === 'cab_review' && !current.implementationPlan?.trim()) {
-    return { ok: false, errorKey: 'changes.validation.planRequired' };
+    return 'changes.validation.planRequired';
   }
+  return null;
+}
+
+function changeStatusActivityKey(current: Change, next: ChangeStatus): string {
+  if (next === 'cab_review') return 'module.activity.submitted_cab';
+  if (next === 'scheduled') {
+    return current.type === 'emergency' && !current.cabApproved
+      ? 'module.activity.scheduled_emergency'
+      : 'module.activity.scheduled';
+  }
+  if (next === 'completed') return 'module.activity.completed';
+  if (next === 'cancelled') return 'module.activity.cancelled';
+  return `module.activity.change_${next}`;
+}
+
+function applyChangeStatus(c: Change, next: ChangeStatus): Change {
+  const votes =
+    next === 'cab_review' && (!c.cabVotes || c.cabVotes.length === 0)
+      ? defaultCabVotes()
+      : c.cabVotes;
+  return {
+    ...c,
+    status: next,
+    cabVotes: votes,
+    // Standard policy pre-approval only
+    cabApproved:
+      next === 'scheduled' && c.type === 'standard' ? true : c.cabApproved,
+    updatedAt: nowIso(),
+  };
+}
+
+export function transitionChange(
+  id: string,
+  next: ChangeStatus,
+): { ok: true; change: Change } | { ok: false; errorKey: string } {
+  const current = changeItems.find((x) => x.id === id || x.number === id);
+  if (!current) return { ok: false, errorKey: 'module.errors.notFound' };
+  const block = changeTransitionBlockReason(current, next);
+  if (block) return { ok: false, errorKey: block };
 
   changeItems = changeItems.map((c) => {
     if (c.id !== current.id) return c;
-    const votes =
-      next === 'cab_review' && (!c.cabVotes || c.cabVotes.length === 0)
-        ? defaultCabVotes()
-        : c.cabVotes;
-    return {
-      ...c,
-      status: next,
-      cabVotes: votes,
-      // Standard policy pre-approval only
-      cabApproved:
-        next === 'scheduled' && current.type === 'standard'
-          ? true
-          : c.cabApproved,
-      updatedAt: nowIso(),
-    };
+    return applyChangeStatus(c, next);
   });
-  const textKey =
-    next === 'cab_review'
-      ? 'module.activity.submitted_cab'
-      : next === 'scheduled'
-        ? current.type === 'emergency' && !current.cabApproved
-          ? 'module.activity.scheduled_emergency'
-          : 'module.activity.scheduled'
-        : next === 'completed'
-          ? 'module.activity.completed'
-          : next === 'cancelled'
-            ? 'module.activity.cancelled'
-            : `module.activity.change_${next}`;
-  pushModuleActivity(current.id, 'status', textKey);
+  pushModuleActivity(current.id, 'status', changeStatusActivityKey(current, next));
   notifySecondary();
   return { ok: true, change: getChange(current.id)! };
 }
@@ -1355,27 +1405,19 @@ export function bulkAssignChanges(ids: string[]): number {
 }
 
 /**
- * Bulk status for changes (mock). Only applies allowed edges without
- * CAB/plan validation — demo craft, not policy engine.
+ * Bulk status for changes. Same policy gates as transitionChange
+ * (plan + backout + CAB for NORMAL schedule). Skips blocked rows;
+ * returns count of items actually transitioned.
  */
 export function bulkSetChangeStatus(ids: string[], next: ChangeStatus): number {
   const set = new Set(ids);
   let n = 0;
   changeItems = changeItems.map((c) => {
     if (!set.has(c.id) && !set.has(c.number)) return c;
-    const allowed = CHANGE_TRANSITIONS[c.status] ?? [];
-    if (!allowed.includes(next)) return c;
-    // Skip CAB-gated normal schedule in bulk mock
-    if (
-      next === 'scheduled' &&
-      c.type === 'normal' &&
-      !c.cabApproved
-    ) {
-      return c;
-    }
+    if (changeTransitionBlockReason(c, next)) return c;
     n += 1;
-    pushModuleActivity(c.id, 'status', `module.activity.change_${next}`);
-    return { ...c, status: next, updatedAt: nowIso() };
+    pushModuleActivity(c.id, 'status', changeStatusActivityKey(c, next));
+    return applyChangeStatus(c, next);
   });
   if (n) notifySecondary();
   return n;

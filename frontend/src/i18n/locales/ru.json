@@ -92,7 +92,8 @@
     "bulkPriorityChanged": "Приоритет изменён для {n}: {p}",
     "kbdNav": "навигация",
     "kbdOpen": "открыть",
-    "kbdSelect": "выбор"
+    "kbdSelect": "выбор",
+    "kbdClear": "снять выделение"
   },
   "notifications": {
     "unread": "{n} новых",
@@ -516,7 +517,7 @@
     "mapTitle": "Карта зависимостей",
     "mapService": "Сервисный граф Northstar",
     "mapFocus": "Фокус: {name}",
-    "mapHint": "Нажмите на узел, чтобы увидеть соседей",
+    "mapHint": "Клик — выбор · двойной клик — фокус на деталях",
     "mapEmptyTitle": "Нет узлов графа",
     "mapEmptyHint": "Добавьте CI с известной раскладкой, чтобы заполнить карту.",
     "mapNodeService": "Northstar Portal",
@@ -532,6 +533,10 @@
     "fieldCriticality": "Критичность",
     "relationships": "Связи",
     "noRelations": "Для этого CI связи не записаны.",
+    "exportCsv": "Экспорт CI CSV",
+    "exportDone": "Экспортировано CI: {n}",
+    "healthLegend": "Легенда операционного здоровья",
+    "retiredLegend": "Выведено",
     "relForm": {
       "title": "Добавить связь",
       "target": "Целевой CI",
@@ -539,6 +544,9 @@
       "type": "Тип",
       "add": "Добавить связь",
       "remove": "Удалить связь",
+      "editType": "Изменить тип",
+      "editHint": "Двойной клик или «Изменить тип» — сменить тип связи",
+      "updated": "Тип связи обновлён",
       "added": "Связь добавлена",
       "removed": "Связь удалена",
       "required": "Выберите целевой CI",
@@ -556,6 +564,7 @@
     },
     "rel": {
       "depends_on": "Зависит от",
+      "hosted_on": "Размещён на",
       "runs_on": "Работает на",
       "uses": "Использует",
       "connects_to": "Подключается к",
@@ -563,7 +572,8 @@
     },
     "relIn": {
       "depends_on": "Требуется для",
-      "runs_on": "Размещает",
+      "hosted_on": "Размещает",
+      "runs_on": "Хост для",
       "uses": "Используется",
       "connects_to": "Подключение от",
       "hosts": "Размещён на"
@@ -829,7 +839,8 @@
     },
     "conflict": {
       "title": "Freeze / конфликт CI",
-      "body": "{n} конфликт(ов) — два NORMAL в один день на связанных CI: {pairs}"
+      "body": "{n} конфликт(ов) — два NORMAL в один день на связанных CI: {pairs}",
+      "cis": "КИ: {names}"
     }
   },
   "reports": {
@@ -860,18 +871,29 @@
     "urgentQueueHint": "Нарушение SLA, риск или критический приоритет",
     "noUrgent": "Сейчас нет срочных обращений.",
     "exportCsv": "Экспорт CSV",
+    "print": "Печать",
     "filterType": "Тип",
     "filterPriority": "Приоритет",
     "filterCount": "{n} обращений",
     "trendTitle": "Тренд 7 дней",
     "trendHint": "Открыто vs решено (store + лёгкий synthetic fill)",
+    "trendHintStore": "Открыто vs решено по меткам store (без fill)",
+    "trendHintSynthetic": "Нет активности store за неделю — иллюстративный fill (помечен)",
+    "trendSyntheticBanner": "Столбцы с * — только иллюстрация, не живой объём тикетов.",
+    "trendSyntheticTag": "Синтетика",
     "trendOpened": "Открыто",
     "trendResolved": "Решено",
     "resolutionRate": "Доля решений",
     "resolutionRateHint": "Решённые ÷ (решённые + активные)",
     "mttr": "MTTR (мок)",
     "mttrHint": "Средние часы от создания до решения",
-    "mttrValue": "{n} ч"
+    "mttrValue": "{n} ч",
+    "slaCompliance": "Соблюдение SLA (мок 7д)",
+    "slaComplianceHistory": "Из истории · met {met} / breached {breached}",
+    "slaComplianceSnapshot": "По текущему slaState · met/on-track {met} · breached {breached}",
+    "byAssignee": "Нагрузка исполнителей",
+    "byAssigneeHint": "Топ-5 исполнителей по числу тикетов (фильтр)",
+    "noAssignees": "Нет назначенных в текущем фильтре."
   },
   "settings": {
     "title": "Настройки",

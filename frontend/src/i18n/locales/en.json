@@ -92,7 +92,8 @@
     "bulkPriorityChanged": "Priority updated for {n}: {p}",
     "kbdNav": "navigate",
     "kbdOpen": "open",
-    "kbdSelect": "select"
+    "kbdSelect": "select",
+    "kbdClear": "clear selection"
   },
   "notifications": {
     "unread": "{n} new",
@@ -516,7 +517,7 @@
     "mapTitle": "Dependency map",
     "mapService": "Northstar service graph",
     "mapFocus": "Focused on {name}",
-    "mapHint": "Click a node to inspect neighbors",
+    "mapHint": "Click to select · double-click to focus detail",
     "mapEmptyTitle": "No graph nodes",
     "mapEmptyHint": "Add CIs with known layout to populate the map.",
     "mapNodeService": "Northstar Portal",
@@ -532,6 +533,10 @@
     "fieldCriticality": "Criticality",
     "relationships": "Relationships",
     "noRelations": "No relationships recorded for this CI.",
+    "exportCsv": "Export CI CSV",
+    "exportDone": "Exported {n} configuration item(s)",
+    "healthLegend": "Operational health legend",
+    "retiredLegend": "Retired",
     "relForm": {
       "title": "Add relationship",
       "target": "Target CI",
@@ -539,6 +544,9 @@
       "type": "Type",
       "add": "Add relation",
       "remove": "Remove relation",
+      "editType": "Edit type",
+      "editHint": "Double-click or use Edit type to change relation type",
+      "updated": "Relationship type updated",
       "added": "Relationship added",
       "removed": "Relationship removed",
       "required": "Select a target CI",
@@ -556,6 +564,7 @@
     },
     "rel": {
       "depends_on": "Depends on",
+      "hosted_on": "Hosted on",
       "runs_on": "Runs on",
       "uses": "Uses",
       "connects_to": "Connects to",
@@ -563,7 +572,8 @@
     },
     "relIn": {
       "depends_on": "Required by",
-      "runs_on": "Hosts",
+      "hosted_on": "Hosts",
+      "runs_on": "Hosts runtime for",
       "uses": "Used by",
       "connects_to": "Connected from",
       "hosts": "Hosted on"
@@ -829,7 +839,8 @@
     },
     "conflict": {
       "title": "Schedule freeze / CI conflict",
-      "body": "{n} conflict pair(s) — two NORMAL changes share a day and related CIs: {pairs}"
+      "body": "{n} conflict pair(s) — two NORMAL changes share a day and related CIs: {pairs}",
+      "cis": "CIs: {names}"
     }
   },
   "reports": {
@@ -860,18 +871,29 @@
     "urgentQueueHint": "Breached, at-risk, or critical priority",
     "noUrgent": "No urgent items right now.",
     "exportCsv": "Export CSV",
+    "print": "Print",
     "filterType": "Type",
     "filterPriority": "Priority",
     "filterCount": "{n} items",
     "trendTitle": "7-day trend",
     "trendHint": "Opened vs resolved (store + light synthetic fill)",
+    "trendHintStore": "Opened vs resolved from store timestamps (no fill)",
+    "trendHintSynthetic": "No store activity this week — illustrative fill (labeled)",
+    "trendSyntheticBanner": "Bars marked * are synthetic illustration only — not live ticket volume.",
+    "trendSyntheticTag": "Synthetic",
     "trendOpened": "Opened",
     "trendResolved": "Resolved",
     "resolutionRate": "Resolution rate",
     "resolutionRateHint": "Resolved ÷ (resolved + active)",
     "mttr": "MTTR (mock)",
     "mttrHint": "Avg hours from created to resolved",
-    "mttrValue": "{n}h"
+    "mttrValue": "{n}h",
+    "slaCompliance": "SLA compliance (7d mock)",
+    "slaComplianceHistory": "From activity history · met {met} / breached {breached}",
+    "slaComplianceSnapshot": "From current slaState · met/on-track {met} · breached {breached}",
+    "byAssignee": "Assignee load",
+    "byAssigneeHint": "Top 5 assignees by ticket count (filtered set)",
+    "noAssignees": "No assigned items in the current filter."
   },
   "settings": {
     "title": "Settings",

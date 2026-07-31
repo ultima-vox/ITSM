@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
+import ru.ultimavox.itsm.platform.notification.NotificationRequest;
+import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
@@ -39,17 +41,23 @@ public class TransitionWorkItem {
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
   private final ObjectProvider<WorkflowEngine> workflowEngine;
+  private final NotificationService notifications;
+  private final WorkItemSearchIndexer searchIndexer;
 
   TransitionWorkItem(
       WorkItemStore store,
       AuditTrail audit,
       IntegrationEventOutbox outbox,
-      ObjectProvider<WorkflowEngine> workflowEngine
+      ObjectProvider<WorkflowEngine> workflowEngine,
+      NotificationService notifications,
+      WorkItemSearchIndexer searchIndexer
   ) {
     this.store = store;
     this.audit = audit;
     this.outbox = outbox;
     this.workflowEngine = workflowEngine;
+    this.notifications = notifications;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -99,7 +107,50 @@ public class TransitionWorkItem {
         id.toString(),
         after
     ));
+    searchIndexer.index(updated);
+    notifyTransitioned(existing, updated, actorId, correlationId);
     return updated;
+  }
+
+  private void notifyTransitioned(
+      WorkItem before,
+      WorkItem after,
+      String actorId,
+      UUID correlationId
+  ) {
+    String recipient = primaryRecipient(after);
+    if (recipient == null) {
+      return;
+    }
+    try {
+      Map<String, Object> variables = new HashMap<>();
+      variables.put("workItemId", after.id().toString());
+      variables.put("number", after.number());
+      variables.put("title", after.title());
+      variables.put("fromState", before.state().name());
+      variables.put("toState", after.state().name());
+      variables.put("actorId", actorId);
+      notifications.send(new NotificationRequest(
+          correlationId,
+          "work-item.transitioned",
+          recipient,
+          "ru",
+          variables,
+          NotificationRequest.Channel.IN_APP
+      ));
+    } catch (Exception ex) {
+      log.warn("Notification failed for work-item transition {}: {}", after.id(), ex.toString());
+    }
+  }
+
+  private static String primaryRecipient(WorkItem item) {
+    if (item.assigneeId() != null && !item.assigneeId().isBlank()) {
+      return item.assigneeId();
+    }
+    if (item.requesterId() != null && !item.requesterId().isBlank()) {
+      return item.requesterId();
+    }
+    return null;
   }
 
   /**

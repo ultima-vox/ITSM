@@ -13,11 +13,15 @@ import {
   TrendingUp,
   Percent,
   Timer,
+  Users,
+  Printer,
+  ShieldCheck,
 } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { fetchDashboardMetrics, fetchWorkItems } from '@/api';
+import { activities as seedActivities } from '@/mock/data';
 import type { Priority, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
 import { Button, ErrorState, Select, Skeleton } from '@/components/ui';
 import { MetricCard, PriorityBadge, StatusChip } from '@/components/data-display';
@@ -116,6 +120,102 @@ function downloadWorkItemsCsv(items: WorkItem[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Prefer store counts when any day in the window has real events.
+ * Only fall back to light synthetic fill when the entire week is empty —
+ * and mark those days so the UI can label them honestly.
+ */
+function buildTrend(list: WorkItem[]) {
+  const days = last7DayKeys();
+  const raw = days.map((day) => {
+    const opened = list.filter(
+      (w) => dayKey(new Date(w.createdAt)) === day.key,
+    ).length;
+    const closed = list.filter(
+      (w) =>
+        isResolvedStatus(w.status) && dayKey(new Date(w.updatedAt)) === day.key,
+    ).length;
+    return { ...day, opened, closed, synthetic: false };
+  });
+  const hasStoreActivity = raw.some((d) => d.opened > 0 || d.closed > 0);
+  if (hasStoreActivity) {
+    return { trend: raw, usedSynthetic: false };
+  }
+  // Empty store week — optional visual fill, clearly labeled
+  const filled = raw.map((day, idx) => {
+    const seed = (day.date.getDate() + idx * 3) % 5;
+    return {
+      ...day,
+      opened: seed === 0 ? 0 : seed,
+      closed: Math.max(0, seed - 1),
+      synthetic: true,
+    };
+  });
+  return { trend: filled, usedSynthetic: true };
+}
+
+/**
+ * SLA compliance mock for last 7 days:
+ * 1) From history (activity kind=sla, text sla_breached / sla_met) if any
+ * 2) Else current slaState distribution among met vs breached
+ */
+function computeSlaCompliance(list: WorkItem[]): {
+  pct: number | null;
+  met: number;
+  breached: number;
+  source: 'history' | 'snapshot';
+} {
+  const weekAgo = startOfLocalDay(new Date());
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  const weekStartMs = weekAgo.getTime();
+
+  let histMet = 0;
+  let histBreached = 0;
+  for (const acts of Object.values(seedActivities)) {
+    for (const a of acts) {
+      if (a.kind !== 'sla') continue;
+      const at = new Date(a.at).getTime();
+      if (Number.isNaN(at) || at < weekStartMs) continue;
+      if (a.text === 'sla_breached') histBreached += 1;
+      else if (a.text === 'sla_met' || a.text === 'sla_restored') histMet += 1;
+    }
+  }
+  if (histMet + histBreached > 0) {
+    return {
+      pct: Math.round((histMet / (histMet + histBreached)) * 100),
+      met: histMet,
+      breached: histBreached,
+      source: 'history',
+    };
+  }
+
+  const met = list.filter((w) => w.slaState === 'met').length;
+  const breached = list.filter((w) => w.slaState === 'breached').length;
+  const denom = met + breached;
+  if (denom === 0) {
+    // Broader snapshot: treat non-breached terminal-ish as compliant share of all with SLA
+    const onTrack = list.filter(
+      (w) => w.slaState === 'on_track' || w.slaState === 'met',
+    ).length;
+    const total = list.length;
+    if (total === 0) {
+      return { pct: null, met: 0, breached: 0, source: 'snapshot' };
+    }
+    return {
+      pct: Math.round((onTrack / total) * 100),
+      met: onTrack,
+      breached: list.filter((w) => w.slaState === 'breached').length,
+      source: 'snapshot',
+    };
+  }
+  return {
+    pct: Math.round((met / denom) * 100),
+    met,
+    breached,
+    source: 'snapshot',
+  };
+}
+
 export function ReportsPage() {
   const t = useT();
   const { locale } = useI18n();
@@ -172,26 +272,26 @@ export function ReportsPage() {
       mttrHours = Math.round((totalMs / resolved.length / 3_600_000) * 10) / 10;
     }
 
-    // Trend: open (created) vs resolved (closed/resolved on that day) for last 7 days
-    const days = last7DayKeys();
-    const trend = days.map((day, idx) => {
-      let opened = list.filter((w) => dayKey(new Date(w.createdAt)) === day.key).length;
-      let closed = list.filter(
-        (w) =>
-          isResolvedStatus(w.status) && dayKey(new Date(w.updatedAt)) === day.key,
-      ).length;
-      // Light synthetic floor so the sparkline is never a flat empty row when store is sparse
-      if (opened === 0 && closed === 0) {
-        const seed = (day.date.getDate() + idx * 3) % 5;
-        opened = seed === 0 ? 0 : seed;
-        closed = Math.max(0, seed - 1);
-      }
-      return { ...day, opened, closed };
-    });
+    const { trend, usedSynthetic } = buildTrend(list);
     const trendMax = Math.max(
       1,
       ...trend.map((d) => Math.max(d.opened, d.closed)),
     );
+
+    // Top 5 assignees by open+closed load on filtered set
+    const loadMap = new Map<string, { name: string; count: number }>();
+    for (const w of list) {
+      if (!w.assignee) continue;
+      const cur = loadMap.get(w.assignee.id);
+      if (cur) cur.count += 1;
+      else loadMap.set(w.assignee.id, { name: w.assignee.name, count: 1 });
+    }
+    const topAssignees = [...loadMap.values()]
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 5);
+    const maxAssignee = Math.max(1, ...topAssignees.map((a) => a.count), 1);
+
+    const slaCompliance = computeSlaCompliance(list);
 
     return {
       resolved: resolved.length,
@@ -209,6 +309,10 @@ export function ReportsPage() {
       mttrHours,
       trend,
       trendMax,
+      usedSynthetic,
+      topAssignees,
+      maxAssignee,
+      slaCompliance,
       topUrgent: list
         .filter(
           (w) =>
@@ -228,9 +332,13 @@ export function ReportsPage() {
     downloadWorkItemsCsv(filtered, `itsm-work-items-${stamp}.csv`);
   };
 
+  const printReport = () => {
+    window.print();
+  };
+
   return (
     <section className="page page--reports">
-      <div className="page-head">
+      <div className="page-head reports-print-hide">
         <div>
           <p className="eyebrow">{t('reports.eyebrow')}</p>
           <h1>{t('reports.title')}</h1>
@@ -238,6 +346,14 @@ export function ReportsPage() {
         </div>
         <div className="page-head__meta">
           <span className="chip">{t('reports.liveChip')}</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Printer size={16} />}
+            onClick={printReport}
+          >
+            {t('reports.print')}
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -250,7 +366,14 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="filters-bar filters-bar--module reports-filters">
+      <div className="reports-print-title" aria-hidden>
+        <h1>{t('reports.title')}</h1>
+        <p>
+          {new Date().toLocaleString(locale)} · {t('reports.filterCount', { n: derived.total })}
+        </p>
+      </div>
+
+      <div className="filters-bar filters-bar--module reports-filters reports-print-hide">
         <Select
           label={t('reports.filterType')}
           value={typeFilter}
@@ -352,32 +475,52 @@ export function ReportsPage() {
           <div className="panel__header panel__header--dense">
             <div>
               <h2>{t('reports.trendTitle')}</h2>
-              <p>{t('reports.trendHint')}</p>
+              <p>
+                {derived.usedSynthetic
+                  ? t('reports.trendHintSynthetic')
+                  : t('reports.trendHintStore')}
+              </p>
             </div>
             <TrendingUp size={18} aria-hidden className="muted" />
           </div>
+          {derived.usedSynthetic && (
+            <p className="reports-trend__synthetic-banner" role="note">
+              {t('reports.trendSyntheticBanner')}
+            </p>
+          )}
           <div className="reports-trend" role="img" aria-label={t('reports.trendTitle')}>
             <div className="reports-trend__legend">
               <span className="reports-trend__swatch reports-trend__swatch--open" />
               {t('reports.trendOpened')}
               <span className="reports-trend__swatch reports-trend__swatch--resolved" />
               {t('reports.trendResolved')}
+              {derived.usedSynthetic && (
+                <span className="reports-trend__synthetic-tag">
+                  {t('reports.trendSyntheticTag')}
+                </span>
+              )}
             </div>
             <ul className="reports-trend__bars">
               {derived.trend.map((d) => (
-                <li key={d.key}>
+                <li key={d.key} className={d.synthetic ? 'is-synthetic' : undefined}>
                   <div className="reports-trend__pair" aria-hidden>
                     <div
                       className="reports-trend__col reports-trend__col--open"
                       style={{
-                        height: `${Math.max(4, Math.round((d.opened / derived.trendMax) * 100))}%`,
+                        height: `${Math.max(
+                          d.opened > 0 || d.closed > 0 ? 4 : 0,
+                          Math.round((d.opened / derived.trendMax) * 100),
+                        )}%`,
                       }}
                       title={`${d.opened}`}
                     />
                     <div
                       className="reports-trend__col reports-trend__col--resolved"
                       style={{
-                        height: `${Math.max(4, Math.round((d.closed / derived.trendMax) * 100))}%`,
+                        height: `${Math.max(
+                          d.opened > 0 || d.closed > 0 ? 4 : 0,
+                          Math.round((d.closed / derived.trendMax) * 100),
+                        )}%`,
                       }}
                       title={`${d.closed}`}
                     />
@@ -390,6 +533,7 @@ export function ReportsPage() {
                   </span>
                   <span className="reports-trend__counts muted">
                     {d.opened}/{d.closed}
+                    {d.synthetic ? '*' : ''}
                   </span>
                 </li>
               ))}
@@ -486,6 +630,28 @@ export function ReportsPage() {
                 <small className="muted">{t('reports.mttrHint')}</small>
               </div>
             </div>
+            <div className="reports-kpi reports-kpi--sla">
+              <ShieldCheck size={16} aria-hidden />
+              <div>
+                <b>
+                  {derived.slaCompliance.pct != null
+                    ? `${derived.slaCompliance.pct}%`
+                    : '—'}
+                </b>
+                <span>{t('reports.slaCompliance')}</span>
+                <small className="muted">
+                  {derived.slaCompliance.source === 'history'
+                    ? t('reports.slaComplianceHistory', {
+                        met: derived.slaCompliance.met,
+                        breached: derived.slaCompliance.breached,
+                      })
+                    : t('reports.slaComplianceSnapshot', {
+                        met: derived.slaCompliance.met,
+                        breached: derived.slaCompliance.breached,
+                      })}
+                </small>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -568,13 +734,45 @@ export function ReportsPage() {
         </section>
       </div>
 
+      <div className="dashboard-grid reports-breakdown-grid">
+        <section className="panel">
+          <div className="panel__header panel__header--dense">
+            <div>
+              <h2>{t('reports.byAssignee')}</h2>
+              <p>{t('reports.byAssigneeHint')}</p>
+            </div>
+            <Users size={18} aria-hidden className="muted" />
+          </div>
+          {derived.topAssignees.length === 0 ? (
+            <p className="muted reports-empty">{t('reports.noAssignees')}</p>
+          ) : (
+            <ul className="reports-bars" aria-label={t('reports.byAssignee')}>
+              {derived.topAssignees.map((a) => (
+                <li key={a.name}>
+                  <span className="reports-assignee-name" title={a.name}>
+                    {a.name}
+                  </span>
+                  <div className="reports-bar-track" aria-hidden>
+                    <div
+                      className="reports-bar-fill reports-bar-fill--assignee"
+                      style={{ width: barPct(a.count, derived.maxAssignee) }}
+                    />
+                  </div>
+                  <b>{a.count}</b>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
       <section className="panel reports-urgent-panel">
         <div className="panel__header panel__header--dense">
           <div>
             <h2>{t('reports.urgentQueue')}</h2>
             <p>{t('reports.urgentQueueHint')}</p>
           </div>
-          <Link to="/queues?tab=breached" className="text-button">
+          <Link to="/queues?tab=breached" className="text-button reports-print-hide">
             {t('app.viewAll')} <span aria-hidden>→</span>
           </Link>
         </div>
