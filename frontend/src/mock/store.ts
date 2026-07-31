@@ -43,6 +43,7 @@ import {
   people,
   TEAMS,
 } from './data';
+import { resetAutomationRules } from './automation';
 
 type Listener = () => void;
 
@@ -1708,6 +1709,7 @@ export function resetDemoData(): void {
   } catch {
     /* ignore */
   }
+  resetAutomationRules();
   persistToStorage();
   listeners.forEach((fn) => fn());
   ciListeners.forEach((fn) => fn());

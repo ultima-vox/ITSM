@@ -41,6 +41,9 @@ const ReportsPage = lazy(() =>
 const MetadataPage = lazy(() =>
   import('@/pages/Admin/MetadataPage').then((m) => ({ default: m.MetadataPage })),
 );
+const AutomationPage = lazy(() =>
+  import('@/pages/Admin/AutomationPage').then((m) => ({ default: m.AutomationPage })),
+);
 const WorkItemDetailPage = lazy(() =>
   import('@/pages/WorkItemDetail/WorkItemDetailPage').then((m) => ({
     default: m.WorkItemDetailPage,
@@ -153,6 +156,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <MetadataPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/automation',
+        element: (
+          <LazyRoute>
+            <AutomationPage />
           </LazyRoute>
         ),
       },

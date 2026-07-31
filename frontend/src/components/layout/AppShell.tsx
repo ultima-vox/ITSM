@@ -25,6 +25,8 @@ const crumbMap: Record<string, string> = {
   '/changes': 'nav.changes',
   '/reports': 'nav.reports',
   '/settings': 'nav.settings',
+  '/admin/metadata': 'nav.metadata',
+  '/admin/automation': 'nav.automation',
 };
 
 export function AppShell() {

@@ -7,22 +7,29 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 
 export type ToastVariant = 'success' | 'info' | 'warning' | 'error';
+
+export interface ToastAction {
+  label: string;
+  href: string;
+}
 
 interface ToastItem {
   id: string;
   message: string;
   variant: ToastVariant;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  toast: (message: string, variant?: ToastVariant) => void;
-  success: (message: string) => void;
-  info: (message: string) => void;
-  warning: (message: string) => void;
-  error: (message: string) => void;
+  toast: (message: string, variant?: ToastVariant, action?: ToastAction) => void;
+  success: (message: string, action?: ToastAction) => void;
+  info: (message: string, action?: ToastAction) => void;
+  warning: (message: string, action?: ToastAction) => void;
+  error: (message: string, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -44,10 +51,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = 'success') => {
+    (message: string, variant: ToastVariant = 'success', action?: ToastAction) => {
       const id = `toast-${Date.now()}-${++toastSeq}`;
-      setItems((prev) => [...prev.slice(-2), { id, message, variant }]);
-      const timer = window.setTimeout(() => dismiss(id), 2800);
+      setItems((prev) => [...prev.slice(-2), { id, message, variant, action }]);
+      const timer = window.setTimeout(() => dismiss(id), action ? 5200 : 2800);
       timers.current.set(id, timer);
     },
     [dismiss],
@@ -56,10 +63,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ToastContextValue>(
     () => ({
       toast,
-      success: (message: string) => toast(message, 'success'),
-      info: (message: string) => toast(message, 'info'),
-      warning: (message: string) => toast(message, 'warning'),
-      error: (message: string) => toast(message, 'error'),
+      success: (message: string, action?: ToastAction) =>
+        toast(message, 'success', action),
+      info: (message: string, action?: ToastAction) => toast(message, 'info', action),
+      warning: (message: string, action?: ToastAction) =>
+        toast(message, 'warning', action),
+      error: (message: string, action?: ToastAction) => toast(message, 'error', action),
     }),
     [toast],
   );
@@ -74,7 +83,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`toast toast--${item.variant} toast--float`}
             role="status"
           >
-            <span className="toast__msg">{item.message}</span>
+            <span className="toast__msg">
+              {item.message}
+              {item.action && (
+                <>
+                  {' '}
+                  <Link
+                    className="toast__link"
+                    to={item.action.href}
+                    onClick={() => dismiss(item.id)}
+                  >
+                    {item.action.label}
+                  </Link>
+                </>
+              )}
+            </span>
             <button
               type="button"
               className="toast__close"

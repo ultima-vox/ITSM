@@ -18,6 +18,7 @@ import {
   Settings,
   TicketCheck,
   AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -256,6 +257,15 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         icon: Database,
         run: () => go('/admin/metadata'),
         keywords: 'metadata objects attributes admin schema',
+      },
+      {
+        id: 'nav-automation',
+        kind: 'nav',
+        label: t('nav.automation'),
+        hint: t('command.navigate'),
+        icon: Zap,
+        run: () => go('/admin/automation'),
+        keywords: 'automation rules events triggers actions when if then admin',
       },
       {
         id: 'nav-settings',

@@ -368,3 +368,38 @@ export interface QueueSavedView {
   sla: string;
   builtin?: boolean;
 }
+
+/** Matches backend AutomationRule.Operator */
+export type AutomationOperator =
+  | 'EQUALS'
+  | 'NOT_EQUALS'
+  | 'IN'
+  | 'CONTAINS'
+  | 'GREATER_THAN';
+
+/**
+ * Declarative automation rule: WHEN event IF conditions THEN actions.
+ * Aligned with backend `AutomationRule` (platform.automation).
+ */
+export interface AutomationRule {
+  id: string;
+  ruleKey: string;
+  name: string;
+  enabled: boolean;
+  trigger: { eventType: string };
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  /** Optional UI description (not persisted on backend) */
+  description?: string;
+}
+
+export interface AutomationCondition {
+  field: string;
+  operator: AutomationOperator;
+  value: string;
+}
+
+export interface AutomationAction {
+  type: string;
+  parameters: Record<string, unknown>;
+}
