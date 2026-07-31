@@ -29,6 +29,7 @@ const crumbMap: Record<string, string> = {
   '/admin/automation': 'nav.automation',
   '/admin/workflow': 'nav.workflow',
   '/admin/sla': 'nav.sla',
+  '/admin/rbac': 'nav.rbac',
   '/admin/audit': 'nav.audit',
   '/search': 'nav.search',
 };

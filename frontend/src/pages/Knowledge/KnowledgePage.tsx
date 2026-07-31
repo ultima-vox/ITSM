@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -16,6 +16,7 @@ import {
   ThumbsUp,
   X,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -84,6 +85,8 @@ function articleBody(a: KnowledgeArticle, t: (k: string) => string): string {
 export function KnowledgePage() {
   const t = useT();
   const { success } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const articleFromQuery = searchParams.get('article');
   const [tab, setTab] = useState<KnowledgeTab>('recommended');
   const [query, setQuery] = useState('');
   const [topicId, setTopicId] = useState<string | null>(null);
@@ -98,6 +101,20 @@ export function KnowledgePage() {
       articles.reload();
     });
   }, [articles.reload]);
+
+  // Honor ?article= deep-link from search / related links
+  useEffect(() => {
+    if (!articles.data?.length || !articleFromQuery) return;
+    const found = articles.data.find((a) => a.id === articleFromQuery);
+    if (found) setActive(found);
+  }, [articles.data, articleFromQuery]);
+
+  const clearArticleParam = useCallback(() => {
+    if (!searchParams.has('article')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('article');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Keep open reader in sync with store score / edit mutations
   useEffect(() => {
@@ -430,7 +447,10 @@ export function KnowledgePage() {
         <ArticleReader
           article={active}
           all={articles.data ?? []}
-          onClose={() => setActive(null)}
+          onClose={() => {
+            setActive(null);
+            clearArticleParam();
+          }}
           onOpenRelated={(a) => setActive(a)}
           onArticleUpdated={(a) => {
             setActive(a);

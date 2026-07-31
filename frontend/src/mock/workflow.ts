@@ -155,6 +155,14 @@ export function getWorkflowDefinition(id: string): WorkflowDefinition | null {
   return found ? cloneDef(found) : null;
 }
 
+/** Active definition for an object key, or null if none is active. */
+export function getActiveWorkflowDefinition(
+  objectKey: string,
+): WorkflowDefinition | null {
+  const found = definitions.find((d) => d.objectKey === objectKey && d.active);
+  return found ? cloneDef(found) : null;
+}
+
 /**
  * Mark a definition active for its objectKey; deactivate sibling versions (session).
  */

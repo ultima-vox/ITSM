@@ -17,6 +17,7 @@ import {
   AlertOctagon,
   ScrollText,
   Search,
+  Shield,
   Timer,
   Workflow,
   Zap,
@@ -45,12 +46,13 @@ const primaryNav = [
   { to: '/changes', key: 'changes', icon: GitBranch },
 ] as const;
 
-/** Management section — Metadata / Automation / Workflow / SLA / Audit for demo configurability. */
+/** Management section — Metadata / Automation / Workflow / SLA / RBAC / Audit for demo configurability. */
 const secondaryNav = [
   { to: '/admin/metadata', key: 'metadata', icon: Database },
   { to: '/admin/automation', key: 'automation', icon: Zap },
   { to: '/admin/workflow', key: 'workflow', icon: Workflow },
   { to: '/admin/sla', key: 'sla', icon: Timer },
+  { to: '/admin/rbac', key: 'rbac', icon: Shield },
   { to: '/admin/audit', key: 'audit', icon: ScrollText },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;

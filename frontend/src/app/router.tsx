@@ -53,6 +53,9 @@ const SlaPage = lazy(() =>
 const AuditPage = lazy(() =>
   import('@/pages/Admin/AuditPage').then((m) => ({ default: m.AuditPage })),
 );
+const RbacPage = lazy(() =>
+  import('@/pages/Admin/RbacPage').then((m) => ({ default: m.RbacPage })),
+);
 const SearchPage = lazy(() =>
   import('@/pages/Search/SearchPage').then((m) => ({ default: m.SearchPage })),
 );
@@ -200,6 +203,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <AuditPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/rbac',
+        element: (
+          <LazyRoute>
+            <RbacPage />
           </LazyRoute>
         ),
       },

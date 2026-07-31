@@ -26,6 +26,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
+import { resolveRelatedHref } from '@/lib/resolveRelated';
 
 const TYPE_ICONS: Record<string, typeof Search> = {
   'work-item': TicketCheck,
@@ -248,7 +249,9 @@ export function SearchPage() {
       {!loading && !error && hits && hits.length > 0 && (
         <ul className="search-page__results" aria-label={t('search.results')}>
           {hits.map((hit) => {
-            const path = searchHitPath(hit);
+            // Prefer resolveRelatedHref (entity deep-links); type fallback via searchHitPath
+            const path =
+              resolveRelatedHref(hit.id) ?? searchHitPath(hit) ?? null;
             const Icon = TYPE_ICONS[hit.objectType] ?? Search;
             const tone = TYPE_TONES[hit.objectType] ?? 'neutral';
             const snippet = hit.body?.trim();

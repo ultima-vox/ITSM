@@ -498,3 +498,45 @@ export interface WorkingCalendarMock {
   endsAt: string;
   holidays: string[];
 }
+
+/**
+ * Platform RBAC — aligned with backend `role` / `permission` / `role_permission`
+ * (Flyway V10+). Role keys match Keycloak realm roles.
+ */
+export type RbacRoleKey =
+  | 'ADMIN'
+  | 'SERVICE_DESK_AGENT'
+  | 'SERVICE_DESK_MANAGER'
+  | 'REQUESTER'
+  | 'CHANGE_MANAGER'
+  | 'CAB_MEMBER';
+
+export type RbacUserStatus = 'active' | 'inactive' | 'locked';
+
+export interface RbacPermission {
+  key: string;
+  description: string;
+}
+
+export interface RbacRole {
+  id: string;
+  roleKey: RbacRoleKey;
+  /** i18n-friendly labels (en/ru; de falls back to en in UI) */
+  labels: { en: string; ru: string; de?: string };
+  description: string;
+  /** Permission keys granted to this role (read-only catalog) */
+  permissions: string[];
+}
+
+/** Mock directory user for RBAC admin (session-mutable role assignment). */
+export interface RbacUser {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  roleKey: RbacRoleKey;
+  locale: LocaleCode;
+  status: RbacUserStatus;
+  /** Optional fixed Keycloak `sub` for demo principals */
+  subjectId?: string;
+}

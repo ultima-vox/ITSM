@@ -1,11 +1,13 @@
 /**
- * Resolve technical related ids (ci-*, wi-*, as-*, pr-*, ch-*) to human labels
- * using the in-memory mock store. Used by Assets / Problems / Changes drawers.
+ * Resolve technical related ids (ci-*, wi-*, as-*, pr-*, ch-*, kb-*) to human labels
+ * and deep-link hrefs using the in-memory mock store.
+ * Used by Assets / Problems / Changes drawers and global search Open.
  */
 import {
   getAsset,
   getChange,
   getConfigurationItem,
+  getKnowledgeArticle,
   getProblem,
   getWorkItem,
 } from '@/mock/store';
@@ -44,25 +46,52 @@ export function resolveRelatedLabel(id: string): string {
     return `${change.number} · ${title}`;
   }
 
+  const article = getKnowledgeArticle(id);
+  if (article) {
+    const title = (article.title ?? article.titleKey ?? id).trim();
+    return title.length > 48 ? `${title.slice(0, 47)}…` : title;
+  }
+
   // Fallback: never surface a bare technical id when we can soft-label it
   if (id.startsWith('ci-')) return id.replace(/^ci-/, 'CI · ');
   if (id.startsWith('wi-')) return id.replace(/^wi-/, 'WI · ');
+  if (id.startsWith('as-')) return id.replace(/^as-/, 'Asset · ');
+  if (id.startsWith('pr-')) return id.replace(/^pr-/, 'PR · ');
+  if (id.startsWith('ch-')) return id.replace(/^ch-/, 'CHG · ');
+  if (id.startsWith('kb-')) return id.replace(/^kb-/, 'KB · ');
   return id;
 }
 
+/** Deep-link path for an entity id when resolvable from store or id prefix. */
 export function resolveRelatedHref(id: string): string | undefined {
   if (!id) return undefined;
+  const enc = encodeURIComponent(id);
+
   if (getWorkItem(id)) return `/work-items/${id}`;
-  if (getConfigurationItem(id)) return `/cmdb?ci=${encodeURIComponent(id)}`;
-  if (getProblem(id)) return '/problems';
-  if (getChange(id)) return '/changes';
-  if (getAsset(id)) return '/assets';
+  if (getConfigurationItem(id)) return `/cmdb?ci=${enc}`;
+  if (getProblem(id)) return `/problems?id=${enc}`;
+  if (getChange(id)) return `/changes?id=${enc}`;
+  if (getAsset(id)) return `/assets?id=${enc}`;
+  if (getKnowledgeArticle(id)) return `/knowledge?article=${enc}`;
+
+  // Prefix fallbacks (live payloads / unknown store)
   if (id.startsWith('wi-')) return `/work-items/${id}`;
-  if (id.startsWith('ci-')) return `/cmdb?ci=${encodeURIComponent(id)}`;
+  if (id.startsWith('ci-')) return `/cmdb?ci=${enc}`;
+  if (id.startsWith('pr-')) return `/problems?id=${enc}`;
+  if (id.startsWith('ch-')) return `/changes?id=${enc}`;
+  if (id.startsWith('as-')) return `/assets?id=${enc}`;
+  if (id.startsWith('kb-')) return `/knowledge?article=${enc}`;
   return undefined;
 }
 
-export type RelatedKind = 'work_item' | 'ci' | 'asset' | 'problem' | 'change' | 'unknown';
+export type RelatedKind =
+  | 'work_item'
+  | 'ci'
+  | 'asset'
+  | 'problem'
+  | 'change'
+  | 'knowledge'
+  | 'unknown';
 
 export function resolveRelatedKind(id: string): RelatedKind {
   if (getWorkItem(id) || id.startsWith('wi-')) return 'work_item';
@@ -70,5 +99,6 @@ export function resolveRelatedKind(id: string): RelatedKind {
   if (getAsset(id) || id.startsWith('as-')) return 'asset';
   if (getProblem(id) || id.startsWith('pr-')) return 'problem';
   if (getChange(id) || id.startsWith('ch-')) return 'change';
+  if (getKnowledgeArticle(id) || id.startsWith('kb-')) return 'knowledge';
   return 'unknown';
 }
