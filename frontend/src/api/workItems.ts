@@ -75,7 +75,20 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   }
   try {
     const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
-    return mapWorkItem(dto);
+    const item = mapWorkItem(dto);
+    try {
+      const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers`);
+      return {
+        ...item,
+        watchers: (subjects ?? []).map((sid) => ({
+          id: sid,
+          name: sid,
+          initials: sid.slice(0, 2).toUpperCase(),
+        })),
+      };
+    } catch {
+      return item;
+    }
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
       return null;
