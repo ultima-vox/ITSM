@@ -88,7 +88,8 @@ function mapLiveNotification(dto: BackendNotification): AppNotification {
 }
 
 /**
- * List notifications. Live mode hits GET /notifications; on failure falls back to mock seed.
+ * List notifications. Live mode hits GET /notifications.
+ * S24: failures rethrow — UI surfaces error (no silent mock seed fallback).
  */
 export async function fetchNotifications(): Promise<AppNotification[]> {
   if (useMock()) {
@@ -96,14 +97,8 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
     ensureNotificationCenter();
     return listMockNotifications();
   }
-  try {
-    const list = await apiRequest<BackendNotification[]>('/notifications');
-    return (list ?? []).map(mapLiveNotification);
-  } catch {
-    // Keep UI usable when demo notification store is empty / auth fails
-    ensureNotificationCenter();
-    return listMockNotifications();
-  }
+  const list = await apiRequest<BackendNotification[]>('/notifications');
+  return (list ?? []).map(mapLiveNotification);
 }
 
 export function subscribeNotifications(listener: () => void): () => void {

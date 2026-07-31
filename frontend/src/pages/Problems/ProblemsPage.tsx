@@ -15,6 +15,7 @@ import {
   bulkSetProblemStatus,
   createProblem,
   fetchProblems,
+  isLiveFeatureUnsupported,
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
@@ -233,15 +234,35 @@ export function ProblemsPage() {
   );
 
   const handleBulkAssign = async () => {
-    const n = await bulkAssignProblems([...selectedIds]);
-    success(t('module.bulk.assigned', { n }));
-    setSelectedIds(new Set());
+    try {
+      const n = await bulkAssignProblems([...selectedIds]);
+      success(t('module.bulk.assigned', { n }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   const handleBulkStatus = async (next: WorkItemStatus) => {
-    const n = await bulkSetProblemStatus([...selectedIds], next);
-    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
-    setSelectedIds(new Set());
+    try {
+      const n = await bulkSetProblemStatus([...selectedIds], next);
+      if (n === 0) {
+        toastError(t('module.errors.bulkNoneSucceeded'));
+        return;
+      }
+      success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   useEffect(() => {

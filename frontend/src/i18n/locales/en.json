@@ -102,8 +102,10 @@
     "unread": "{n} new",
     "markAllRead": "Mark all read",
     "viewAll": "All notifications",
+    "openCenter": "Open notification center",
     "ago": "{n} ago",
     "empty": "No notifications yet",
+    "emptyHint": "SLA risks, assignments and mentions will appear here.",
     "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA at risk",
     "slaRiskBody": "INC-1842 · Remote VPN — under an hour left",
@@ -115,7 +117,14 @@
     "resolvedBody": "INC-1820 · SAP SSO closed",
     "breachTitle": "SLA breached",
     "liveTitle": "Notification",
-    "liveBody": "{detail}"
+    "liveBody": "{detail}",
+    "centerTitle": "Notification center",
+    "centerSubtitle": "SLA risks, assignments and mentions across your desk.",
+    "filterLabel": "Filter notifications",
+    "filterAll": "All",
+    "filterUnread": "Unread",
+    "loadFailed": "Could not load notifications",
+    "loadFailedHint": "Live notification service is unavailable. Retry or check API connectivity — mock seed is not shown as a fallback."
   },
   "form": {
     "engineChip": "Form v{v}",
@@ -155,6 +164,7 @@
     "rbac": "RBAC",
     "audit": "Audit",
     "search": "Search",
+    "notifications": "Notifications",
     "settings": "Settings"
   },
   "header": {
@@ -449,6 +459,8 @@
     "contributeText": "Share your experience — it will help colleagues.",
     "contributeAction": "Suggest an article",
     "contributeMock": "Article suggestion is mock-only in this build",
+    "cmsLiveBanner": "Authoring is read-only in live API mode. Contribute, edit and publish require mock session or a future KB write API.",
+    "cmsLiveUnsupported": "Knowledge CMS writes are not available against the live API",
     "contributeModalTitle": "Suggest a knowledge article",
     "contributeModalHint": "Draft is saved as pending in this session and appears in the list immediately.",
     "contributeFieldTitle": "Title",
@@ -689,7 +701,10 @@
     },
     "errors": {
       "notFound": "Record not found",
-      "invalidTransition": "This status transition is not allowed"
+      "invalidTransition": "This status transition is not allowed",
+      "bulkLiveUnsupported": "Bulk action is not available against the live API yet",
+      "bulkFailed": "Bulk action failed",
+      "bulkNoneSucceeded": "No selected records could be updated"
     },
     "activity": {
       "created": "Created",

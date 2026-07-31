@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/useToast';
 import {
   bulkAssignChanges,
   bulkSetChangeStatus,
+  isLiveFeatureUnsupported,
   castCabMemberVote,
   createChange,
   fetchChanges,
@@ -344,15 +345,35 @@ export function ChangesPage() {
   );
 
   const handleBulkAssign = async () => {
-    const n = await bulkAssignChanges([...selectedIds]);
-    success(t('module.bulk.assigned', { n }));
-    setSelectedIds(new Set());
+    try {
+      const n = await bulkAssignChanges([...selectedIds]);
+      success(t('module.bulk.assigned', { n }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   const handleBulkStatus = async (next: ChangeStatus) => {
-    const n = await bulkSetChangeStatus([...selectedIds], next);
-    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
-    setSelectedIds(new Set());
+    try {
+      const n = await bulkSetChangeStatus([...selectedIds], next);
+      if (n === 0) {
+        toastError(t('module.errors.bulkNoneSucceeded'));
+        return;
+      }
+      success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   useEffect(() => {

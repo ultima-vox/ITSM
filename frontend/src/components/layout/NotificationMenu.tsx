@@ -46,16 +46,23 @@ export function NotificationMenu() {
   const mockItems = useMockNotifications();
   const [liveItems, setLiveItems] = useState<AppNotification[] | null>(null);
   const [liveLoaded, setLiveLoaded] = useState(false);
+  /** S24: surface live fetch failure instead of silent mock seed. */
+  const [liveError, setLiveError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const liveMode = !useMock();
-  const items = liveMode && liveLoaded ? (liveItems ?? mockItems) : mockItems;
+  const items = liveMode
+    ? liveLoaded && !liveError
+      ? (liveItems ?? [])
+      : []
+    : mockItems;
   const unread = items.filter((n) => n.unread).length;
 
   useEffect(() => {
     if (!liveMode) {
       setLiveItems(null);
       setLiveLoaded(false);
+      setLiveError(false);
       return;
     }
     let cancelled = false;
@@ -63,11 +70,13 @@ export function NotificationMenu() {
       .then((list) => {
         if (cancelled) return;
         setLiveItems(list);
+        setLiveError(false);
         setLiveLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
         setLiveItems(null);
+        setLiveError(true);
         setLiveLoaded(true);
       });
     return () => {
@@ -136,11 +145,25 @@ export function NotificationMenu() {
               {t('notifications.markAllRead')}
             </button>
           </div>
-          {items.length === 0 ? (
+          {liveMode && liveError ? (
+            <div className="notif-error" role="alert">
+              <p className="notif-empty">{t('notifications.loadFailed')}</p>
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/notifications');
+                }}
+              >
+                {t('notifications.openCenter')}
+              </button>
+            </div>
+          ) : items.length === 0 ? (
             <p className="notif-empty">{t('notifications.empty')}</p>
           ) : (
             <ul className="notif-list">
-              {items.map((n) => {
+              {items.slice(0, 8).map((n) => {
                 const Icon = kindIcon[n.kind] ?? Bell;
                 return (
                   <li key={n.id}>
@@ -174,7 +197,7 @@ export function NotificationMenu() {
               className="text-link"
               onClick={() => {
                 setOpen(false);
-                navigate('/my-work');
+                navigate('/notifications');
               }}
             >
               {t('notifications.viewAll')}
