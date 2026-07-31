@@ -730,6 +730,26 @@ function defaultCabVotes(): CabVote[] {
   ];
 }
 
+/** Min member approve votes before chair may approve (S9). Standard exempt. */
+export const CAB_QUORUM_APPROVES = 1;
+
+/** Count member votes with decision === approve. */
+export function countCabApproves(change: Change): number {
+  const votes = change.cabVotes?.length ? change.cabVotes : defaultCabVotes();
+  return votes.filter((v) => v.decision === 'approve').length;
+}
+
+/**
+ * Whether chair CAB approve is allowed.
+ * - standard: always (no CAB board required)
+ * - normal / emergency: need ≥ CAB_QUORUM_APPROVES member approve votes
+ * Reject never blocked by quorum.
+ */
+export function cabChairApproveAllowed(change: Change): boolean {
+  if (change.type === 'standard') return true;
+  return countCabApproves(change) >= CAB_QUORUM_APPROVES;
+}
+
 function recomputeHelpfulScore(yes: number, no: number): number {
   const total = yes + no;
   if (total <= 0) return 0;
@@ -1496,6 +1516,10 @@ export function setChangeCabDecision(
   if (!current) return { ok: false, errorKey: 'module.errors.notFound' };
   if (current.status === 'completed' || current.status === 'cancelled') {
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
+  // S9: chair approve needs member quorum (except standard)
+  if (decision === 'approve' && !cabChairApproveAllowed(current)) {
+    return { ok: false, errorKey: 'changes.validation.cabQuorum' };
   }
   changeItems = changeItems.map((c) => {
     if (c.id !== current.id) return c;

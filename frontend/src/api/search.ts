@@ -64,9 +64,9 @@ export function searchHitPath(hit: SearchHit): string | null {
   if (type === 'ci' || type === 'configuration-item' || type === 'cmdb') {
     return `/cmdb?ci=${enc}`;
   }
-  if (type === 'asset') return `/assets?id=${enc}`;
-  if (type === 'problem') return `/problems?id=${enc}`;
-  if (type === 'change') return `/changes?id=${enc}`;
+  if (type === 'asset') return `/assets/${enc}`;
+  if (type === 'problem') return `/problems/${enc}`;
+  if (type === 'change') return `/changes/${enc}`;
   if (!type || type.includes('work')) {
     return `/work-items/${id}`;
   }

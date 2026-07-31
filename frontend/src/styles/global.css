@@ -10085,6 +10085,37 @@ html[data-density='compact'] .module-table .data-table td,
   margin: 0;
 }
 
+.search-recents {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--vox-border, #e4e7ec);
+  border-radius: var(--radius-md, 10px);
+  background: var(--vox-surface, #fff);
+}
+
+.search-recents__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: var(--text-sm);
+}
+
+.search-recents__head b {
+  flex: 1;
+}
+
+.search-recents__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.search-hit.is-active {
+  border-color: var(--vox-indigo-300, #a5b4fc);
+  box-shadow: 0 0 0 2px var(--vox-indigo-100, #e0e7ff);
+}
+
 .search-page__chips {
   margin: 0 0 20px;
   padding: 0;
