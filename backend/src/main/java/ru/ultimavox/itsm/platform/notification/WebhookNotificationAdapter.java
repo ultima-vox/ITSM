@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * Disabled unless {@code itsm.notifications.webhook.url} is set.
  */
 @Component
-@ConditionalOnProperty(prefix = "itsm.notifications.webhook", name = "url")
+@ConditionalOnProperty(name = "itsm.notifications.webhook.url")
 public class WebhookNotificationAdapter {
 
   private static final Logger log = LoggerFactory.getLogger(WebhookNotificationAdapter.class);
@@ -35,8 +35,13 @@ public class WebhookNotificationAdapter {
       @Value("${itsm.notifications.webhook.url}") String url,
       @Value("${itsm.notifications.webhook.timeout:PT3S}") Duration timeout
   ) {
+    if (url == null || url.isBlank()) {
+      throw new IllegalStateException(
+          "itsm.notifications.webhook.url is blank — omit property to disable webhook adapter"
+      );
+    }
     this.json = json;
-    this.endpoint = URI.create(url);
+    this.endpoint = URI.create(url.trim());
     this.timeout = timeout == null ? Duration.ofSeconds(3) : timeout;
   }
 

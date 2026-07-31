@@ -54,8 +54,8 @@ itsm:
     retention-days: ${ITSM_NOTIFICATION_RETENTION_DAYS:90}
     retention-cron: ${ITSM_NOTIFICATION_RETENTION_CRON:0 30 3 * * *}
     webhook:
-      # Optional outbound webhook for EMAIL/WEBHOOK channels (blank = disabled)
-      url: ${ITSM_NOTIFICATION_WEBHOOK_URL:}
+      # Set ITSM_NOTIFICATION_WEBHOOK_URL to enable EMAIL/WEBHOOK HTTP fan-out.
+      # Do not set an empty url key — bean is conditional on property presence.
       timeout: ${ITSM_NOTIFICATION_WEBHOOK_TIMEOUT:PT3S}
   security:
     # Must stay false outside profile dev; ProductionSafetyGuard enforces
