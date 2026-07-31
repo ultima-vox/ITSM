@@ -3,6 +3,7 @@ package ru.ultimavox.itsm.assetmanagement.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import ru.ultimavox.itsm.assetmanagement.application.AssetCommands;
 import ru.ultimavox.itsm.assetmanagement.application.AssetQuery;
 import ru.ultimavox.itsm.assetmanagement.application.LinkAssetToCi;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
@@ -26,11 +28,18 @@ import ru.ultimavox.itsm.platform.authorization.AccessControl;
 @Tag(name = "Asset Management")
 class AssetController {
   private final AssetQuery query;
+  private final AssetCommands commands;
   private final LinkAssetToCi linkAssetToCi;
   private final AccessControl access;
 
-  AssetController(AssetQuery query, LinkAssetToCi linkAssetToCi, AccessControl access) {
+  AssetController(
+      AssetQuery query,
+      AssetCommands commands,
+      LinkAssetToCi linkAssetToCi,
+      AccessControl access
+  ) {
     this.query = query;
+    this.commands = commands;
     this.linkAssetToCi = linkAssetToCi;
     this.access = access;
   }
@@ -72,5 +81,43 @@ class AssetController {
     }
   }
 
+  @PostMapping("/{id}/assign")
+  @Operation(summary = "Assign asset to an owner subject")
+  Asset assign(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @Valid @RequestBody AssignRequest body
+  ) {
+    access.require(authentication.getName(), "asset.write", "asset", id.toString());
+    try {
+      return commands.assign(id, body.ownerSubject(), authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  @PostMapping({"/{id}/transition", "/{id}/transitions"})
+  @Operation(summary = "Transition asset lifecycle status")
+  Asset transition(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @Valid @RequestBody TransitionRequest body
+  ) {
+    access.require(authentication.getName(), "asset.write", "asset", id.toString());
+    try {
+      return commands.transition(id, body.status(), authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
   record LinkCiRequest(@NotNull UUID configurationItemId) {}
+
+  record AssignRequest(@NotBlank String ownerSubject) {}
+
+  record TransitionRequest(@NotNull Asset.Status status) {}
 }

@@ -246,8 +246,21 @@ export async function bulkAssignAssets(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignAssets(ids);
   }
-  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
-  refuseLiveFeature('module.errors.bulkLiveUnsupported');
+  const actor = (await import('./client')).getApiActorId();
+  const settled = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await apiRequest(`/assets/${id}/assign`, {
+          method: 'POST',
+          body: { ownerSubject: actor },
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return settled.filter(Boolean).length;
 }
 
 export async function bulkSetAssetStatus(
@@ -258,6 +271,34 @@ export async function bulkSetAssetStatus(
     await delay(80);
     return storeBulkSetAssetStatus(ids, status);
   }
-  // No live asset status write — refuse (S23). Never fake ids.length.
-  refuseLiveFeature('module.errors.bulkLiveUnsupported');
+  const backendStatus = mapAssetStatusToBackend(status);
+  const settled = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await apiRequest(`/assets/${id}/transition`, {
+          method: 'POST',
+          body: { status: backendStatus },
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return settled.filter(Boolean).length;
+}
+
+function mapAssetStatusToBackend(status: AssetStatus): string {
+  switch (status) {
+    case 'in_use':
+      return 'IN_USE';
+    case 'stock':
+      return 'IN_STOCK';
+    case 'repair':
+      return 'REPAIRED';
+    case 'retired':
+      return 'RETIRED';
+    default:
+      return 'IN_STOCK';
+  }
 }
