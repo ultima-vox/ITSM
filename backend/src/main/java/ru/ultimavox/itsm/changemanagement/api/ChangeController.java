@@ -47,14 +47,6 @@ class ChangeController {
     return query.list(status);
   }
 
-  @GetMapping("/{id}")
-  @Operation(summary = "Get change by id")
-  Change get(Authentication authentication, @PathVariable UUID id) {
-    access.require(authentication.getName(), "change.read", "change", id.toString());
-    return query.findById(id)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
-  }
-
   @GetMapping("/conflicts")
   @Operation(summary = "Detect schedule conflicts for a planned window")
   List<Change> conflicts(
@@ -68,6 +60,14 @@ class ChangeController {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start must be before end");
     }
     return query.findScheduleConflicts(start, end, excludeId);
+  }
+
+  @GetMapping("/{id}")
+  @Operation(summary = "Get change by id")
+  Change get(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "change.read", "change", id.toString());
+    return query.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
   }
 
   @GetMapping("/{id}/conflicts")
