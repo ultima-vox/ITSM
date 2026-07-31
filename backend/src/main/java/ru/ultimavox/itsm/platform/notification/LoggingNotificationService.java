@@ -3,6 +3,7 @@ package ru.ultimavox.itsm.platform.notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,6 +19,7 @@ public class LoggingNotificationService implements NotificationService {
   private final NotificationStore store;
   private final ObjectProvider<WebhookNotificationAdapter> webhook;
 
+  @Autowired
   public LoggingNotificationService(
       NotificationStore store,
       ObjectProvider<WebhookNotificationAdapter> webhook
@@ -26,30 +28,10 @@ public class LoggingNotificationService implements NotificationService {
     this.webhook = webhook;
   }
 
-  /** Test constructor without webhook. */
-  public LoggingNotificationService(NotificationStore store) {
+  /** Unit-test constructor without webhook adapter. */
+  LoggingNotificationService(NotificationStore store) {
     this.store = store;
-    this.webhook = new ObjectProvider<>() {
-      @Override
-      public WebhookNotificationAdapter getObject() {
-        return null;
-      }
-
-      @Override
-      public WebhookNotificationAdapter getObject(Object... args) {
-        return null;
-      }
-
-      @Override
-      public WebhookNotificationAdapter getIfAvailable() {
-        return null;
-      }
-
-      @Override
-      public WebhookNotificationAdapter getIfUnique() {
-        return null;
-      }
-    };
+    this.webhook = new EmptyWebhookProvider();
   }
 
   @Override
@@ -67,6 +49,29 @@ public class LoggingNotificationService implements NotificationService {
     WebhookNotificationAdapter adapter = webhook.getIfAvailable();
     if (adapter != null && request.channel() != NotificationRequest.Channel.IN_APP) {
       adapter.deliver(request, stored);
+    }
+  }
+
+  /** Minimal ObjectProvider for unit tests (no Spring context). */
+  private static final class EmptyWebhookProvider implements ObjectProvider<WebhookNotificationAdapter> {
+    @Override
+    public WebhookNotificationAdapter getObject() {
+      return null;
+    }
+
+    @Override
+    public WebhookNotificationAdapter getObject(Object... args) {
+      return null;
+    }
+
+    @Override
+    public WebhookNotificationAdapter getIfAvailable() {
+      return null;
+    }
+
+    @Override
+    public WebhookNotificationAdapter getIfUnique() {
+      return null;
     }
   }
 }
