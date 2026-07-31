@@ -99,7 +99,11 @@ public class AssignWorkItem {
 
   private void notifyWatchers(WorkItem item, String actorId, UUID correlationId) {
     try {
-      for (String watcher : store.listWatchers(item.id())) {
+      java.util.List<String> watcherList = store.listWatchers(item.id());
+      if (watcherList == null || watcherList.isEmpty()) {
+        return;
+      }
+      for (String watcher : watcherList) {
         if (watcher == null || watcher.isBlank()) {
           continue;
         }
