@@ -352,3 +352,38 @@ export function resetRbac(): void {
   users = SEED_USERS.map(cloneUser);
   notify();
 }
+
+/**
+ * Permission keys granted to a directory user via their assigned role.
+ * Inactive / locked users get no grants. Unknown users → empty.
+ * `admin.full` is included for ADMIN (via ALL_PERM_KEYS).
+ */
+export function getUserPermissions(userId: string): string[] {
+  const user = users.find((u) => u.id === userId);
+  if (!user || user.status !== 'active') return [];
+  const role = roles.find((r) => r.roleKey === user.roleKey);
+  if (!role) return [];
+  return [...role.permissions];
+}
+
+/** Whether the principal holds `permission` (or `admin.full`). */
+export function principalHasPermission(
+  userId: string,
+  permission: string,
+): boolean {
+  const perms = getUserPermissions(userId);
+  if (perms.includes('admin.full')) return true;
+  return perms.includes(permission);
+}
+
+/** Required keys the principal lacks (empty if all held / admin.full). */
+export function missingPermissionsFor(
+  userId: string,
+  required: string[],
+): string[] {
+  if (!required.length) return [];
+  const perms = getUserPermissions(userId);
+  if (perms.includes('admin.full')) return [];
+  const held = new Set(perms);
+  return required.filter((p) => !held.has(p));
+}

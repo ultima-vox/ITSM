@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  GitBranch,
   Plus,
   Search,
   ShieldAlert,
@@ -24,7 +25,6 @@ import {
   castCabMemberVote,
   createChange,
   fetchChanges,
-  getChangeTransitions,
   patchChange,
   setChangeCabDecision,
   subscribeSecondaryModules,
@@ -54,6 +54,15 @@ import {
   resolveRelatedHref,
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
+import {
+  getChangeRuntimeTransitions,
+  workflowStateLabelKey,
+  type ChangeRuntimeTransition,
+} from '@/lib/workflowRuntime';
+import {
+  getActiveWorkflowDefinition,
+  subscribeWorkflowDefinitions,
+} from '@/mock/workflow';
 import { getModuleActivities } from '@/mock/store';
 import type {
   CabVoteDecision,
@@ -62,6 +71,11 @@ import type {
   ChangeType,
   Priority,
 } from '@/types';
+
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number>,
+) => string;
 
 /** Prefer plannedStart; fall back to createdAt + 3d for missing schedule. */
 function changeScheduleDate(c: Change): Date {
@@ -148,7 +162,7 @@ const CHANGE_ACTION_RANK: Record<string, number> = {
 };
 
 function changeActionVariant(
-  status: ChangeStatus,
+  status: ChangeStatus | null,
 ): 'primary' | 'secondary' | 'danger' {
   if (status === 'cancelled') return 'danger';
   if (
@@ -160,6 +174,68 @@ function changeActionVariant(
     return 'primary';
   }
   return 'secondary';
+}
+
+function changeRequiredFieldLabel(t: TranslateFn, field: string): string {
+  const normalized = field.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+  const aliases: Record<string, string> = {
+    assignee_id: 'assignee',
+    implementation_plan: 'implementationPlan',
+    implementationplan: 'implementationPlan',
+    backout_plan: 'backoutPlan',
+    backoutplan: 'backoutPlan',
+    rollback_plan: 'backoutPlan',
+    window_start: 'windowStart',
+    window_end: 'windowEnd',
+    planned_start: 'windowStart',
+    planned_end: 'windowEnd',
+  };
+  const logical = aliases[normalized] ?? normalized;
+  const fieldKey = `changes.fields.${logical}`;
+  const fromFields = t(fieldKey);
+  if (fromFields !== fieldKey) return fromFields;
+  const topKey = `changes.${logical}`;
+  const fromTop = t(topKey);
+  if (fromTop !== topKey) return fromTop;
+  if (logical === 'assignee') return t('changes.colAssignee');
+  return field;
+}
+
+function changeTransitionLabel(
+  t: TranslateFn,
+  tr: ChangeRuntimeTransition,
+): string {
+  const byKey = `changes.transition.${tr.key}`;
+  const translated = t(byKey);
+  if (translated !== byKey) return translated;
+  if (tr.toStatus) {
+    const byStatus = `changes.actions.to_${tr.toStatus}`;
+    const s = t(byStatus);
+    if (s !== byStatus) return s;
+    return t(`status.${tr.toStatus}`);
+  }
+  return tr.to;
+}
+
+function changeTransitionDisabledReason(
+  t: TranslateFn,
+  tr: ChangeRuntimeTransition,
+): string | undefined {
+  if (tr.enabled) return undefined;
+  if (tr.policyBlockKey) return t(tr.policyBlockKey);
+  if (tr.unsupportedTarget) {
+    return t('changes.workflowUnsupportedState', { state: tr.to });
+  }
+  if (tr.missingFields.length > 0) {
+    const labels = tr.missingFields.map((f) => changeRequiredFieldLabel(t, f));
+    return t('changes.workflowMissingFields', { fields: labels.join(', ') });
+  }
+  if (tr.missingPermissions?.length) {
+    return t('changes.workflowMissingPermissions', {
+      permissions: tr.missingPermissions.join(', '),
+    });
+  }
+  return t('changes.workflowTransitionBlocked');
 }
 
 type SortKey = 'number' | 'type' | 'status' | 'risk' | 'window';
@@ -204,10 +280,18 @@ export function ChangesPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [cabBusyId, setCabBusyId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  /** Bumps when admin toggles active workflow version (session store). */
+  const [workflowTick, setWorkflowTick] = useState(0);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
   }, [reload]);
+
+  useEffect(() => {
+    return subscribeWorkflowDefinitions(() => {
+      setWorkflowTick((n) => n + 1);
+    });
+  }, []);
 
   // Honor ?id= deep-link from search / related links
   useEffect(() => {
@@ -567,25 +651,40 @@ export function ChangesPage() {
     [t, locale],
   );
 
-  const transitions = selected ? getChangeTransitions(selected.status) : [];
+  // Active change workflow (session) → next transitions; falls back when inactive.
+  // Policy gates (CAB required, plans) disable illegal edges with tooltips.
+  const wfRuntime = selected
+    ? getChangeRuntimeTransitions(selected, {
+        definition:
+          workflowTick >= 0 ? getActiveWorkflowDefinition('change') : null,
+        fieldOverrides: {
+          implementationPlan: planDraft,
+          backoutPlan: backoutDraft,
+        },
+      })
+    : null;
 
-  // Hide schedule for NORMAL from draft (must go CAB). Emergency may schedule with warning.
-  const visibleTransitions = transitions
-    .filter((s) => {
-      if (!selected) return false;
-      if (
-        s === 'scheduled' &&
-        selected.type === 'normal' &&
-        selected.status === 'draft'
-      ) {
-        return false;
-      }
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        (CHANGE_ACTION_RANK[a] ?? 9) - (CHANGE_ACTION_RANK[b] ?? 9),
-    );
+  const runtimeTransitions = wfRuntime
+    ? [...wfRuntime.transitions].sort(
+        (a, b) =>
+          (CHANGE_ACTION_RANK[a.toStatus ?? ''] ?? 9) -
+          (CHANGE_ACTION_RANK[b.toStatus ?? ''] ?? 9),
+      )
+    : [];
+
+  const workflowStateLabel = (() => {
+    if (!wfRuntime) return '';
+    const key = workflowStateLabelKey(wfRuntime.currentState, 'changes');
+    const labeled = t(key);
+    return labeled === key ? wfRuntime.currentState : labeled;
+  })();
+
+  const primaryTransitions = runtimeTransitions.filter(
+    (tr) => changeActionVariant(tr.toStatus) === 'primary',
+  );
+  const secondaryTransitions = runtimeTransitions.filter(
+    (tr) => changeActionVariant(tr.toStatus) !== 'primary',
+  );
 
   const showCabPanel =
     !!selected &&
@@ -896,6 +995,28 @@ export function ChangesPage() {
           chips={
             <>
               <StatusChip status={selected.status} />
+              {wfRuntime && (
+                <span
+                  className="chip chip--workflow"
+                  title={
+                    wfRuntime.definition
+                      ? t('changes.workflowChipTitle', {
+                          name:
+                            wfRuntime.definition.name ??
+                            wfRuntime.definition.objectKey,
+                          version: wfRuntime.definition.version,
+                          state: wfRuntime.currentState,
+                        })
+                      : t('changes.workflowFallbackChipTitle')
+                  }
+                >
+                  <GitBranch size={12} aria-hidden />
+                  {workflowStateLabel}
+                  <span className="chip--workflow__key mono">
+                    {wfRuntime.currentState}
+                  </span>
+                </span>
+              )}
               <span className="type-pill">{t(`changeType.${selected.type}`)}</span>
               <PriorityBadge priority={selected.risk} />
               {selected.cabApproved && (
@@ -1099,40 +1220,100 @@ export function ChangesPage() {
             </>
           }
           actions={
-            visibleTransitions.length > 0 ? (
-              <div className="module-workflow__stack">
-                <div className="module-workflow__primary">
-                  {visibleTransitions
-                    .filter((s) => changeActionVariant(s) === 'primary')
-                    .map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant="primary"
-                        onClick={() => void runTransition(s)}
-                      >
-                        {t(`changes.actions.to_${s}`)}
-                      </Button>
-                    ))}
-                </div>
-                <div className="module-workflow__secondary">
-                  {visibleTransitions
-                    .filter((s) => changeActionVariant(s) !== 'primary')
-                    .map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={changeActionVariant(s)}
-                        onClick={() => void runTransition(s)}
-                      >
-                        {t(`changes.actions.to_${s}`)}
-                      </Button>
-                    ))}
-                </div>
+            <div
+              className="module-workflow"
+              role="group"
+              aria-label={t('changes.workflow')}
+            >
+              <div className="module-workflow__head">
+                <p className="module-workflow__label">
+                  <GitBranch size={14} aria-hidden />
+                  {t('changes.workflow')}
+                </p>
+                <span className="module-workflow__meta muted">
+                  {wfRuntime?.source === 'workflow' && wfRuntime.definition
+                    ? t('changes.workflowSourceActive', {
+                        name:
+                          wfRuntime.definition.name ??
+                          wfRuntime.definition.objectKey,
+                        version: wfRuntime.definition.version,
+                      })
+                    : t('changes.workflowSourceFallback')}
+                </span>
               </div>
-            ) : (
-              <span className="muted">{t('module.noTransitions')}</span>
-            )
+              {runtimeTransitions.length > 0 ? (
+                <div className="module-workflow__stack">
+                  {primaryTransitions.length > 0 && (
+                    <div className="module-workflow__primary">
+                      {primaryTransitions.map((tr) => {
+                        const reason = changeTransitionDisabledReason(t, tr);
+                        const btn = (
+                          <Button
+                            size="sm"
+                            variant={changeActionVariant(tr.toStatus)}
+                            disabled={!tr.enabled || !tr.toStatus}
+                            aria-disabled={!tr.enabled}
+                            onClick={() => {
+                              if (tr.enabled && tr.toStatus) {
+                                void runTransition(tr.toStatus);
+                              }
+                            }}
+                          >
+                            {changeTransitionLabel(t, tr)}
+                          </Button>
+                        );
+                        return reason ? (
+                          <span
+                            key={tr.key}
+                            className="work-item-workflow__tip"
+                            title={reason}
+                          >
+                            {btn}
+                          </span>
+                        ) : (
+                          <span key={tr.key}>{btn}</span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {secondaryTransitions.length > 0 && (
+                    <div className="module-workflow__secondary">
+                      {secondaryTransitions.map((tr) => {
+                        const reason = changeTransitionDisabledReason(t, tr);
+                        const btn = (
+                          <Button
+                            size="sm"
+                            variant={changeActionVariant(tr.toStatus)}
+                            disabled={!tr.enabled || !tr.toStatus}
+                            aria-disabled={!tr.enabled}
+                            onClick={() => {
+                              if (tr.enabled && tr.toStatus) {
+                                void runTransition(tr.toStatus);
+                              }
+                            }}
+                          >
+                            {changeTransitionLabel(t, tr)}
+                          </Button>
+                        );
+                        return reason ? (
+                          <span
+                            key={tr.key}
+                            className="work-item-workflow__tip"
+                            title={reason}
+                          >
+                            {btn}
+                          </span>
+                        ) : (
+                          <span key={tr.key}>{btn}</span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="muted">{t('changes.workflowNoTransitions')}</span>
+              )}
+            </div>
           }
         />
       )}
