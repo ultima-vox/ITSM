@@ -55,6 +55,36 @@ class ChangeController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
   }
 
+  @GetMapping("/conflicts")
+  @Operation(summary = "Detect schedule conflicts for a planned window")
+  List<Change> conflicts(
+      Authentication authentication,
+      @RequestParam Instant start,
+      @RequestParam Instant end,
+      @RequestParam(required = false) UUID excludeId
+  ) {
+    access.require(authentication.getName(), "change.read", "change", null);
+    if (start == null || end == null || !end.isAfter(start)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start must be before end");
+    }
+    return query.findScheduleConflicts(start, end, excludeId);
+  }
+
+  @GetMapping("/{id}/conflicts")
+  @Operation(summary = "Schedule conflicts for an existing change window")
+  List<Change> conflictsFor(
+      Authentication authentication,
+      @PathVariable UUID id
+  ) {
+    access.require(authentication.getName(), "change.read", "change", id.toString());
+    Change change = query.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
+    if (change.plannedStart() == null || change.plannedEnd() == null) {
+      return List.of();
+    }
+    return query.findScheduleConflicts(change.plannedStart(), change.plannedEnd(), id);
+  }
+
   @PostMapping
   @Operation(summary = "Create a change request (DRAFT)")
   ResponseEntity<Change> create(Authentication authentication, @Valid @RequestBody CreateRequest body) {
