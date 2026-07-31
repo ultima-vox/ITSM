@@ -197,6 +197,11 @@ export function OperatorGrid({
     el?.scrollIntoView({ block: 'nearest' });
   }, [focusIndex]);
 
+  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
+    if (sortKey !== col) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
+  };
+
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ChevronUp size={12} className="sort-icon sort-icon--idle" />;
     return sortDir === 'asc' ? (
@@ -284,7 +289,7 @@ export function OperatorGrid({
                   />
                 </label>
               </div>
-              <div role="columnheader">
+              <div role="columnheader" aria-sort={ariaSortFor('number')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
                   {t('overview.colRequest')}
                   <SortIcon col="number" />
@@ -295,7 +300,7 @@ export function OperatorGrid({
                   <span>{t('overview.colQueue')}</span>
                 </div>
               )}
-              <div role="columnheader">
+              <div role="columnheader" aria-sort={ariaSortFor('priority')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('priority')}>
                   {t('overview.colPriority')}
                   <SortIcon col="priority" />
@@ -304,13 +309,13 @@ export function OperatorGrid({
               <div role="columnheader">
                 <span>{t('overview.colAssignee')}</span>
               </div>
-              <div role="columnheader">
+              <div role="columnheader" aria-sort={ariaSortFor('sla')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('sla')}>
                   {t('overview.colSla')}
                   <SortIcon col="sla" />
                 </button>
               </div>
-              <div role="columnheader">
+              <div role="columnheader" aria-sort={ariaSortFor('updated')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('updated')}>
                   {t('overview.colUpdated')}
                   <SortIcon col="updated" />

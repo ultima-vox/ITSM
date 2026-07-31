@@ -532,6 +532,22 @@
     "fieldCriticality": "Критичность",
     "relationships": "Связи",
     "noRelations": "Для этого CI связи не записаны.",
+    "relForm": {
+      "title": "Добавить связь",
+      "target": "Целевой CI",
+      "targetPlaceholder": "Выберите CI…",
+      "type": "Тип",
+      "add": "Добавить связь",
+      "remove": "Удалить связь",
+      "added": "Связь добавлена",
+      "removed": "Связь удалена",
+      "required": "Выберите целевой CI",
+      "selfLink": "Нельзя связать CI с самим собой",
+      "unknownCi": "Неизвестная конфигурационная единица",
+      "duplicate": "Такая связь уже существует",
+      "notFound": "Связь не найдена",
+      "error": "Не удалось обновить связь"
+    },
     "unknownCi": "Неизвестный CI",
     "env": {
       "production": "Production",
@@ -603,6 +619,11 @@
     "relatedEmptyCta": "Открыть CMDB",
     "relatedCi": "Конфигурационная единица",
     "relatedWorkItem": "Обращение",
+    "bulk": {
+      "changeStatus": "Статус:",
+      "assigned": "Назначено на вас: {n}",
+      "statusChanged": "Статус изменён для {n}: {status}"
+    },
     "errors": {
       "notFound": "Объект не найден",
       "invalidTransition": "Этот переход статуса недопустим"
@@ -793,6 +814,22 @@
         "reject": "Против",
         "abstain": "Воздержался"
       }
+    },
+    "calendar": {
+      "title": "Неделя расписания",
+      "hint": "Окна draft, CAB, scheduled и in-progress",
+      "prev": "Предыдущая неделя",
+      "next": "Следующая неделя",
+      "today": "Эта неделя"
+    },
+    "cabBoard": {
+      "title": "Доска CAB",
+      "hint": "Изменения, ждущие approve / reject председателя",
+      "empty": "Сейчас нет изменений на CAB."
+    },
+    "conflict": {
+      "title": "Freeze / конфликт CI",
+      "body": "{n} конфликт(ов) — два NORMAL в один день на связанных CI: {pairs}"
     }
   },
   "reports": {
@@ -821,7 +858,20 @@
     "byStatusHint": "Распределение по жизненному циклу",
     "urgentQueue": "Требует внимания",
     "urgentQueueHint": "Нарушение SLA, риск или критический приоритет",
-    "noUrgent": "Сейчас нет срочных обращений."
+    "noUrgent": "Сейчас нет срочных обращений.",
+    "exportCsv": "Экспорт CSV",
+    "filterType": "Тип",
+    "filterPriority": "Приоритет",
+    "filterCount": "{n} обращений",
+    "trendTitle": "Тренд 7 дней",
+    "trendHint": "Открыто vs решено (store + лёгкий synthetic fill)",
+    "trendOpened": "Открыто",
+    "trendResolved": "Решено",
+    "resolutionRate": "Доля решений",
+    "resolutionRateHint": "Решённые ÷ (решённые + активные)",
+    "mttr": "MTTR (мок)",
+    "mttrHint": "Средние часы от создания до решения",
+    "mttrValue": "{n} ч"
   },
   "settings": {
     "title": "Настройки",

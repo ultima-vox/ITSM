@@ -5,13 +5,18 @@ import {
   type BackendAsset,
   type BackendCi,
 } from './mappers/cmdb';
-import { ciImpactScenario, ciRelations } from '@/mock/data';
+import { ciImpactScenario } from '@/mock/data';
 import {
   addAsset as storeAddAsset,
+  addCiRelation as storeAddCiRelation,
   addConfigurationItem,
+  bulkAssignAssets as storeBulkAssignAssets,
+  bulkSetAssetStatus as storeBulkSetAssetStatus,
   getAssetTransitions,
   listAssets,
+  listCiRelations,
   listConfigurationItems,
+  removeCiRelation as storeRemoveCiRelation,
   subscribeConfigurationItems,
   subscribeSecondaryModules,
   transitionAsset as storeTransitionAsset,
@@ -21,6 +26,7 @@ import type {
   AssetStatus,
   CiImpactEntry,
   CiRelation,
+  CiRelationType,
   CiStatus,
   ConfigurationItem,
   CreateAssetPayload,
@@ -38,7 +44,7 @@ export async function fetchConfigurationItems(): Promise<ConfigurationItem[]> {
 export async function fetchCiRelations(): Promise<CiRelation[]> {
   if (useMock()) {
     await delay(120);
-    return ciRelations.map((r) => ({ ...r }));
+    return listCiRelations();
   }
   // Backend may not expose relations yet — empty graph is honest
   try {
@@ -46,6 +52,41 @@ export async function fetchCiRelations(): Promise<CiRelation[]> {
     return list ?? [];
   } catch {
     return [];
+  }
+}
+
+export async function createCiRelation(input: {
+  fromId: string;
+  toId: string;
+  type: CiRelationType;
+}): Promise<{ ok: true; relation: CiRelation } | { ok: false; errorKey: string }> {
+  if (useMock()) {
+    await delay(100);
+    return storeAddCiRelation(input);
+  }
+  try {
+    const relation = await apiRequest<CiRelation>('/cmdb/relations', {
+      method: 'POST',
+      body: input,
+    });
+    return { ok: true, relation };
+  } catch {
+    return { ok: false, errorKey: 'cmdb.relForm.error' };
+  }
+}
+
+export async function deleteCiRelation(
+  id: string,
+): Promise<{ ok: true } | { ok: false; errorKey: string }> {
+  if (useMock()) {
+    await delay(80);
+    return storeRemoveCiRelation(id);
+  }
+  try {
+    await apiRequest(`/cmdb/relations/${id}`, { method: 'DELETE' });
+    return { ok: true };
+  } catch {
+    return { ok: false, errorKey: 'cmdb.relForm.error' };
   }
 }
 
@@ -131,3 +172,22 @@ export async function transitionAssetStatus(
 }
 
 export { getAssetTransitions };
+
+export async function bulkAssignAssets(ids: string[]): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkAssignAssets(ids);
+  }
+  return ids.length;
+}
+
+export async function bulkSetAssetStatus(
+  ids: string[],
+  status: AssetStatus,
+): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkSetAssetStatus(ids, status);
+  }
+  return ids.length;
+}

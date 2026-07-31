@@ -6,12 +6,25 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { ArrowDown, ArrowUp, ChevronUp, Plus, Search } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Plus,
+  Search,
+  ShieldAlert,
+  Users,
+} from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
 import {
+  bulkAssignChanges,
+  bulkSetChangeStatus,
   castCabMemberVote,
   createChange,
   fetchChanges,
@@ -37,7 +50,7 @@ import {
   ModuleDetailDrawer,
   type ModuleRelatedItem,
 } from '@/components/modules/ModuleDetailDrawer';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import {
   resolveRelatedHref,
   resolveRelatedLabel,
@@ -50,6 +63,81 @@ import type {
   ChangeType,
   Priority,
 } from '@/types';
+
+/** Prefer plannedStart; fall back to createdAt + 3d for missing schedule. */
+function changeScheduleDate(c: Change): Date {
+  if (c.plannedStart) return new Date(c.plannedStart);
+  if (c.createdAt) {
+    const d = new Date(c.createdAt);
+    d.setDate(d.getDate() + 3);
+    return d;
+  }
+  return new Date();
+}
+
+function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function startOfWeekMonday(ref: Date): Date {
+  const d = new Date(ref);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 Sun … 6 Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function weekDaysFrom(monday: Date): Date[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+interface ScheduleConflict {
+  dayKey: string;
+  ciIds: string[];
+  changes: Change[];
+}
+
+/** Two+ NORMAL changes on same calendar day with intersecting related CIs. */
+function findNormalScheduleConflicts(list: Change[]): ScheduleConflict[] {
+  const active = list.filter(
+    (c) =>
+      c.type === 'normal' &&
+      c.status !== 'cancelled' &&
+      c.status !== 'completed',
+  );
+  const byDay = new Map<string, Change[]>();
+  for (const c of active) {
+    const key = localDayKey(changeScheduleDate(c));
+    const arr = byDay.get(key) ?? [];
+    arr.push(c);
+    byDay.set(key, arr);
+  }
+  const out: ScheduleConflict[] = [];
+  for (const [day, dayChanges] of byDay) {
+    if (dayChanges.length < 2) continue;
+    for (let i = 0; i < dayChanges.length; i++) {
+      for (let j = i + 1; j < dayChanges.length; j++) {
+        const a = dayChanges[i];
+        const b = dayChanges[j];
+        const aCis = new Set(a.relatedCiIds ?? []);
+        const shared = (b.relatedCiIds ?? []).filter((id) => aCis.has(id));
+        if (shared.length > 0) {
+          out.push({
+            dayKey: day,
+            ciIds: shared,
+            changes: [a, b],
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
 
 const CHANGE_ACTION_RANK: Record<string, number> = {
   cab_review: 0,
@@ -113,6 +201,10 @@ export function ChangesPage() {
   const [backoutDraft, setBackoutDraft] = useState('');
   const [cabNotesDraft, setCabNotesDraft] = useState('');
   const [riskDraft, setRiskDraft] = useState<Priority>('medium');
+  /** 0 = current week; ±1 previous/next */
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [cabBusyId, setCabBusyId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -146,6 +238,14 @@ export function ChangesPage() {
     return filtered;
   }, [data, query, type, status, sortKey, sortDir]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(list.map((c) => c.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [list]);
+
   const selected = useMemo(
     () =>
       selectedId
@@ -153,6 +253,35 @@ export function ChangesPage() {
         : null,
     [data, selectedId],
   );
+
+  const allSelected = list.length > 0 && selectedIds.size === list.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(list.map((c) => c.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAssign = async () => {
+    const n = await bulkAssignChanges([...selectedIds]);
+    success(t('module.bulk.assigned', { n }));
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkStatus = async (next: ChangeStatus) => {
+    const n = await bulkSetChangeStatus([...selectedIds], next);
+    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+    setSelectedIds(new Set());
+  };
 
   useEffect(() => {
     if (selected) {
@@ -190,6 +319,78 @@ export function ChangesPage() {
     return items;
   }, [selected, t]);
 
+  const allChanges = data ?? [];
+
+  const conflicts = useMemo(
+    () => findNormalScheduleConflicts(allChanges),
+    [allChanges],
+  );
+
+  const cabQueue = useMemo(
+    () =>
+      allChanges.filter(
+        (c) => c.status === 'cab_review' && !c.cabApproved && !c.cabRejected,
+      ),
+    [allChanges],
+  );
+
+  const weekMonday = useMemo(() => {
+    const base = startOfWeekMonday(new Date());
+    base.setDate(base.getDate() + weekOffset * 7);
+    return base;
+  }, [weekOffset]);
+
+  const weekDays = useMemo(() => weekDaysFrom(weekMonday), [weekMonday]);
+
+  const calendarByDay = useMemo(() => {
+    const map = new Map<string, Change[]>();
+    for (const d of weekDays) map.set(localDayKey(d), []);
+    for (const c of allChanges) {
+      if (c.status === 'cancelled' || c.status === 'completed') continue;
+      if (
+        c.status !== 'scheduled' &&
+        c.status !== 'cab_review' &&
+        c.status !== 'in_progress' &&
+        c.status !== 'draft'
+      ) {
+        continue;
+      }
+      const key = localDayKey(changeScheduleDate(c));
+      if (!map.has(key)) continue;
+      map.get(key)!.push(c);
+    }
+    return map;
+  }, [allChanges, weekDays]);
+
+  const weekLabel = useMemo(() => {
+    const end = new Date(weekMonday);
+    end.setDate(weekMonday.getDate() + 6);
+    return `${formatDate(weekMonday.toISOString(), locale)} – ${formatDate(end.toISOString(), locale)}`;
+  }, [weekMonday, locale]);
+
+  const runBoardCabDecision = async (
+    changeId: string,
+    decision: 'approve' | 'reject',
+  ) => {
+    setCabBusyId(changeId);
+    try {
+      const result = await setChangeCabDecision(changeId, decision);
+      if (!result.ok) {
+        toastError(t(result.errorKey));
+        return;
+      }
+      success(
+        decision === 'approve'
+          ? t('changes.cab.approvedToast')
+          : t('changes.cab.rejectedToast'),
+      );
+      if (selectedId === changeId) setSelectedId(result.change.id);
+      reload();
+    } finally {
+      setCabBusyId(null);
+    }
+  };
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
@@ -215,7 +416,16 @@ export function ChangesPage() {
     } else if (e.key === 'Enter' && focusIndex >= 0) {
       e.preventDefault();
       openRow(list[focusIndex]);
-    } else if (e.key === 'Escape') setFocusIndex(-1);
+    } else if (e.key === ' ' && focusIndex >= 0) {
+      e.preventDefault();
+      toggleOne(list[focusIndex].id);
+    } else if ((e.metaKey || e.ctrlKey) && key === 'a') {
+      e.preventDefault();
+      toggleAll();
+    } else if (e.key === 'Escape') {
+      setFocusIndex(-1);
+      setSelectedIds(new Set());
+    }
   };
 
   useEffect(() => {
@@ -447,6 +657,174 @@ export function ChangesPage() {
         />
       </div>
 
+      {conflicts.length > 0 && (
+        <div className="changes-conflict-banner" role="alert">
+          <ShieldAlert size={18} aria-hidden />
+          <div>
+            <strong>{t('changes.conflict.title')}</strong>
+            <p>
+              {t('changes.conflict.body', {
+                n: conflicts.length,
+                pairs: conflicts
+                  .map(
+                    (c) =>
+                      `${c.changes.map((x) => x.number).join(' ↔ ')} (${c.dayKey})`,
+                  )
+                  .join('; '),
+              })}
+            </p>
+            <ul className="changes-conflict-banner__list">
+              {conflicts.map((c) => (
+                <li key={`${c.dayKey}-${c.changes.map((x) => x.id).join('-')}`}>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => openRow(c.changes[0])}
+                  >
+                    {c.changes.map((x) => x.number).join(' · ')}
+                  </button>
+                  <span className="muted">
+                    {' '}
+                    · {c.dayKey} · CI {c.ciIds.join(', ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <div className="changes-ops-grid">
+        <section className="panel changes-calendar" aria-labelledby="cab-cal-title">
+          <div className="panel__header panel__header--dense">
+            <div>
+              <h2 id="cab-cal-title">{t('changes.calendar.title')}</h2>
+              <p>{t('changes.calendar.hint')}</p>
+            </div>
+            <CalendarDays size={18} aria-hidden className="muted" />
+          </div>
+          <div className="changes-calendar__nav">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<ChevronLeft size={16} />}
+              aria-label={t('changes.calendar.prev')}
+              onClick={() => setWeekOffset((o) => o - 1)}
+            />
+            <span className="changes-calendar__range">{weekLabel}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<ChevronRight size={16} />}
+              aria-label={t('changes.calendar.next')}
+              onClick={() => setWeekOffset((o) => o + 1)}
+            />
+            {weekOffset !== 0 && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setWeekOffset(0)}
+              >
+                {t('changes.calendar.today')}
+              </button>
+            )}
+          </div>
+          <div className="changes-calendar__week" role="grid">
+            {weekDays.map((day) => {
+              const key = localDayKey(day);
+              const dayChanges = calendarByDay.get(key) ?? [];
+              const isToday = key === localDayKey(new Date());
+              const hasConflict = conflicts.some((c) => c.dayKey === key);
+              return (
+                <div
+                  key={key}
+                  className={`changes-calendar__day${isToday ? ' is-today' : ''}${hasConflict ? ' is-conflict' : ''}`}
+                  role="gridcell"
+                >
+                  <div className="changes-calendar__day-head">
+                    <span>
+                      {day.toLocaleDateString(locale, { weekday: 'short' })}
+                    </span>
+                    <b>{day.getDate()}</b>
+                  </div>
+                  <ul className="changes-calendar__events">
+                    {dayChanges.length === 0 ? (
+                      <li className="muted changes-calendar__empty">—</li>
+                    ) : (
+                      dayChanges.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            className={`changes-calendar__chip changes-calendar__chip--${c.type}`}
+                            onClick={() => openRow(c)}
+                            title={c.title}
+                          >
+                            <span className="mono">{c.number}</span>
+                            <small>{t(`changeType.${c.type}`)}</small>
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="panel changes-cab-board" aria-labelledby="cab-board-title">
+          <div className="panel__header panel__header--dense">
+            <div>
+              <h2 id="cab-board-title">{t('changes.cabBoard.title')}</h2>
+              <p>{t('changes.cabBoard.hint')}</p>
+            </div>
+            <Users size={18} aria-hidden className="muted" />
+          </div>
+          {cabQueue.length === 0 ? (
+            <p className="muted changes-cab-board__empty">
+              {t('changes.cabBoard.empty')}
+            </p>
+          ) : (
+            <ul className="changes-cab-board__list">
+              {cabQueue.map((c) => (
+                <li key={c.id} className="changes-cab-board__row">
+                  <button
+                    type="button"
+                    className="changes-cab-board__main"
+                    onClick={() => openRow(c)}
+                  >
+                    <b className="mono accent">{c.number}</b>
+                    <span className="changes-cab-board__title">{c.title}</span>
+                    <PriorityBadge priority={c.risk} />
+                    <span className="muted changes-cab-board__when">
+                      {formatDateTime(changeScheduleDate(c).toISOString(), locale)}
+                    </span>
+                  </button>
+                  <div className="changes-cab-board__actions">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={cabBusyId === c.id}
+                      onClick={() => void runBoardCabDecision(c.id, 'approve')}
+                    >
+                      {t('changes.cab.approve')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={cabBusyId === c.id}
+                      onClick={() => void runBoardCabDecision(c.id, 'reject')}
+                    >
+                      {t('changes.cab.reject')}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
       {!loading && list.length > 0 && (
         <div className="grid-kbd-hint" aria-hidden>
           <kbd>↑</kbd>
@@ -457,6 +835,50 @@ export function ChangesPage() {
           <span>{t('grid.kbdNav')}</span>
           <kbd>Enter</kbd>
           <span>{t('grid.kbdOpen')}</span>
+          <kbd>Space</kbd>
+          <span>{t('grid.kbdSelect')}</span>
+          <kbd>Ctrl</kbd>
+          <kbd>A</kbd>
+          <span>{t('grid.selectAll')}</span>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar" role="toolbar" aria-label={t('grid.bulkActions')}>
+          <span className="bulk-bar__count">
+            {t('grid.selected', { n: selectedIds.size })}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => void handleBulkAssign()}>
+            {t('grid.assignToMe')}
+          </Button>
+          <div className="bulk-bar__priority">
+            <span>{t('module.bulk.changeStatus')}</span>
+            {(
+              [
+                'cab_review',
+                'scheduled',
+                'in_progress',
+                'completed',
+                'cancelled',
+              ] as ChangeStatus[]
+            ).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="chip chip--toggle"
+                onClick={() => void handleBulkStatus(s)}
+              >
+                {t(`status.${s}`)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="text-link bulk-bar__clear"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            {t('grid.clearSelection')}
+          </button>
         </div>
       )}
 
@@ -471,6 +893,19 @@ export function ChangesPage() {
         >
           <thead>
             <tr>
+              <th scope="col" className="grid-check">
+                <label onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    aria-label={t('grid.selectAll')}
+                  />
+                </label>
+              </th>
               <th scope="col" aria-sort={ariaSortFor('number')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
                   {t('changes.colNumber')}
@@ -508,13 +943,13 @@ export function ChangesPage() {
           <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
             {loading ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <SkeletonRows rows={3} />
                 </td>
               </tr>
             ) : list.length === 0 ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <EmptyState
                     title={t('changes.emptyTitle')}
                     description={t('changes.emptyHint')}
@@ -528,56 +963,72 @@ export function ChangesPage() {
                 </td>
               </tr>
             ) : (
-              list.map((c, index) => (
-                <tr
-                  key={c.id}
-                  tabIndex={focusIndex === index ? 0 : -1}
-                  data-row-index={index}
-                  className={
-                    focusIndex === index
-                      ? 'is-focused'
-                      : selectedId === c.id
-                        ? 'is-selected'
-                        : undefined
-                  }
-                  onClick={() => openRow(c)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      openRow(c);
-                    }
-                  }}
-                >
-                  <td>
-                    <b className="mono accent">{c.number}</b>
-                  </td>
-                  <td>{c.title}</td>
-                  <td>
-                    <span className="type-pill">{t(`changeType.${c.type}`)}</span>
-                  </td>
-                  <td>
-                    <StatusChip status={c.status} />
-                  </td>
-                  <td>
-                    <PriorityBadge priority={c.risk} />
-                  </td>
-                  <td className="window-cell">
-                    {formatDateTime(c.plannedStart, locale)}
-                    <span className="muted"> {t('changes.windowTo')} </span>
-                    {formatDateTime(c.plannedEnd, locale)}
-                  </td>
-                  <td>
-                    {c.assignee ? (
-                      <span className="inline-person">
-                        <Avatar initials={c.assignee.initials} size="sm" />
-                        {c.assignee.name}
-                      </span>
-                    ) : (
-                      <span className="muted">{t('overview.unassigned')}</span>
-                    )}
-                  </td>
-                </tr>
-              ))
+              list.map((c, index) => {
+                const isChecked = selectedIds.has(c.id);
+                return (
+                  <tr
+                    key={c.id}
+                    tabIndex={focusIndex === index ? 0 : -1}
+                    data-row-index={index}
+                    aria-selected={isChecked}
+                    className={[
+                      focusIndex === index ? 'is-focused' : '',
+                      selectedId === c.id || isChecked ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
+                    onClick={() => openRow(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        openRow(c);
+                      }
+                    }}
+                  >
+                    <td className="grid-check">
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(c.id)}
+                          aria-label={t('grid.selectRow', { n: c.number })}
+                        />
+                      </label>
+                    </td>
+                    <td>
+                      <b className="mono accent">{c.number}</b>
+                    </td>
+                    <td>{c.title}</td>
+                    <td>
+                      <span className="type-pill">{t(`changeType.${c.type}`)}</span>
+                    </td>
+                    <td>
+                      <StatusChip status={c.status} />
+                    </td>
+                    <td>
+                      <PriorityBadge priority={c.risk} />
+                    </td>
+                    <td className="window-cell">
+                      {formatDateTime(c.plannedStart, locale)}
+                      <span className="muted"> {t('changes.windowTo')} </span>
+                      {formatDateTime(c.plannedEnd, locale)}
+                    </td>
+                    <td>
+                      {c.assignee ? (
+                        <span className="inline-person">
+                          <Avatar initials={c.assignee.initials} size="sm" />
+                          {c.assignee.name}
+                        </span>
+                      ) : (
+                        <span className="muted">{t('overview.unassigned')}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

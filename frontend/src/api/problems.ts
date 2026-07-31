@@ -2,6 +2,8 @@ import { delay, useMock, apiRequest } from './client';
 import { mapProblem, type BackendProblemSummary } from './mappers/problems';
 import {
   addProblem as storeAddProblem,
+  bulkAssignProblems as storeBulkAssignProblems,
+  bulkSetProblemStatus as storeBulkSetProblemStatus,
   getProblemTransitions,
   listProblems,
   transitionProblem as storeTransitionProblem,
@@ -68,3 +70,22 @@ export async function patchProblem(
 }
 
 export { getProblemTransitions };
+
+export async function bulkAssignProblems(ids: string[]): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkAssignProblems(ids);
+  }
+  return ids.length;
+}
+
+export async function bulkSetProblemStatus(
+  ids: string[],
+  status: WorkItemStatus,
+): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkSetProblemStatus(ids, status);
+  }
+  return ids.length;
+}

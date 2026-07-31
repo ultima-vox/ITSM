@@ -9,6 +9,8 @@ import type {
   CabVoteDecision,
   Change,
   ChangeStatus,
+  CiRelation,
+  CiRelationType,
   CiStatus,
   ConfigurationItem,
   CreateAssetPayload,
@@ -32,6 +34,7 @@ import {
   activities as seedActivities,
   comments as seedComments,
   configurationItems as seedCis,
+  ciRelations as seedCiRelations,
   assets as seedAssets,
   problems as seedProblems,
   changes as seedChanges,
@@ -55,6 +58,7 @@ interface PersistedMockStore {
   activities: Record<string, WorkItemActivity[]>;
   comments: Record<string, WorkItemComment[]>;
   cis: ConfigurationItem[];
+  ciRelations: CiRelation[];
   assets: Asset[];
   problems: Problem[];
   changes: Change[];
@@ -457,13 +461,18 @@ export function countMyOpenAssigned(): number {
   ).length;
 }
 
-/* ── CMDB configuration items (session-mutable) ─────────── */
+/* ── CMDB configuration items + relations (session-mutable) ─────────── */
 
 function cloneCi(c: ConfigurationItem): ConfigurationItem {
   return { ...c };
 }
 
+function cloneRelation(r: CiRelation): CiRelation {
+  return { ...r };
+}
+
 let cis: ConfigurationItem[] = seedCis.map(cloneCi);
+let relationItems: CiRelation[] = seedCiRelations.map(cloneRelation);
 const ciListeners = new Set<Listener>();
 
 function notifyCis() {
@@ -485,6 +494,55 @@ export function listConfigurationItems(): ConfigurationItem[] {
 export function getConfigurationItem(id: string): ConfigurationItem | null {
   const found = cis.find((c) => c.id === id);
   return found ? cloneCi(found) : null;
+}
+
+export function listCiRelations(): CiRelation[] {
+  return relationItems.map(cloneRelation);
+}
+
+export function addCiRelation(input: {
+  fromId: string;
+  toId: string;
+  type: CiRelationType;
+}): { ok: true; relation: CiRelation } | { ok: false; errorKey: string } {
+  if (!input.fromId || !input.toId) {
+    return { ok: false, errorKey: 'cmdb.relForm.required' };
+  }
+  if (input.fromId === input.toId) {
+    return { ok: false, errorKey: 'cmdb.relForm.selfLink' };
+  }
+  if (!cis.some((c) => c.id === input.fromId) || !cis.some((c) => c.id === input.toId)) {
+    return { ok: false, errorKey: 'cmdb.relForm.unknownCi' };
+  }
+  const dup = relationItems.some(
+    (r) =>
+      r.fromId === input.fromId &&
+      r.toId === input.toId &&
+      r.type === input.type,
+  );
+  if (dup) {
+    return { ok: false, errorKey: 'cmdb.relForm.duplicate' };
+  }
+  const relation: CiRelation = {
+    id: `rel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    fromId: input.fromId,
+    toId: input.toId,
+    type: input.type,
+  };
+  relationItems = [...relationItems, relation];
+  notifyCis();
+  return { ok: true, relation: cloneRelation(relation) };
+}
+
+export function removeCiRelation(
+  id: string,
+): { ok: true } | { ok: false; errorKey: string } {
+  if (!relationItems.some((r) => r.id === id)) {
+    return { ok: false, errorKey: 'cmdb.relForm.notFound' };
+  }
+  relationItems = relationItems.filter((r) => r.id !== id);
+  notifyCis();
+  return { ok: true };
 }
 
 export function addConfigurationItem(input: {
@@ -867,6 +925,49 @@ export function transitionAsset(
   return { ok: true, asset: getAsset(current.id)! };
 }
 
+/** Bulk assign assets to current user (mock operator action). */
+export function bulkAssignAssets(ids: string[]): number {
+  const set = new Set(ids);
+  const name = currentUser.name;
+  let n = 0;
+  assetItems = assetItems.map((a) => {
+    if (!set.has(a.id) && !set.has(a.tag)) return a;
+    n += 1;
+    pushModuleActivity(a.id, 'system', 'module.activity.assigned', name);
+    return {
+      ...a,
+      assignedTo: name,
+      status: a.status === 'stock' ? 'in_use' : a.status,
+      updatedAt: nowIso(),
+    };
+  });
+  if (n) notifySecondary();
+  return n;
+}
+
+/** Bulk status change for assets (skips invalid edges). */
+export function bulkSetAssetStatus(ids: string[], next: AssetStatus): number {
+  const set = new Set(ids);
+  let n = 0;
+  assetItems = assetItems.map((a) => {
+    if (!set.has(a.id) && !set.has(a.tag)) return a;
+    const allowed = ASSET_TRANSITIONS[a.status] ?? [];
+    if (!allowed.includes(next)) return a;
+    if (next === 'in_use' && !a.assignedTo) return a;
+    n += 1;
+    pushModuleActivity(a.id, 'status', `module.activity.asset_${next}`);
+    return {
+      ...a,
+      status: next,
+      assignedTo:
+        next === 'stock' || next === 'retired' ? null : a.assignedTo,
+      updatedAt: nowIso(),
+    };
+  });
+  if (n) notifySecondary();
+  return n;
+}
+
 // ── Problems ─────────────────────────────────────────────────────────
 
 export function listProblems(): Problem[] {
@@ -1007,6 +1108,57 @@ export function updateProblemFields(
   }
   notifySecondary();
   return { ok: true, problem: getProblem(current.id)! };
+}
+
+/** Bulk assign problems to current user (mock). */
+export function bulkAssignProblems(ids: string[]): number {
+  const set = new Set(ids);
+  const assignee = actorFromCurrent();
+  let n = 0;
+  problemItems = problemItems.map((p) => {
+    if (!set.has(p.id) && !set.has(p.number)) return p;
+    n += 1;
+    pushModuleActivity(p.id, 'system', 'module.activity.assigned', assignee.name);
+    return {
+      ...p,
+      assignee: { ...assignee },
+      status: p.status === 'new' ? 'in_progress' : p.status,
+      updatedAt: nowIso(),
+    };
+  });
+  if (n) notifySecondary();
+  return n;
+}
+
+/**
+ * Bulk status for problems (mock). Skips resolved when RCA missing
+ * and skips invalid edges.
+ */
+export function bulkSetProblemStatus(
+  ids: string[],
+  next: WorkItemStatus,
+): number {
+  const set = new Set(ids);
+  let n = 0;
+  problemItems = problemItems.map((p) => {
+    if (!set.has(p.id) && !set.has(p.number)) return p;
+    const allowed = PROBLEM_TRANSITIONS[p.status] ?? [];
+    if (!allowed.includes(next)) return p;
+    if (next === 'resolved' && !p.rootCause?.trim()) return p;
+    n += 1;
+    pushModuleActivity(p.id, 'status', `module.activity.problem_${next}`);
+    return {
+      ...p,
+      status: next,
+      assignee:
+        next === 'in_progress' && !p.assignee
+          ? actorFromCurrent()
+          : p.assignee,
+      updatedAt: nowIso(),
+    };
+  });
+  if (n) notifySecondary();
+  return n;
 }
 
 // ── Changes ──────────────────────────────────────────────────────────
@@ -1181,6 +1333,52 @@ export function updateChangeFields(
   }
   notifySecondary();
   return { ok: true, change: getChange(current.id)! };
+}
+
+/** Bulk assign changes to current user (mock). */
+export function bulkAssignChanges(ids: string[]): number {
+  const set = new Set(ids);
+  const assignee = actorFromCurrent();
+  let n = 0;
+  changeItems = changeItems.map((c) => {
+    if (!set.has(c.id) && !set.has(c.number)) return c;
+    n += 1;
+    pushModuleActivity(c.id, 'system', 'module.activity.assigned', assignee.name);
+    return {
+      ...c,
+      assignee: { ...assignee },
+      updatedAt: nowIso(),
+    };
+  });
+  if (n) notifySecondary();
+  return n;
+}
+
+/**
+ * Bulk status for changes (mock). Only applies allowed edges without
+ * CAB/plan validation — demo craft, not policy engine.
+ */
+export function bulkSetChangeStatus(ids: string[], next: ChangeStatus): number {
+  const set = new Set(ids);
+  let n = 0;
+  changeItems = changeItems.map((c) => {
+    if (!set.has(c.id) && !set.has(c.number)) return c;
+    const allowed = CHANGE_TRANSITIONS[c.status] ?? [];
+    if (!allowed.includes(next)) return c;
+    // Skip CAB-gated normal schedule in bulk mock
+    if (
+      next === 'scheduled' &&
+      c.type === 'normal' &&
+      !c.cabApproved
+    ) {
+      return c;
+    }
+    n += 1;
+    pushModuleActivity(c.id, 'status', `module.activity.change_${next}`);
+    return { ...c, status: next, updatedAt: nowIso() };
+  });
+  if (n) notifySecondary();
+  return n;
 }
 
 /** Explicit CAB chair approve / reject (not silent on schedule). */
@@ -1363,6 +1561,7 @@ function snapshotStore(): PersistedMockStore {
       ]),
     ),
     cis: cis.map(cloneCi),
+    ciRelations: relationItems.map(cloneRelation),
     assets: assetItems.map(cloneAsset),
     problems: problemItems.map(cloneProblem),
     changes: changeItems.map(cloneChange),
@@ -1394,6 +1593,7 @@ function applySnapshot(data: PersistedMockStore): void {
     ]),
   );
   cis = (data.cis ?? []).map(cloneCi);
+  relationItems = (data.ciRelations ?? seedCiRelations).map(cloneRelation);
   assetItems = (data.assets ?? []).map(cloneAsset);
   problemItems = (data.problems ?? []).map(cloneProblem);
   changeItems = (data.changes ?? []).map(cloneChange);
@@ -1416,6 +1616,7 @@ function reseedAll(): void {
   activities = seedActivitiesMap();
   commentsStore = seedCommentsMap();
   cis = seedCis.map(cloneCi);
+  relationItems = seedCiRelations.map(cloneRelation);
   assetItems = seedAssets.map(cloneAsset);
   problemItems = seedProblems.map(cloneProblem);
   changeItems = seedChanges.map(cloneChange);

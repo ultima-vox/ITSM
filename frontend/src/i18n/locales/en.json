@@ -532,6 +532,22 @@
     "fieldCriticality": "Criticality",
     "relationships": "Relationships",
     "noRelations": "No relationships recorded for this CI.",
+    "relForm": {
+      "title": "Add relationship",
+      "target": "Target CI",
+      "targetPlaceholder": "Select CI…",
+      "type": "Type",
+      "add": "Add relation",
+      "remove": "Remove relation",
+      "added": "Relationship added",
+      "removed": "Relationship removed",
+      "required": "Select a target CI",
+      "selfLink": "Cannot link a CI to itself",
+      "unknownCi": "Unknown configuration item",
+      "duplicate": "This relationship already exists",
+      "notFound": "Relationship not found",
+      "error": "Could not update relationship"
+    },
     "unknownCi": "Unknown CI",
     "env": {
       "production": "Production",
@@ -603,6 +619,11 @@
     "relatedEmptyCta": "Open CMDB",
     "relatedCi": "Configuration item",
     "relatedWorkItem": "Work item",
+    "bulk": {
+      "changeStatus": "Status:",
+      "assigned": "Assigned to you: {n}",
+      "statusChanged": "Status updated for {n}: {status}"
+    },
     "errors": {
       "notFound": "Record not found",
       "invalidTransition": "This status transition is not allowed"
@@ -793,6 +814,22 @@
         "reject": "Reject",
         "abstain": "Abstain"
       }
+    },
+    "calendar": {
+      "title": "Schedule week",
+      "hint": "Planned windows for draft, CAB, scheduled and in-progress changes",
+      "prev": "Previous week",
+      "next": "Next week",
+      "today": "This week"
+    },
+    "cabBoard": {
+      "title": "CAB board",
+      "hint": "Changes waiting for chair approve / reject",
+      "empty": "No changes in CAB review right now."
+    },
+    "conflict": {
+      "title": "Schedule freeze / CI conflict",
+      "body": "{n} conflict pair(s) — two NORMAL changes share a day and related CIs: {pairs}"
     }
   },
   "reports": {
@@ -821,7 +858,20 @@
     "byStatusHint": "Lifecycle distribution",
     "urgentQueue": "Needs attention",
     "urgentQueueHint": "Breached, at-risk, or critical priority",
-    "noUrgent": "No urgent items right now."
+    "noUrgent": "No urgent items right now.",
+    "exportCsv": "Export CSV",
+    "filterType": "Type",
+    "filterPriority": "Priority",
+    "filterCount": "{n} items",
+    "trendTitle": "7-day trend",
+    "trendHint": "Opened vs resolved (store + light synthetic fill)",
+    "trendOpened": "Opened",
+    "trendResolved": "Resolved",
+    "resolutionRate": "Resolution rate",
+    "resolutionRateHint": "Resolved ÷ (resolved + active)",
+    "mttr": "MTTR (mock)",
+    "mttrHint": "Avg hours from created to resolved",
+    "mttrValue": "{n}h"
   },
   "settings": {
     "title": "Settings",

@@ -16,6 +16,7 @@ import {
   Search,
   Server,
   Sparkles,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -24,7 +25,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useToast } from '@/hooks/useToast';
 import {
+  createCiRelation,
   createConfigurationItem,
+  deleteCiRelation,
   fetchCiRelations,
   fetchConfigurationItems,
   subscribeConfigurationItems,
@@ -41,10 +44,18 @@ import {
 import { StatusChip } from '@/components/data-display';
 import type {
   CiRelation,
+  CiRelationType,
   CiStatus,
   ConfigurationItem,
   ImpactLevel,
 } from '@/types';
+
+/** Relation types offered in the detail form (DEPENDS_ON / HOSTED_ON / RUNS_ON) */
+const EDITABLE_REL_TYPES: CiRelationType[] = [
+  'depends_on',
+  'hosts',
+  'runs_on',
+];
 
 const icons = {
   server: Server,
@@ -241,26 +252,38 @@ export function CmdbPage() {
   const [localItems, setLocalItems] = useState<ConfigurationItem[] | null>(
     null,
   );
+  const [localRelations, setLocalRelations] = useState<CiRelation[] | null>(
+    null,
+  );
+  const [relTargetId, setRelTargetId] = useState('');
+  const [relType, setRelType] = useState<CiRelationType>('depends_on');
+  const [relBusy, setRelBusy] = useState(false);
+  const [relError, setRelError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const itemsAsync = useAsync(() => fetchConfigurationItems(), []);
   const relationsAsync = useAsync(() => fetchCiRelations(), []);
 
-  // Keep list in sync with session store (after Add CI)
+  // Keep list in sync with session store (after Add CI / relation edit)
   useEffect(() => {
     if (itemsAsync.data) setLocalItems(itemsAsync.data);
   }, [itemsAsync.data]);
 
   useEffect(() => {
+    if (relationsAsync.data) setLocalRelations(relationsAsync.data);
+  }, [relationsAsync.data]);
+
+  useEffect(() => {
     return subscribeConfigurationItems(() => {
       void fetchConfigurationItems().then(setLocalItems);
+      void fetchCiRelations().then(setLocalRelations);
     });
   }, []);
 
   const data = localItems ?? itemsAsync.data;
   const loading = itemsAsync.loading && !data;
   const error = itemsAsync.error;
-  const relations = relationsAsync.data ?? [];
+  const relations = localRelations ?? relationsAsync.data ?? [];
 
   const filterCounts = useMemo(() => {
     const all = data ?? [];
@@ -343,7 +366,63 @@ export function CmdbPage() {
 
   const selectCi = useCallback((id: string) => {
     setSelectedId(id);
+    setRelError(null);
+    setRelTargetId('');
   }, []);
+
+  const targetCiOptions = useMemo(() => {
+    if (!selectedId) return [];
+    return (data ?? [])
+      .filter((c) => c.id !== selectedId)
+      .map((c) => ({ value: c.id, label: c.name }));
+  }, [data, selectedId]);
+
+  const handleAddRelation = async () => {
+    if (!selectedId) return;
+    if (!relTargetId) {
+      setRelError(t('cmdb.relForm.required'));
+      return;
+    }
+    setRelBusy(true);
+    setRelError(null);
+    try {
+      const result = await createCiRelation({
+        fromId: selectedId,
+        toId: relTargetId,
+        type: relType,
+      });
+      if (!result.ok) {
+        setRelError(t(result.errorKey));
+        toastError(t(result.errorKey));
+        return;
+      }
+      success(t('cmdb.relForm.added'));
+      setRelTargetId('');
+      // store notify refreshes via subscribe; optimistic local push
+      setLocalRelations((prev) => [...(prev ?? relations), result.relation]);
+    } finally {
+      setRelBusy(false);
+    }
+  };
+
+  const handleRemoveRelation = async (id: string) => {
+    setRelBusy(true);
+    setRelError(null);
+    try {
+      const result = await deleteCiRelation(id);
+      if (!result.ok) {
+        setRelError(t(result.errorKey));
+        toastError(t(result.errorKey));
+        return;
+      }
+      success(t('cmdb.relForm.removed'));
+      setLocalRelations((prev) =>
+        (prev ?? relations).filter((r) => r.id !== id),
+      );
+    } finally {
+      setRelBusy(false);
+    }
+  };
 
   const onListKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -650,7 +729,7 @@ export function CmdbPage() {
                   ) : (
                     <ul>
                       {selectedRelations.map(({ relation, other, direction }) => (
-                        <li key={relation.id}>
+                        <li key={relation.id} className="ci-rel-row">
                           <button
                             type="button"
                             className="ci-rel"
@@ -667,10 +746,62 @@ export function CmdbPage() {
                             </span>
                             {other && <StatusChip status={other.status} />}
                           </button>
+                          <button
+                            type="button"
+                            className="ci-rel__remove icon-btn"
+                            aria-label={t('cmdb.relForm.remove')}
+                            disabled={relBusy}
+                            onClick={() => void handleRemoveRelation(relation.id)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </li>
                       ))}
                     </ul>
                   )}
+                  <form
+                    className="ci-rel-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleAddRelation();
+                    }}
+                  >
+                    <h5 className="ci-rel-form__title">{t('cmdb.relForm.title')}</h5>
+                    <Select
+                      label={t('cmdb.relForm.target')}
+                      value={relTargetId}
+                      onChange={(e) => setRelTargetId(e.target.value)}
+                      options={[
+                        { value: '', label: t('cmdb.relForm.targetPlaceholder') },
+                        ...targetCiOptions,
+                      ]}
+                    />
+                    <Select
+                      label={t('cmdb.relForm.type')}
+                      value={relType}
+                      onChange={(e) =>
+                        setRelType(e.target.value as CiRelationType)
+                      }
+                      options={EDITABLE_REL_TYPES.map((rt) => ({
+                        value: rt,
+                        label: t(`cmdb.rel.${rt}`),
+                      }))}
+                    />
+                    {relError && (
+                      <p className="field__error" role="alert">
+                        {relError}
+                      </p>
+                    )}
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="secondary"
+                      disabled={relBusy || !relTargetId}
+                      icon={<Plus size={14} />}
+                    >
+                      {t('cmdb.relForm.add')}
+                    </Button>
+                  </form>
                 </div>
               </>
             ) : (

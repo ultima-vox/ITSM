@@ -12,6 +12,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
 import {
+  bulkAssignProblems,
+  bulkSetProblemStatus,
   createProblem,
   fetchProblems,
   getProblemTransitions,
@@ -95,6 +97,7 @@ export function ProblemsPage() {
   const [validation, setValidation] = useState<string | null>(null);
   const [rootCauseDraft, setRootCauseDraft] = useState('');
   const [workaroundDraft, setWorkaroundDraft] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -129,6 +132,14 @@ export function ProblemsPage() {
     return filtered;
   }, [data, query, priority, status, sortKey, sortDir]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(list.map((p) => p.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [list]);
+
   const selected = useMemo(
     () =>
       selectedId
@@ -136,6 +147,40 @@ export function ProblemsPage() {
         : null,
     [data, selectedId],
   );
+
+  const allSelected = list.length > 0 && selectedIds.size === list.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(list.map((p) => p.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
+    if (sortKey !== col) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const handleBulkAssign = async () => {
+    const n = await bulkAssignProblems([...selectedIds]);
+    success(t('module.bulk.assigned', { n }));
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkStatus = async (next: WorkItemStatus) => {
+    const n = await bulkSetProblemStatus([...selectedIds], next);
+    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+    setSelectedIds(new Set());
+  };
 
   useEffect(() => {
     if (selected) {
@@ -205,7 +250,16 @@ export function ProblemsPage() {
     } else if (e.key === 'Enter' && focusIndex >= 0) {
       e.preventDefault();
       openRow(list[focusIndex]);
-    } else if (e.key === 'Escape') setFocusIndex(-1);
+    } else if (e.key === ' ' && focusIndex >= 0) {
+      e.preventDefault();
+      toggleOne(list[focusIndex].id);
+    } else if ((e.metaKey || e.ctrlKey) && key === 'a') {
+      e.preventDefault();
+      toggleAll();
+    } else if (e.key === 'Escape') {
+      setFocusIndex(-1);
+      setSelectedIds(new Set());
+    }
   };
 
   useEffect(() => {
@@ -372,6 +426,44 @@ export function ProblemsPage() {
           <span>{t('grid.kbdNav')}</span>
           <kbd>Enter</kbd>
           <span>{t('grid.kbdOpen')}</span>
+          <kbd>Space</kbd>
+          <span>{t('grid.kbdSelect')}</span>
+          <kbd>Ctrl</kbd>
+          <kbd>A</kbd>
+          <span>{t('grid.selectAll')}</span>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar" role="toolbar" aria-label={t('grid.bulkActions')}>
+          <span className="bulk-bar__count">
+            {t('grid.selected', { n: selectedIds.size })}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => void handleBulkAssign()}>
+            {t('grid.assignToMe')}
+          </Button>
+          <div className="bulk-bar__priority">
+            <span>{t('module.bulk.changeStatus')}</span>
+            {(
+              ['in_progress', 'waiting', 'resolved', 'closed', 'cancelled'] as WorkItemStatus[]
+            ).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="chip chip--toggle"
+                onClick={() => void handleBulkStatus(s)}
+              >
+                {t(`status.${s}`)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="text-link bulk-bar__clear"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            {t('grid.clearSelection')}
+          </button>
         </div>
       )}
 
@@ -386,34 +478,47 @@ export function ProblemsPage() {
         >
           <thead>
             <tr>
-              <th scope="col">
+              <th scope="col" className="grid-check">
+                <label onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    aria-label={t('grid.selectAll')}
+                  />
+                </label>
+              </th>
+              <th scope="col" aria-sort={ariaSortFor('number')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
                   {t('problems.colNumber')}
                   <SortIcon col="number" />
                 </button>
               </th>
               <th scope="col">{t('problems.colTitle')}</th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('status')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
                   {t('problems.colStatus')}
                   <SortIcon col="status" />
                 </button>
               </th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('priority')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('priority')}>
                   {t('problems.colPriority')}
                   <SortIcon col="priority" />
                 </button>
               </th>
               <th scope="col">{t('problems.colKnownError')}</th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('incidents')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('incidents')}>
                   {t('problems.colIncidents')}
                   <SortIcon col="incidents" />
                 </button>
               </th>
               <th scope="col">{t('problems.colAssignee')}</th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('updated')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('updated')}>
                   {t('problems.colUpdated')}
                   <SortIcon col="updated" />
@@ -424,13 +529,13 @@ export function ProblemsPage() {
           <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
             {loading ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <SkeletonRows rows={3} />
                 </td>
               </tr>
             ) : list.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <EmptyState
                     title={t('problems.emptyTitle')}
                     description={t('problems.emptyHint')}
@@ -444,59 +549,75 @@ export function ProblemsPage() {
                 </td>
               </tr>
             ) : (
-              list.map((p, index) => (
-                <tr
-                  key={p.id}
-                  tabIndex={focusIndex === index ? 0 : -1}
-                  data-row-index={index}
-                  className={
-                    focusIndex === index
-                      ? 'is-focused'
-                      : selectedId === p.id
-                        ? 'is-selected'
-                        : undefined
-                  }
-                  onClick={() => openRow(p)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      openRow(p);
-                    }
-                  }}
-                >
-                  <td>
-                    <b className="mono accent">{p.number}</b>
-                  </td>
-                  <td>{p.title}</td>
-                  <td>
-                    <StatusChip status={p.status} />
-                  </td>
-                  <td>
-                    <PriorityBadge priority={p.priority} />
-                  </td>
-                  <td>
-                    {p.knownError ? (
-                      <span className="chip chip--warn">
-                        {t('problems.knownErrorYes')}
-                      </span>
-                    ) : (
-                      t('problems.knownErrorNo')
-                    )}
-                  </td>
-                  <td>{p.relatedIncidents}</td>
-                  <td>
-                    {p.assignee ? (
-                      <span className="inline-person">
-                        <Avatar initials={p.assignee.initials} size="sm" />
-                        {p.assignee.name}
-                      </span>
-                    ) : (
-                      <span className="muted">{t('overview.unassigned')}</span>
-                    )}
-                  </td>
-                  <td className="muted">{formatRelative(p.updatedAt, t)}</td>
-                </tr>
-              ))
+              list.map((p, index) => {
+                const isChecked = selectedIds.has(p.id);
+                return (
+                  <tr
+                    key={p.id}
+                    tabIndex={focusIndex === index ? 0 : -1}
+                    data-row-index={index}
+                    aria-selected={isChecked}
+                    className={[
+                      focusIndex === index ? 'is-focused' : '',
+                      selectedId === p.id || isChecked ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
+                    onClick={() => openRow(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        openRow(p);
+                      }
+                    }}
+                  >
+                    <td className="grid-check">
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(p.id)}
+                          aria-label={t('grid.selectRow', { n: p.number })}
+                        />
+                      </label>
+                    </td>
+                    <td>
+                      <b className="mono accent">{p.number}</b>
+                    </td>
+                    <td>{p.title}</td>
+                    <td>
+                      <StatusChip status={p.status} />
+                    </td>
+                    <td>
+                      <PriorityBadge priority={p.priority} />
+                    </td>
+                    <td>
+                      {p.knownError ? (
+                        <span className="chip chip--warn">
+                          {t('problems.knownErrorYes')}
+                        </span>
+                      ) : (
+                        t('problems.knownErrorNo')
+                      )}
+                    </td>
+                    <td>{p.relatedIncidents}</td>
+                    <td>
+                      {p.assignee ? (
+                        <span className="inline-person">
+                          <Avatar initials={p.assignee.initials} size="sm" />
+                          {p.assignee.name}
+                        </span>
+                      ) : (
+                        <span className="muted">{t('overview.unassigned')}</span>
+                      )}
+                    </td>
+                    <td className="muted">{formatRelative(p.updatedAt, t)}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

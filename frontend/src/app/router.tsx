@@ -1,19 +1,55 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { OverviewPage } from '@/pages/Overview/OverviewPage';
-import { MyWorkPage } from '@/pages/MyWork/MyWorkPage';
-import { QueuesPage } from '@/pages/Queues/QueuesPage';
-import { CatalogPage } from '@/pages/Catalog/CatalogPage';
-import { KnowledgePage } from '@/pages/Knowledge/KnowledgePage';
-import { CmdbPage } from '@/pages/CMDB/CmdbPage';
-import { AssetsPage } from '@/pages/Assets/AssetsPage';
-import { ProblemsPage } from '@/pages/Problems/ProblemsPage';
-import { ChangesPage } from '@/pages/Changes/ChangesPage';
-import { SettingsPage } from '@/pages/Settings/SettingsPage';
-import { ReportsPage } from '@/pages/Reports/ReportsPage';
-import { MetadataPage } from '@/pages/Admin/MetadataPage';
-import { WorkItemDetailPage } from '@/pages/WorkItemDetail/WorkItemDetailPage';
+import { PageLoader } from '@/components/ui/PageLoader';
 import { AuthCallbackPage } from '@/pages/Auth/CallbackPage';
+
+/* Eager: auth callback + shell. Pages are code-split. */
+const OverviewPage = lazy(() =>
+  import('@/pages/Overview/OverviewPage').then((m) => ({ default: m.OverviewPage })),
+);
+const MyWorkPage = lazy(() =>
+  import('@/pages/MyWork/MyWorkPage').then((m) => ({ default: m.MyWorkPage })),
+);
+const QueuesPage = lazy(() =>
+  import('@/pages/Queues/QueuesPage').then((m) => ({ default: m.QueuesPage })),
+);
+const CatalogPage = lazy(() =>
+  import('@/pages/Catalog/CatalogPage').then((m) => ({ default: m.CatalogPage })),
+);
+const KnowledgePage = lazy(() =>
+  import('@/pages/Knowledge/KnowledgePage').then((m) => ({ default: m.KnowledgePage })),
+);
+const CmdbPage = lazy(() =>
+  import('@/pages/CMDB/CmdbPage').then((m) => ({ default: m.CmdbPage })),
+);
+const AssetsPage = lazy(() =>
+  import('@/pages/Assets/AssetsPage').then((m) => ({ default: m.AssetsPage })),
+);
+const ProblemsPage = lazy(() =>
+  import('@/pages/Problems/ProblemsPage').then((m) => ({ default: m.ProblemsPage })),
+);
+const ChangesPage = lazy(() =>
+  import('@/pages/Changes/ChangesPage').then((m) => ({ default: m.ChangesPage })),
+);
+const SettingsPage = lazy(() =>
+  import('@/pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const ReportsPage = lazy(() =>
+  import('@/pages/Reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
+const MetadataPage = lazy(() =>
+  import('@/pages/Admin/MetadataPage').then((m) => ({ default: m.MetadataPage })),
+);
+const WorkItemDetailPage = lazy(() =>
+  import('@/pages/WorkItemDetail/WorkItemDetailPage').then((m) => ({
+    default: m.WorkItemDetailPage,
+  })),
+);
+
+function LazyRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -24,19 +60,110 @@ export const router = createBrowserRouter([
     path: '/',
     element: <AppShell />,
     children: [
-      { index: true, element: <OverviewPage /> },
-      { path: 'my-work', element: <MyWorkPage /> },
-      { path: 'queues', element: <QueuesPage /> },
-      { path: 'catalog', element: <CatalogPage /> },
-      { path: 'knowledge', element: <KnowledgePage /> },
-      { path: 'cmdb', element: <CmdbPage /> },
-      { path: 'assets', element: <AssetsPage /> },
-      { path: 'problems', element: <ProblemsPage /> },
-      { path: 'changes', element: <ChangesPage /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: 'admin/metadata', element: <MetadataPage /> },
-      { path: 'work-items/:id', element: <WorkItemDetailPage /> },
+      {
+        index: true,
+        element: (
+          <LazyRoute>
+            <OverviewPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'my-work',
+        element: (
+          <LazyRoute>
+            <MyWorkPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'queues',
+        element: (
+          <LazyRoute>
+            <QueuesPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'catalog',
+        element: (
+          <LazyRoute>
+            <CatalogPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'knowledge',
+        element: (
+          <LazyRoute>
+            <KnowledgePage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'cmdb',
+        element: (
+          <LazyRoute>
+            <CmdbPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'assets',
+        element: (
+          <LazyRoute>
+            <AssetsPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'problems',
+        element: (
+          <LazyRoute>
+            <ProblemsPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'changes',
+        element: (
+          <LazyRoute>
+            <ChangesPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'reports',
+        element: (
+          <LazyRoute>
+            <ReportsPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <LazyRoute>
+            <SettingsPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/metadata',
+        element: (
+          <LazyRoute>
+            <MetadataPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'work-items/:id',
+        element: (
+          <LazyRoute>
+            <WorkItemDetailPage />
+          </LazyRoute>
+        ),
+      },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
