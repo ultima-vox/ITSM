@@ -13,12 +13,14 @@ import { useToast } from '@/hooks/useToast';
 import {
   bulkAssignProblems,
   bulkSetProblemStatus,
+  createKnowledgeArticle,
   createProblem,
   fetchProblems,
   isLiveFeatureUnsupported,
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
+  useMock,
 } from '@/api';
 import {
   Avatar,
@@ -356,6 +358,52 @@ export function ProblemsPage() {
         ? t('problems.knownErrorMarked')
         : t('problems.knownErrorCleared'),
     );
+  };
+
+  /** S10: mint pending KB article from known-error RCA (mock CMS). */
+  const publishKnownErrorToKb = async () => {
+    if (!selected?.knownError) return;
+    const cause = rootCauseDraft.trim() || selected.rootCause?.trim() || '';
+    if (!cause) {
+      toastError(t('problems.validation.knownErrorNeedsCause'));
+      return;
+    }
+    if (!useMock()) {
+      toastError(t('knowledge.cmsLiveUnsupported'));
+      return;
+    }
+    const workaround =
+      workaroundDraft.trim() || selected.workaround?.trim() || '';
+    const body = [
+      t('problems.keKbIntro', { number: selected.number }),
+      '',
+      `## ${t('problems.rootCause')}`,
+      cause,
+      '',
+      `## ${t('problems.workaround')}`,
+      workaround || t('problems.keKbNoWorkaround'),
+    ].join('\n');
+    try {
+      const article = await createKnowledgeArticle({
+        title: t('problems.keKbTitle', {
+          number: selected.number,
+          title: selected.title,
+        }),
+        body,
+        tag: t('problems.keKbTag'),
+        status: 'pending',
+      });
+      success(t('problems.keKbSuccess', { title: article.title ?? '' }), {
+        label: t('problems.keKbOpen'),
+        href: `/knowledge?article=${encodeURIComponent(article.id)}`,
+      });
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('knowledge.cmsLiveUnsupported')
+          : t('knowledge.editFailed'),
+      );
+    }
   };
 
   const saveRca = async () => {
@@ -712,6 +760,16 @@ export function ProblemsPage() {
                       ? t('problems.clearKnownError')
                       : t('problems.markKnownError')}
                   </Button>
+                  {selected.knownError && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => void publishKnownErrorToKb()}
+                      title={t('problems.keKbHint')}
+                    >
+                      {t('problems.keKbAction')}
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
