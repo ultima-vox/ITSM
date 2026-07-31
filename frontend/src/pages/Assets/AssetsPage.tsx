@@ -43,8 +43,13 @@ import {
   resolveRelatedHref,
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
+import { people } from '@/mock/data';
 import { getModuleActivities } from '@/mock/store';
 import type { Asset, AssetStatus } from '@/types';
+
+const ASSIGNEE_OPTIONS = Object.values(people)
+  .filter((p) => p.id !== 'system')
+  .map((p) => ({ value: p.name, label: `${p.name} · ${p.role ?? ''}` }));
 
 type SortKey = 'tag' | 'name' | 'status' | 'location' | 'purchased';
 
@@ -394,12 +399,19 @@ export function AssetsPage() {
                   {selected.status === 'retired' ? (
                     selected.assignedTo ?? t('assets.unassigned')
                   ) : (
-                    <input
-                      className="module-inline-input"
+                    <Select
+                      aria-label={t('assets.colAssignee')}
                       value={assignName}
                       onChange={(e) => setAssignName(e.target.value)}
-                      placeholder={t('assets.unassigned')}
-                      aria-label={t('assets.colAssignee')}
+                      options={[
+                        { value: '', label: t('assets.unassigned') },
+                        ...ASSIGNEE_OPTIONS,
+                        // Keep current free-text seed names not in people catalog
+                        ...(assignName &&
+                        !ASSIGNEE_OPTIONS.some((o) => o.value === assignName)
+                          ? [{ value: assignName, label: assignName }]
+                          : []),
+                      ]}
                     />
                   )}
                 </dd>
