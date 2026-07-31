@@ -19,9 +19,10 @@ export default defineConfig({
     locale: 'ru-RU',
   },
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
     url: 'http://127.0.0.1:5173',
-    reuseExistingServer: !process.env.CI,
+    // Prefer a fresh Vite for smoke; set PW_REUSE_SERVER=1 to attach to an existing one
+    reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
     timeout: 120_000,
   },
   projects: [

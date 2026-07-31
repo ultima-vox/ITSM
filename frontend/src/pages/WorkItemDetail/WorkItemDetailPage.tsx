@@ -33,6 +33,7 @@ import {
   fetchWorkItems,
   fetchKnowledgeArticles,
   fetchProblems,
+  fetchFormDefinition,
   assignWorkItemToMe,
   escalateWorkItem,
   resolveWorkItem,
@@ -46,6 +47,7 @@ import {
   getContentUrl,
   formatBytes,
   type AttachmentMeta,
+  type FormDefinition,
 } from '@/api';
 import {
   Avatar,
@@ -58,6 +60,7 @@ import {
   Tabs,
   Textarea,
 } from '@/components/ui';
+import { DynamicForm } from '@/components/form/DynamicForm';
 import { PriorityBadge, StatusChip } from '@/components/data-display';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { slaConsumedPct } from '@/lib/sla';
@@ -148,12 +151,31 @@ export function WorkItemDetailPage() {
   const wi = item.data;
   const [impact, setImpact] = useState<ImpactLevel>('medium');
   const [urgency, setUrgency] = useState<UrgencyLevel>('medium');
+  const [formDef, setFormDef] = useState<FormDefinition | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFormDefinition('work-item').then((def) => {
+      if (!cancelled) setFormDef(def);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!wi) return;
     setImpact(wi.impact ?? 'medium');
     setUrgency(wi.urgency ?? 'medium');
-  }, [wi?.id, wi?.impact, wi?.urgency, wi?.updatedAt]);
+    setFormValues({
+      title: wi.title,
+      description: wi.description,
+      service: wi.service,
+      impact: wi.impact ?? 'medium',
+      urgency: wi.urgency ?? 'medium',
+    });
+  }, [wi?.id, wi?.title, wi?.description, wi?.service, wi?.impact, wi?.urgency, wi?.updatedAt]);
 
   // Load persisted links when work item changes
   useEffect(() => {
@@ -271,6 +293,40 @@ export function WorkItemDetailPage() {
       priority: value as 'critical' | 'high' | 'medium' | 'low',
     });
     flash(t('workItem.savedToast'));
+  };
+
+  /** Persist a single form-engine field onto the work-item store. */
+  const saveFormField = async (key: string, value: string) => {
+    const trimmed = value.trim();
+    // Skip no-op writes when value unchanged
+    if (key === 'impact' && (wi?.impact ?? 'medium') === value) return;
+    if (key === 'urgency' && (wi?.urgency ?? 'medium') === value) return;
+    if (key === 'service' && wi?.service === value) return;
+    if (key === 'title' && wi?.title === trimmed) return;
+    if (key === 'description' && wi?.description === value) return;
+
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+    if (key === 'impact') {
+      await saveImpact(value as ImpactLevel);
+      return;
+    }
+    if (key === 'urgency') {
+      await saveUrgency(value as UrgencyLevel);
+      return;
+    }
+    if (key === 'service') {
+      await saveService(value);
+      return;
+    }
+    if (key === 'title') {
+      await patchWorkItem(id, { title: trimmed });
+      flash(t('workItem.savedToast'));
+      return;
+    }
+    if (key === 'description') {
+      await patchWorkItem(id, { description: value });
+      flash(t('workItem.savedToast'));
+    }
   };
 
   const handleMacroMoreInfo = async () => {
@@ -474,8 +530,51 @@ export function WorkItemDetailPage() {
       {tab === 'details' ? (
         <div className="detail-workbench">
           <section className="panel detail-panel">
-            <h2>{t('workItem.description')}</h2>
-            <p className="detail-body">{wi.description}</p>
+            {formDef ? (
+              <>
+                <div className="section-head section-head--tight">
+                  <h2>{t('workItem.fields')}</h2>
+                  <span className="chip chip--muted" title={formDef.key}>
+                    {t('form.engineChip', { v: formDef.version })}
+                  </span>
+                </div>
+                <DynamicForm
+                  definition={formDef}
+                  values={formValues}
+                  onChange={(key, value) =>
+                    setFormValues((prev) => ({ ...prev, [key]: value }))
+                  }
+                  onCommit={(key, value) => void saveFormField(key, value)}
+                  readOnly={resolved}
+                  layout="detail"
+                  optionLists={{
+                    service: [
+                      { value: wi.service, label: wi.service },
+                      {
+                        value: t('create.serviceWorkplace'),
+                        label: t('create.serviceWorkplace'),
+                      },
+                      {
+                        value: t('create.serviceAccess'),
+                        label: t('create.serviceAccess'),
+                      },
+                      {
+                        value: t('create.serviceApps'),
+                        label: t('create.serviceApps'),
+                      },
+                    ].filter(
+                      (o, i, arr) =>
+                        arr.findIndex((x) => x.value === o.value) === i,
+                    ),
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <h2>{t('workItem.description')}</h2>
+                <p className="detail-body">{wi.description}</p>
+              </>
+            )}
 
             {wi.resolutionNotes && (
               <div className="resolution-notes">
@@ -484,30 +583,54 @@ export function WorkItemDetailPage() {
               </div>
             )}
 
-            <h2 className="mt-4">{t('workItem.fields')}</h2>
+            <h2 className="mt-4">{t('workItem.contextFields')}</h2>
             <div className="detail-fields detail-fields--enterprise">
-              <Select
-                label={t('workItem.impact')}
-                value={impact}
-                onChange={(e) => void saveImpact(e.target.value as ImpactLevel)}
-                options={[
-                  { value: 'high', label: t('workItem.impactHigh') },
-                  { value: 'medium', label: t('workItem.impactMedium') },
-                  { value: 'low', label: t('workItem.impactLow') },
-                ]}
-              />
-              <Select
-                label={t('workItem.urgency')}
-                value={urgency}
-                onChange={(e) =>
-                  void saveUrgency(e.target.value as UrgencyLevel)
-                }
-                options={[
-                  { value: 'high', label: t('workItem.urgencyHigh') },
-                  { value: 'medium', label: t('workItem.urgencyMedium') },
-                  { value: 'low', label: t('workItem.urgencyLow') },
-                ]}
-              />
+              {!formDef && (
+                <>
+                  <Select
+                    label={t('workItem.impact')}
+                    value={impact}
+                    onChange={(e) => void saveImpact(e.target.value as ImpactLevel)}
+                    options={[
+                      { value: 'high', label: t('workItem.impactHigh') },
+                      { value: 'medium', label: t('workItem.impactMedium') },
+                      { value: 'low', label: t('workItem.impactLow') },
+                    ]}
+                  />
+                  <Select
+                    label={t('workItem.urgency')}
+                    value={urgency}
+                    onChange={(e) =>
+                      void saveUrgency(e.target.value as UrgencyLevel)
+                    }
+                    options={[
+                      { value: 'high', label: t('workItem.urgencyHigh') },
+                      { value: 'medium', label: t('workItem.urgencyMedium') },
+                      { value: 'low', label: t('workItem.urgencyLow') },
+                    ]}
+                  />
+                  <Select
+                    label={t('workItem.service')}
+                    value={wi.service}
+                    onChange={(e) => void saveService(e.target.value)}
+                    options={[
+                      { value: wi.service, label: wi.service },
+                      {
+                        value: t('create.serviceWorkplace'),
+                        label: t('create.serviceWorkplace'),
+                      },
+                      {
+                        value: t('create.serviceAccess'),
+                        label: t('create.serviceAccess'),
+                      },
+                      {
+                        value: t('create.serviceApps'),
+                        label: t('create.serviceApps'),
+                      },
+                    ]}
+                  />
+                </>
+              )}
               <Select
                 label={t('overview.colPriority')}
                 value={wi.priority}
@@ -518,26 +641,6 @@ export function WorkItemDetailPage() {
                   { value: 'high', label: t('priority.high') },
                   { value: 'medium', label: t('priority.medium') },
                   { value: 'low', label: t('priority.low') },
-                ]}
-              />
-              <Select
-                label={t('workItem.service')}
-                value={wi.service}
-                onChange={(e) => void saveService(e.target.value)}
-                options={[
-                  { value: wi.service, label: wi.service },
-                  {
-                    value: t('create.serviceWorkplace'),
-                    label: t('create.serviceWorkplace'),
-                  },
-                  {
-                    value: t('create.serviceAccess'),
-                    label: t('create.serviceAccess'),
-                  },
-                  {
-                    value: t('create.serviceApps'),
-                    label: t('create.serviceApps'),
-                  },
                 ]}
               />
               <div className="field field--readonly">

@@ -75,7 +75,9 @@
     "empty": "Keine Ergebnisse",
     "emptyHint": "Andere Suche oder Ticketnummer versuchen",
     "navigateHint": "navigieren",
-    "openHint": "öffnen"
+    "openHint": "öffnen",
+    "askCopilot": "Copilot fragen",
+    "askCopilotHint": "Warteschlangen-Druck und nächste Schritte zusammenfassen"
   },
   "grid": {
     "listLabel": "Ticketliste",
@@ -97,6 +99,8 @@
     "markAllRead": "Alle gelesen",
     "viewAll": "Alle Benachrichtigungen",
     "ago": "vor {n}",
+    "empty": "Noch keine Benachrichtigungen",
+    "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA gefährdet",
     "slaRiskBody": "INC-1842 · Remote-VPN — weniger als eine Stunde",
     "assignTitle": "Neue Zuweisung",
@@ -104,7 +108,13 @@
     "mentionTitle": "In Kommentar erwähnt",
     "mentionBody": "Alexey K. hat Sie in INC-1842 erwähnt",
     "resolvedTitle": "Störung gelöst",
-    "resolvedBody": "INC-1820 · SAP-SSO geschlossen"
+    "resolvedBody": "INC-1820 · SAP-SSO geschlossen",
+    "breachTitle": "SLA verletzt"
+  },
+  "form": {
+    "engineChip": "Formular v{v}",
+    "sectionMain": "Details",
+    "sectionClassification": "Klassifizierung"
   },
   "profile": {
     "viewProfile": "Profil",
@@ -240,6 +250,8 @@
     "assistantText": "Ich fasse Anfragen zusammen, finde Wissen und schlage nächste Schritte vor.",
     "assistantBrief": "Aktuell: {breached} verletzt, {atRisk} gefährdet, {unassigned} ohne Bearbeiter.",
     "ask": "Befehle, Tickets, Aktionen…",
+    "suggestionBrief": "Schicht-Briefing anfordern",
+    "suggestionBriefMeta": "KI-Zusammenfassung des Wartendrucks",
     "suggestionUrgent": "Verletzte SLA öffnen",
     "suggestionUrgentMeta": "{n} in Warteschlange",
     "suggestionSla": "Filter «gefährdet»",
@@ -249,6 +261,8 @@
     "copilotNavBreached": "Warteschlange geöffnet: SLA verletzt",
     "copilotNavAtRisk": "Filter geöffnet: SLA gefährdet",
     "copilotNavUnassigned": "Warteschlange geöffnet: nicht zugewiesen",
+    "copilotThinking": "Warteschlange wird analysiert…",
+    "copilotError": "Copilot konnte die Warteschlange nicht zusammenfassen. Bitte erneut versuchen.",
     "urgencyTitle": "SLA braucht Aufmerksamkeit",
     "urgencyHint": "Prioritätssignale aus der Live-Warteschlange",
     "urgencyOpen": "Zur Warteschlange",
@@ -402,6 +416,15 @@
     "contributeText": "Teilen Sie Ihre Erfahrung — sie hilft Kollegen.",
     "contributeAction": "Artikel vorschlagen",
     "contributeMock": "Artikelvorschlag ist in diesem Build nur Mock",
+    "contributeModalTitle": "Wissensartikel vorschlagen",
+    "contributeModalHint": "Entwurf wird in dieser Sitzung als ausstehend gespeichert und erscheint sofort in der Liste.",
+    "contributeFieldTitle": "Titel",
+    "contributeFieldBody": "Artikeltext",
+    "contributeFieldBodyHint": "Schritte, Prüfungen und Eskalation funktionieren am besten",
+    "contributeSubmit": "Entwurf einreichen",
+    "contributeSuccess": "Entwurf „{title}“ als ausstehend hinzugefügt",
+    "pending": "Ausstehend",
+    "voteCount": "{n} Stimmen",
     "readMinutes": "{n} Min. Lesezeit",
     "helpful": "hilfreich",
     "verified": "Von Experten geprüft",
@@ -411,9 +434,14 @@
     "wasHelpful": "War das hilfreich?",
     "feedbackYes": "Ja",
     "feedbackNo": "Nein",
-    "feedbackThanks": "Danke — Ihr Feedback verbessert die Wissensdatenbank",
-    "feedbackThanksNo": "Danke — wir prüfen diesen Artikel",
+    "feedbackThanks": "Danke — Score in der Wissensdatenbank aktualisiert",
+    "feedbackThanksNo": "Danke — Score aktualisiert; wir prüfen den Artikel",
     "printArticle": "Artikel drucken",
+    "validation": {
+      "title": "Titel ist erforderlich",
+      "body": "Artikeltext ist erforderlich",
+      "alreadyVoted": "Sie haben bereits abgestimmt"
+    },
     "articles": {
       "vpn": {
         "title": "Mit dem Unternehmens-VPN verbinden",
@@ -444,6 +472,11 @@
         "summary": "Zwischengespeicherte Anmeldedaten löschen und moderne Authentifizierung wiederherstellen.",
         "tag": "E-Mail",
         "body": "1. Aus Office-Apps abmelden und Outlook schließen.\n2. Northstar-Anmeldedaten im Windows-Anmeldeinformationsverwaltung entfernen.\n3. Outlook öffnen und moderne Auth abschließen.\n4. Bei Schleifen Office unter Apps & Features reparieren.\n5. Mit Tag outlook-auth eskalieren, wenn MFA-Aufforderungen ausbleiben."
+      },
+      "contributed": {
+        "title": "Eingereichter Artikel",
+        "summary": "Operator-Entwurf",
+        "tag": "Beitrag"
       }
     },
     "topicsHeading": "Themen",
@@ -584,7 +617,14 @@
       "root_cause_set": "Ursache erfasst",
       "submitted_cab": "An CAB übergeben",
       "cab_approved": "CAB genehmigt",
+      "cab_rejected": "CAB abgelehnt",
+      "cab_notes_updated": "CAB-Notizen aktualisiert",
+      "risk_updated": "Risikostufe aktualisiert",
+      "cab_vote_approve": "CAB-Mitglied zugestimmt",
+      "cab_vote_reject": "CAB-Mitglied abgelehnt",
+      "cab_vote_abstain": "CAB-Mitglied enthalten",
       "scheduled": "Geplant",
+      "scheduled_emergency": "Geplant (Emergency — CAB übersprungen)",
       "completed": "Abgeschlossen",
       "cancelled": "Abgebrochen",
       "asset_in_use": "Status → in Nutzung",
@@ -713,9 +753,12 @@
     "savePlans": "Pläne speichern",
     "plansSaved": "Pläne gespeichert",
     "cabApproved": "CAB genehmigt",
+    "cabRejected": "CAB abgelehnt",
     "validation": {
       "title": "Titel ist erforderlich",
-      "cabRequired": "Normal/Emergency ohne CAB nicht planbar",
+      "cabRequired": "Normal-Changes müssen zuerst durch CAB",
+      "cabApprovalRequired": "Explizite CAB-Genehmigung vor Planung eines Normal-Changes erforderlich",
+      "cabRejected": "CAB hat abgelehnt — zurück zum Entwurf oder abbrechen",
       "planRequired": "Umsetzungsplan ist erforderlich",
       "backoutRequired": "Rückfallplan ist erforderlich"
     },
@@ -726,6 +769,30 @@
       "to_in_progress": "Umsetzung starten",
       "to_completed": "Abschließen",
       "to_cancelled": "Abbrechen"
+    },
+    "cab": {
+      "title": "CAB-Prüfung",
+      "subtitle": "Risikobewertung, Mitgliederstimmen und Vorsitzentscheid.",
+      "riskLevel": "Risikostufe",
+      "notes": "CAB-Notizen",
+      "notesHint": "Für Audit und Übergabe an die Planung",
+      "members": "CAB-Mitglieder",
+      "noMembers": "Keine CAB-Mitglieder zugewiesen",
+      "approve": "CAB genehmigen",
+      "reject": "CAB ablehnen",
+      "saveFields": "Risiko & Notizen speichern",
+      "fieldsSaved": "CAB-Risiko und Notizen gespeichert",
+      "approvedToast": "CAB genehmigt — bereit zur Planung",
+      "rejectedToast": "CAB hat diesen Change abgelehnt",
+      "voteRecorded": "Mitgliederstimme erfasst",
+      "normalRequiresApprove": "Normal-Changes brauchen explizite CAB-Genehmigung vor „Planen“.",
+      "emergencyTitle": "Notfall-CAB-Übersprung",
+      "emergencyWarning": "Emergency-Changes dürfen ohne CAB-Genehmigung geplant werden. Eine Warnung erscheint in der Aktivität.",
+      "vote": {
+        "approve": "Zustimmen",
+        "reject": "Ablehnen",
+        "abstain": "Enthalten"
+      }
     }
   },
   "reports": {
@@ -821,7 +888,11 @@
     "authStatusToken": "Bearer-Token vorhanden (env oder Speicher)",
     "authStatusAnonymous": "Nicht angemeldet",
     "authStatusDisabled": "OIDC deaktiviert",
-    "subject": "Subject (sub)"
+    "subject": "Subject (sub)",
+    "resetDemo": "Demo-Daten zurücksetzen",
+    "resetDemoConfirm": "Alle Mock-Änderungen löschen und den ursprünglichen Demo-Datensatz wiederherstellen?",
+    "resetDemoDone": "Demo-Daten zurückgesetzt",
+    "resetDemoHint": "Stellt Work Items, Assets, Problems, Changes, CIs und Knowledge-Votes aus Seed-Daten wieder her (localStorage)."
   },
   "metadata": {
     "title": "Objekt-Metadaten",
@@ -958,6 +1029,7 @@
     "urgencyMedium": "Mittel",
     "urgencyLow": "Niedrig",
     "fields": "Felder",
+    "contextFields": "Kontext",
     "workbench": "Arbeitsbereich",
     "activityStream": "Aktivitätsstrom",
     "breachBanner": "SLA verletzt — sofortige Aufmerksamkeit erforderlich",

@@ -1,66 +1,37 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Clock3, ShieldAlert, UserPlus } from 'lucide-react';
 import { useT } from '@/i18n';
+import { formatRelative } from '@/lib/format';
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications,
+  type AppNotification,
+  type NotificationKind,
+} from '@/mock/notifications';
 
-interface MockNotification {
-  id: string;
-  kind: 'sla' | 'assign' | 'mention';
-  titleKey: string;
-  bodyKey: string;
-  at: string;
-  href: string;
-  unread?: boolean;
-}
-
-const MOCK: MockNotification[] = [
-  {
-    id: 'n1',
-    kind: 'sla',
-    titleKey: 'notifications.slaRiskTitle',
-    bodyKey: 'notifications.slaRiskBody',
-    at: '8m',
-    href: '/work-items/wi-1842',
-    unread: true,
-  },
-  {
-    id: 'n2',
-    kind: 'assign',
-    titleKey: 'notifications.assignTitle',
-    bodyKey: 'notifications.assignBody',
-    at: '22m',
-    href: '/work-items/wi-1838',
-    unread: true,
-  },
-  {
-    id: 'n3',
-    kind: 'mention',
-    titleKey: 'notifications.mentionTitle',
-    bodyKey: 'notifications.mentionBody',
-    at: '1h',
-    href: '/work-items/wi-1842',
-  },
-  {
-    id: 'n4',
-    kind: 'sla',
-    titleKey: 'notifications.resolvedTitle',
-    bodyKey: 'notifications.resolvedBody',
-    at: '3h',
-    href: '/work-items/wi-1820',
-  },
-];
-
-const kindIcon = {
+const kindIcon: Record<NotificationKind, typeof Bell> = {
   sla: ShieldAlert,
+  breach: ShieldAlert,
   assign: UserPlus,
   mention: Bell,
-} as const;
+};
+
+function useNotifications(): AppNotification[] {
+  return useSyncExternalStore(
+    subscribeNotifications,
+    listNotifications,
+    listNotifications,
+  );
+}
 
 export function NotificationMenu() {
   const t = useT();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState(MOCK);
+  const items = useNotifications();
   const ref = useRef<HTMLDivElement>(null);
   const unread = items.filter((n) => n.unread).length;
 
@@ -81,7 +52,13 @@ export function NotificationMenu() {
   }, [open]);
 
   const markAllRead = () => {
-    setItems((list) => list.map((n) => ({ ...n, unread: false })));
+    markAllNotificationsRead();
+  };
+
+  const openItem = (n: AppNotification) => {
+    markNotificationRead(n.id);
+    setOpen(false);
+    navigate(n.href);
   };
 
   return (
@@ -111,40 +88,38 @@ export function NotificationMenu() {
               {t('notifications.markAllRead')}
             </button>
           </div>
-          <ul className="notif-list">
-            {items.map((n) => {
-              const Icon = kindIcon[n.kind];
-              return (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    className={`notif-item${n.unread ? ' is-unread' : ''}`}
-                    role="menuitem"
-                    onClick={() => {
-                      setItems((list) =>
-                        list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
-                      );
-                      setOpen(false);
-                      navigate(n.href);
-                    }}
-                  >
-                    <span className={`notif-item__icon notif-item__icon--${n.kind}`}>
-                      <Icon size={14} />
-                    </span>
-                    <span className="notif-item__body">
-                      <b>{t(n.titleKey)}</b>
-                      <small>{t(n.bodyKey)}</small>
-                      <em>
-                        <Clock3 size={11} aria-hidden />
-                        {t('notifications.ago', { n: n.at })}
-                      </em>
-                    </span>
-                    {n.unread && <i className="notif-item__dot" aria-hidden />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {items.length === 0 ? (
+            <p className="notif-empty">{t('notifications.empty')}</p>
+          ) : (
+            <ul className="notif-list">
+              {items.map((n) => {
+                const Icon = kindIcon[n.kind] ?? Bell;
+                return (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      className={`notif-item${n.unread ? ' is-unread' : ''}`}
+                      role="menuitem"
+                      onClick={() => openItem(n)}
+                    >
+                      <span className={`notif-item__icon notif-item__icon--${n.kind}`}>
+                        <Icon size={14} />
+                      </span>
+                      <span className="notif-item__body">
+                        <b>{t(n.titleKey, n.titleVars)}</b>
+                        <small>{t(n.bodyKey, n.bodyVars)}</small>
+                        <em>
+                          <Clock3 size={11} aria-hidden />
+                          {formatRelative(n.at, t)}
+                        </em>
+                      </span>
+                      {n.unread && <i className="notif-item__dot" aria-hidden />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <div className="dropdown-panel__foot">
             <button
               type="button"

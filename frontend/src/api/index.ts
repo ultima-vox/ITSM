@@ -10,3 +10,4 @@ export * from './attachments';
 export * from './search';
 export * from './platform';
 export * from './metadata';
+export * from './ai';

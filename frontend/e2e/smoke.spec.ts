@@ -6,10 +6,16 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('smoke', () => {
   test.beforeEach(async ({ page }) => {
-    // Force default Russian locale; ignore any prior localStorage from reuse
+    // Clean demo persistence so smoke is deterministic (locale + durable store + notifs)
     await page.addInitScript(() => {
       try {
-        localStorage.removeItem('vox-locale');
+        const keys: string[] = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('vox-') || k.startsWith('vox'))) keys.push(k);
+        }
+        keys.forEach((k) => localStorage.removeItem(k));
+        sessionStorage.clear();
       } catch {
         /* ignore */
       }

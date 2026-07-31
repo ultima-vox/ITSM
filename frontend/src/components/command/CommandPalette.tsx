@@ -4,6 +4,7 @@ import {
   AlertOctagon,
   BookOpen,
   Boxes,
+  Bot,
   ClipboardList,
   Database,
   FilePlus2,
@@ -284,6 +285,15 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         icon: FilePlus2,
         run: () => create('request'),
         keywords: 'create request new',
+      },
+      {
+        id: 'act-copilot',
+        kind: 'action',
+        label: t('command.askCopilot'),
+        hint: t('command.askCopilotHint'),
+        icon: Bot,
+        run: () => go('/?copilot=1'),
+        keywords: 'copilot ai assistant summarize brief ask',
       },
     ];
 

@@ -75,7 +75,9 @@
     "empty": "No results",
     "emptyHint": "Try a different query or ticket number",
     "navigateHint": "to navigate",
-    "openHint": "to open"
+    "openHint": "to open",
+    "askCopilot": "Ask copilot",
+    "askCopilotHint": "Summarize queue pressure and next actions"
   },
   "grid": {
     "listLabel": "Work item list",
@@ -97,6 +99,8 @@
     "markAllRead": "Mark all read",
     "viewAll": "All notifications",
     "ago": "{n} ago",
+    "empty": "No notifications yet",
+    "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA at risk",
     "slaRiskBody": "INC-1842 · Remote VPN — under an hour left",
     "assignTitle": "New assignment",
@@ -104,7 +108,13 @@
     "mentionTitle": "Mentioned in a comment",
     "mentionBody": "Alexey K. mentioned you on INC-1842",
     "resolvedTitle": "Incident resolved",
-    "resolvedBody": "INC-1820 · SAP SSO closed"
+    "resolvedBody": "INC-1820 · SAP SSO closed",
+    "breachTitle": "SLA breached"
+  },
+  "form": {
+    "engineChip": "Form v{v}",
+    "sectionMain": "Details",
+    "sectionClassification": "Classification"
   },
   "profile": {
     "viewProfile": "Profile",
@@ -240,6 +250,8 @@
     "assistantText": "I summarize requests, find knowledge and suggest next steps.",
     "assistantBrief": "Right now: {breached} breached, {atRisk} at risk, {unassigned} unassigned.",
     "ask": "Commands, work items, actions…",
+    "suggestionBrief": "Ask for a shift briefing",
+    "suggestionBriefMeta": "AI summary of queue pressure",
     "suggestionUrgent": "Open breached SLA",
     "suggestionUrgentMeta": "{n} in queue",
     "suggestionSla": "Filter at-risk SLA",
@@ -249,6 +261,8 @@
     "copilotNavBreached": "Opened queue: breached SLA",
     "copilotNavAtRisk": "Opened filter: SLA at risk",
     "copilotNavUnassigned": "Opened queue: unassigned",
+    "copilotThinking": "Analyzing queue…",
+    "copilotError": "Copilot could not summarize the queue. Try again.",
     "urgencyTitle": "SLA needs attention",
     "urgencyHint": "Priority signals from the live queue",
     "urgencyOpen": "Open queue",
@@ -402,6 +416,15 @@
     "contributeText": "Share your experience — it will help colleagues.",
     "contributeAction": "Suggest an article",
     "contributeMock": "Article suggestion is mock-only in this build",
+    "contributeModalTitle": "Suggest a knowledge article",
+    "contributeModalHint": "Draft is saved as pending in this session and appears in the list immediately.",
+    "contributeFieldTitle": "Title",
+    "contributeFieldBody": "Article body",
+    "contributeFieldBodyHint": "Steps, checks and escalation tips work best",
+    "contributeSubmit": "Submit draft",
+    "contributeSuccess": "Draft “{title}” added as pending",
+    "pending": "Pending",
+    "voteCount": "{n} votes",
     "readMinutes": "{n} min read",
     "helpful": "helpful",
     "verified": "Expert verified",
@@ -411,9 +434,14 @@
     "wasHelpful": "Was this helpful?",
     "feedbackYes": "Yes",
     "feedbackNo": "No",
-    "feedbackThanks": "Thanks — your feedback improves the knowledge base",
-    "feedbackThanksNo": "Thanks — we will review this article",
+    "feedbackThanks": "Thanks — score updated in the knowledge base",
+    "feedbackThanksNo": "Thanks — score updated; we will review this article",
     "printArticle": "Print article",
+    "validation": {
+      "title": "Title is required",
+      "body": "Article body is required",
+      "alreadyVoted": "You already voted on this article"
+    },
     "articles": {
       "vpn": {
         "title": "Connect to the corporate VPN",
@@ -444,6 +472,11 @@
         "summary": "Clear cached credentials and re-establish modern authentication.",
         "tag": "Email",
         "body": "1. Sign out of Office apps and close Outlook.\n2. Remove Northstar credentials from Windows Credential Manager.\n3. Open Outlook and complete the modern auth prompt.\n4. If the loop continues, repair Office from Apps & features.\n5. Escalate with tag outlook-auth if MFA challenges never appear."
+      },
+      "contributed": {
+        "title": "Contributed article",
+        "summary": "Operator-submitted draft",
+        "tag": "Contribution"
       }
     },
     "topicsHeading": "Topics",
@@ -584,7 +617,14 @@
       "root_cause_set": "Root cause recorded",
       "submitted_cab": "Submitted to CAB",
       "cab_approved": "CAB approved",
+      "cab_rejected": "CAB rejected",
+      "cab_notes_updated": "CAB notes updated",
+      "risk_updated": "Risk level updated",
+      "cab_vote_approve": "CAB member approved",
+      "cab_vote_reject": "CAB member rejected",
+      "cab_vote_abstain": "CAB member abstained",
       "scheduled": "Scheduled",
+      "scheduled_emergency": "Scheduled (emergency — CAB skipped)",
       "completed": "Completed",
       "cancelled": "Cancelled",
       "asset_in_use": "Status → in use",
@@ -713,9 +753,12 @@
     "savePlans": "Save plans",
     "plansSaved": "Plans saved",
     "cabApproved": "CAB approved",
+    "cabRejected": "CAB rejected",
     "validation": {
       "title": "Change title is required",
-      "cabRequired": "Normal/Emergency cannot schedule without CAB",
+      "cabRequired": "Normal changes must pass CAB review before scheduling",
+      "cabApprovalRequired": "CAB must explicitly approve before scheduling a normal change",
+      "cabRejected": "CAB rejected this change — return to draft or cancel",
       "planRequired": "Implementation plan is required",
       "backoutRequired": "Backout plan is required"
     },
@@ -726,6 +769,30 @@
       "to_in_progress": "Start implementation",
       "to_completed": "Complete",
       "to_cancelled": "Cancel"
+    },
+    "cab": {
+      "title": "CAB review",
+      "subtitle": "Risk assessment, member votes and chair decision.",
+      "riskLevel": "Risk level",
+      "notes": "CAB notes",
+      "notesHint": "Captured for audit and scheduling handoff",
+      "members": "CAB members",
+      "noMembers": "No CAB members assigned",
+      "approve": "Approve CAB",
+      "reject": "Reject CAB",
+      "saveFields": "Save risk & notes",
+      "fieldsSaved": "CAB risk and notes saved",
+      "approvedToast": "CAB approved — ready to schedule",
+      "rejectedToast": "CAB rejected this change",
+      "voteRecorded": "Member vote recorded",
+      "normalRequiresApprove": "Normal changes require explicit CAB approval before Schedule.",
+      "emergencyTitle": "Emergency CAB skip",
+      "emergencyWarning": "Emergency changes may schedule without CAB approval. A warning is logged on the activity timeline.",
+      "vote": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "abstain": "Abstain"
+      }
     }
   },
   "reports": {
@@ -821,7 +888,11 @@
     "authStatusToken": "Bearer token present (env or storage)",
     "authStatusAnonymous": "Not signed in",
     "authStatusDisabled": "OIDC disabled",
-    "subject": "Subject (sub)"
+    "subject": "Subject (sub)",
+    "resetDemo": "Reset demo data",
+    "resetDemoConfirm": "Clear all mock changes and restore the original demo dataset?",
+    "resetDemoDone": "Demo data reset",
+    "resetDemoHint": "Restores work items, assets, problems, changes, CIs and knowledge votes from seed data (localStorage)."
   },
   "metadata": {
     "title": "Object metadata",
@@ -958,6 +1029,7 @@
     "urgencyMedium": "Medium",
     "urgencyLow": "Low",
     "fields": "Fields",
+    "contextFields": "Context",
     "workbench": "Workbench",
     "activityStream": "Activity stream",
     "breachBanner": "SLA breached — immediate attention required",

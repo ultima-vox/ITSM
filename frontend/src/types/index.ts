@@ -95,6 +95,8 @@ export interface CatalogCategory {
   tone: 'lilac' | 'blue' | 'mint' | 'coral';
 }
 
+export type KnowledgeArticleStatus = 'published' | 'pending';
+
 export interface KnowledgeArticle {
   id: string;
   titleKey: string;
@@ -102,10 +104,28 @@ export interface KnowledgeArticle {
   tagKey: string;
   readMinutes: number;
   helpfulScore: number;
+  /** Absolute yes-votes (session-mutable) */
+  helpfulYes?: number;
+  /** Absolute no-votes (session-mutable) */
+  helpfulNo?: number;
+  /** Current operator vote in this session */
+  userVote?: 'yes' | 'no';
   verified: boolean;
   icon: 'key' | 'shield' | 'laptop' | 'book';
   topicId: string;
   updatedAt: string;
+  /** Plain title for contributed articles (bypasses i18n keys) */
+  title?: string;
+  summary?: string;
+  body?: string;
+  status?: KnowledgeArticleStatus;
+}
+
+export interface CreateKnowledgeArticlePayload {
+  title: string;
+  body: string;
+  topicId?: string;
+  status?: KnowledgeArticleStatus;
 }
 
 export interface KnowledgeTopic {
@@ -205,6 +225,17 @@ export type ChangeStatus =
   | 'cancelled'
   | 'cab_review';
 
+export type CabVoteDecision = 'approve' | 'reject' | 'abstain';
+
+export interface CabVote {
+  memberId: string;
+  memberName: string;
+  initials: string;
+  role?: string;
+  decision?: CabVoteDecision;
+  at?: string;
+}
+
 export interface Change {
   id: string;
   number: string;
@@ -222,6 +253,9 @@ export interface Change {
   backoutPlan?: string;
   service?: string;
   cabApproved?: boolean;
+  cabRejected?: boolean;
+  cabNotes?: string;
+  cabVotes?: CabVote[];
   relatedWorkItemIds?: string[];
   relatedCiIds?: string[];
 }
@@ -315,6 +349,8 @@ export interface CreateWorkItemPayload {
   description: string;
   service: string;
   priority?: Priority;
+  impact?: ImpactLevel;
+  urgency?: UrgencyLevel;
   queue?: string;
   teamId?: string;
 }

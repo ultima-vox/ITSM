@@ -75,7 +75,9 @@
     "empty": "Ничего не найдено",
     "emptyHint": "Попробуйте другой запрос или номер обращения",
     "navigateHint": "навигация",
-    "openHint": "открыть"
+    "openHint": "открыть",
+    "askCopilot": "Спросить copilot",
+    "askCopilotHint": "Сводка по нагрузке очереди и следующим шагам"
   },
   "grid": {
     "listLabel": "Список обращений",
@@ -97,6 +99,8 @@
     "markAllRead": "Прочитать все",
     "viewAll": "Все уведомления",
     "ago": "{n} назад",
+    "empty": "Пока нет уведомлений",
+    "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA под угрозой",
     "slaRiskBody": "INC-1842 · VPN для remote — осталось менее часа",
     "assignTitle": "Новое назначение",
@@ -104,7 +108,13 @@
     "mentionTitle": "Упоминание в комментарии",
     "mentionBody": "Алексей К. упомянул вас в INC-1842",
     "resolvedTitle": "Инцидент решён",
-    "resolvedBody": "INC-1820 · SSO в SAP закрыт"
+    "resolvedBody": "INC-1820 · SSO в SAP закрыт",
+    "breachTitle": "SLA нарушен"
+  },
+  "form": {
+    "engineChip": "Форма v{v}",
+    "sectionMain": "Основное",
+    "sectionClassification": "Классификация"
   },
   "profile": {
     "viewProfile": "Профиль",
@@ -240,6 +250,8 @@
     "assistantText": "Суммирую обращения, нахожу знания и предлагаю следующие шаги.",
     "assistantBrief": "Сейчас: {breached} с нарушением SLA, {atRisk} под угрозой, {unassigned} без исполнителя.",
     "ask": "Команды, обращения, действия…",
+    "suggestionBrief": "Брифинг смены",
+    "suggestionBriefMeta": "AI-сводка по нагрузке очереди",
     "suggestionUrgent": "Открыть нарушенные SLA",
     "suggestionUrgentMeta": "{n} в очереди",
     "suggestionSla": "Фильтр «под угрозой»",
@@ -249,6 +261,8 @@
     "copilotNavBreached": "Открыта очередь: нарушенные SLA",
     "copilotNavAtRisk": "Открыт фильтр: SLA под угрозой",
     "copilotNavUnassigned": "Открыта очередь: неназначенные",
+    "copilotThinking": "Анализирую очередь…",
+    "copilotError": "Не удалось получить сводку copilot. Попробуйте ещё раз.",
     "urgencyTitle": "SLA требуют внимания",
     "urgencyHint": "Приоритетные сигналы по текущей очереди",
     "urgencyOpen": "В очередь",
@@ -402,6 +416,15 @@
     "contributeText": "Поделитесь опытом — он поможет коллегам.",
     "contributeAction": "Предложить статью",
     "contributeMock": "Предложение статьи доступно только в mock-режиме",
+    "contributeModalTitle": "Предложить статью в базу знаний",
+    "contributeModalHint": "Черновик сохраняется как «на проверке» в этой сессии и сразу появляется в списке.",
+    "contributeFieldTitle": "Заголовок",
+    "contributeFieldBody": "Текст статьи",
+    "contributeFieldBodyHint": "Лучше всего: шаги, проверки и эскалация",
+    "contributeSubmit": "Отправить черновик",
+    "contributeSuccess": "Черновик «{title}» добавлен как pending",
+    "pending": "На проверке",
+    "voteCount": "{n} голосов",
     "readMinutes": "{n} мин чтения",
     "helpful": "полезно",
     "verified": "Проверено экспертами",
@@ -411,9 +434,14 @@
     "wasHelpful": "Статья была полезной?",
     "feedbackYes": "Да",
     "feedbackNo": "Нет",
-    "feedbackThanks": "Спасибо — ваш отзыв улучшает базу знаний",
-    "feedbackThanksNo": "Спасибо — мы пересмотрим эту статью",
+    "feedbackThanks": "Спасибо — оценка в базе знаний обновлена",
+    "feedbackThanksNo": "Спасибо — оценка обновлена; мы пересмотрим статью",
     "printArticle": "Печать статьи",
+    "validation": {
+      "title": "Укажите заголовок",
+      "body": "Укажите текст статьи",
+      "alreadyVoted": "Вы уже голосовали за эту статью"
+    },
     "articles": {
       "vpn": {
         "title": "Подключение к корпоративному VPN",
@@ -444,6 +472,11 @@
         "summary": "Очистите кэш учётных данных и восстановите modern authentication.",
         "tag": "Почта",
         "body": "1. Выйдите из приложений Office и закройте Outlook.\n2. Удалите учётные данные Northstar из Windows Credential Manager.\n3. Откройте Outlook и пройдите modern auth.\n4. Если цикл повторяется — восстановите Office в «Приложения и возможности».\n5. Эскалируйте с тегом outlook-auth, если MFA-запросы не появляются."
+      },
+      "contributed": {
+        "title": "Предложенная статья",
+        "summary": "Черновик от оператора",
+        "tag": "Вклад"
       }
     },
     "topicsHeading": "Темы",
@@ -584,7 +617,14 @@
       "root_cause_set": "Записана корневая причина",
       "submitted_cab": "Отправлено на CAB",
       "cab_approved": "Одобрено CAB",
+      "cab_rejected": "CAB отклонён",
+      "cab_notes_updated": "Заметки CAB обновлены",
+      "risk_updated": "Уровень риска обновлён",
+      "cab_vote_approve": "Участник CAB — за",
+      "cab_vote_reject": "Участник CAB — против",
+      "cab_vote_abstain": "Участник CAB воздержался",
       "scheduled": "Запланировано",
+      "scheduled_emergency": "Запланировано (emergency — CAB пропущен)",
       "completed": "Завершено",
       "cancelled": "Отменено",
       "asset_in_use": "Статус → в использовании",
@@ -713,9 +753,12 @@
     "savePlans": "Сохранить планы",
     "plansSaved": "Планы сохранены",
     "cabApproved": "CAB одобрен",
+    "cabRejected": "CAB отклонён",
     "validation": {
       "title": "Укажите заголовок изменения",
-      "cabRequired": "Normal/Emergency нельзя планировать без CAB",
+      "cabRequired": "Normal-изменения нужно сначала отправить на CAB",
+      "cabApprovalRequired": "Для планирования Normal требуется явное одобрение CAB",
+      "cabRejected": "CAB отклонил изменение — верните в черновик или отмените",
       "planRequired": "Укажите план внедрения",
       "backoutRequired": "Укажите план отката"
     },
@@ -726,6 +769,30 @@
       "to_in_progress": "Начать внедрение",
       "to_completed": "Завершить",
       "to_cancelled": "Отменить"
+    },
+    "cab": {
+      "title": "Ревью CAB",
+      "subtitle": "Оценка риска, голоса участников и решение председателя.",
+      "riskLevel": "Уровень риска",
+      "notes": "Заметки CAB",
+      "notesHint": "Для аудита и передачи на планирование",
+      "members": "Участники CAB",
+      "noMembers": "Участники CAB не назначены",
+      "approve": "Одобрить CAB",
+      "reject": "Отклонить CAB",
+      "saveFields": "Сохранить риск и заметки",
+      "fieldsSaved": "Риск и заметки CAB сохранены",
+      "approvedToast": "CAB одобрен — можно планировать",
+      "rejectedToast": "CAB отклонил это изменение",
+      "voteRecorded": "Голос участника записан",
+      "normalRequiresApprove": "Для Normal требуется явное одобрение CAB перед планированием.",
+      "emergencyTitle": "Экстренный обход CAB",
+      "emergencyWarning": "Emergency-изменения можно планировать без одобрения CAB. Предупреждение попадёт в ленту активности.",
+      "vote": {
+        "approve": "За",
+        "reject": "Против",
+        "abstain": "Воздержался"
+      }
     }
   },
   "reports": {
@@ -821,7 +888,11 @@
     "authStatusToken": "Bearer-токен есть (env или storage)",
     "authStatusAnonymous": "Не выполнен вход",
     "authStatusDisabled": "OIDC отключён",
-    "subject": "Subject (sub)"
+    "subject": "Subject (sub)",
+    "resetDemo": "Сбросить демо-данные",
+    "resetDemoConfirm": "Очистить все mock-изменения и восстановить исходный демо-набор?",
+    "resetDemoDone": "Демо-данные сброшены",
+    "resetDemoHint": "Восстанавливает обращения, активы, проблемы, изменения, КЕ и голоса базы знаний из seed (localStorage)."
   },
   "metadata": {
     "title": "Метаданные объектов",
@@ -958,6 +1029,7 @@
     "urgencyMedium": "Средняя",
     "urgencyLow": "Низкая",
     "fields": "Поля",
+    "contextFields": "Контекст",
     "workbench": "Рабочая область",
     "activityStream": "Лента активности",
     "breachBanner": "SLA нарушено — требуется немедленное внимание",

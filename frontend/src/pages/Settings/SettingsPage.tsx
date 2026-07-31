@@ -22,6 +22,7 @@ import {
   SAMPLE_WORK_ITEM_TRANSLATIONS,
 } from '@/api';
 import { currentUser } from '@/mock/data';
+import { resetDemoData } from '@/mock/store';
 import { Button, Toggle, SkeletonRows, ErrorState } from '@/components/ui';
 import type { LocaleCode, NotificationPrefs } from '@/types';
 
@@ -37,7 +38,7 @@ export function SettingsPage() {
   const { locale, setLocale, locales } = useI18n();
   const { density, setDensity } = useDensity();
   const { theme, setTheme } = useTheme();
-  const { success } = useToast();
+  const { success, info } = useToast();
   const mockMode = useMock();
   const {
     oidcEnabled,
@@ -65,6 +66,13 @@ export function SettingsPage() {
 
   const save = () => {
     success(t('settings.saved'));
+  };
+
+  const onResetDemo = () => {
+    if (!window.confirm(t('settings.resetDemoConfirm'))) return;
+    resetDemoData();
+    success(t('settings.resetDemoDone'));
+    info(t('settings.resetDemoHint'));
   };
 
   const profileName = isAuthenticated && user ? user.name : currentUser.name;
@@ -269,6 +277,14 @@ export function SettingsPage() {
           <p className="settings-meta-link">
             <Link to="/admin/metadata">{t('settings.openMetadata')}</Link>
           </p>
+          {mockMode && (
+            <div className="settings-demo-reset">
+              <p className="panel-hint">{t('settings.resetDemoHint')}</p>
+              <Button variant="secondary" size="sm" onClick={onResetDemo}>
+                {t('settings.resetDemo')}
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="panel settings-card settings-card--wide">

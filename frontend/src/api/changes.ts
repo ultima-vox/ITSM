@@ -2,12 +2,15 @@ import { delay, useMock, apiRequest } from './client';
 import { mapChange, type BackendChange } from './mappers/changes';
 import {
   addChange as storeAddChange,
+  castCabMemberVote as storeCastCabVote,
   getChangeTransitions,
   listChanges,
+  setChangeCabDecision as storeSetCabDecision,
   transitionChange as storeTransitionChange,
   updateChangeFields as storeUpdateChange,
 } from '@/mock/store';
 import type {
+  CabVoteDecision,
   Change,
   ChangeStatus,
   CreateChangePayload,
@@ -62,6 +65,30 @@ export async function patchChange(
   if (useMock()) {
     await delay(100);
     return storeUpdateChange(id, patch);
+  }
+  return { ok: false, errorKey: 'module.errors.notFound' };
+}
+
+export async function setChangeCabDecision(
+  id: string,
+  decision: 'approve' | 'reject',
+  notes?: string,
+): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
+  if (useMock()) {
+    await delay(120);
+    return storeSetCabDecision(id, decision, notes);
+  }
+  return { ok: false, errorKey: 'module.errors.notFound' };
+}
+
+export async function castCabMemberVote(
+  id: string,
+  memberId: string,
+  decision: CabVoteDecision,
+): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
+  if (useMock()) {
+    await delay(80);
+    return storeCastCabVote(id, memberId, decision);
   }
   return { ok: false, errorKey: 'module.errors.notFound' };
 }

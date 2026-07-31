@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   Bot,
@@ -14,14 +14,22 @@ import {
   AlertTriangle,
   ArrowRight,
   ListFilter,
+  Loader2,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useT, useI18n } from '@/i18n';
 import { useShell } from '@/hooks/useShell';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useToast } from '@/hooks/useToast';
-import { fetchDashboardMetrics, fetchWorkItems } from '@/api';
+import {
+  buildQueueSummaryText,
+  fetchDashboardMetrics,
+  fetchWorkItems,
+  summarizeCopilot,
+  useMock,
+} from '@/api';
+import { getQueueCopilotStats } from '@/mock/store';
 import { Button, ErrorState, Skeleton } from '@/components/ui';
 import {
   MetricCard,
@@ -34,6 +42,7 @@ export function OverviewPage() {
   const t = useT();
   const { locale } = useI18n();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { openCreate, openCommand } = useShell();
   const { info } = useToast();
   const metrics = useAsync(() => fetchDashboardMetrics(), []);
@@ -41,6 +50,10 @@ export function OverviewPage() {
   useWorkItemsSync(metrics.reload, items.reload);
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
+  const [copilotText, setCopilotText] = useState<string | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+  const copilotRanFromQuery = useRef(false);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -97,6 +110,58 @@ export function OverviewPage() {
     ? flow.new + flow.inProgress + flow.waiting
     : metrics.data?.open ?? 0;
 
+  const runCopilotSummarize = useCallback(async () => {
+    setCopilotLoading(true);
+    setCopilotError(null);
+    try {
+      let content: string | undefined;
+      if (!useMock()) {
+        // Prefer live list counts when available; fall back to mock store stats shape
+        const list = items.data ?? [];
+        content = buildQueueSummaryText({
+          open: list.filter(
+            (w) =>
+              w.status !== 'resolved' &&
+              w.status !== 'closed' &&
+              w.status !== 'cancelled',
+          ).length,
+          breached: list.filter((w) => w.slaState === 'breached').length,
+          atRisk: list.filter((w) => w.slaState === 'at_risk').length,
+          unassigned: list.filter((w) => !w.assignee).length,
+          critical: list.filter((w) => w.priority === 'critical').length,
+          topBreached: list
+            .filter((w) => w.slaState === 'breached')
+            .slice(0, 3)
+            .map((w) => ({
+              number: w.number,
+              title: w.title,
+              slaTarget: w.slaTarget,
+            })),
+        });
+      } else {
+        content = buildQueueSummaryText(getQueueCopilotStats());
+      }
+      const res = await summarizeCopilot({ content });
+      setCopilotText(res.content);
+    } catch {
+      setCopilotError(t('overview.copilotError'));
+      setCopilotText(null);
+    } finally {
+      setCopilotLoading(false);
+    }
+  }, [items.data, t]);
+
+  // Optional: /?copilot=1 from command palette
+  useEffect(() => {
+    if (searchParams.get('copilot') !== '1') return;
+    if (copilotRanFromQuery.current) return;
+    copilotRanFromQuery.current = true;
+    void runCopilotSummarize();
+    const next = new URLSearchParams(searchParams);
+    next.delete('copilot');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, runCopilotSummarize]);
+
   const runSuggestion = (kind: 'urgent' | 'sla' | 'unassigned' | 'brief') => {
     if (kind === 'urgent') {
       navigate('/queues?tab=breached');
@@ -113,7 +178,7 @@ export function OverviewPage() {
       info(t('overview.copilotNavUnassigned'));
       return;
     }
-    openCommand();
+    void runCopilotSummarize();
   };
 
   return (
@@ -379,7 +444,38 @@ export function OverviewPage() {
                 unassigned: slaCounts.unassigned,
               })}
             </p>
+            {(copilotLoading || copilotText || copilotError) && (
+              <div
+                className="copilot__response"
+                role="status"
+                aria-live="polite"
+              >
+                {copilotLoading ? (
+                  <p className="copilot__response-loading">
+                    <Loader2 size={14} className="spin" aria-hidden />
+                    {t('overview.copilotThinking')}
+                  </p>
+                ) : copilotError ? (
+                  <p className="copilot__response-error">{copilotError}</p>
+                ) : (
+                  <p className="copilot__response-text">{copilotText}</p>
+                )}
+              </div>
+            )}
             <div className="copilot__actions">
+              <button
+                type="button"
+                className="copilot__action"
+                onClick={() => runSuggestion('brief')}
+                disabled={copilotLoading}
+              >
+                <Sparkles size={14} aria-hidden />
+                <span>
+                  <b>{t('overview.suggestionBrief')}</b>
+                  <small>{t('overview.suggestionBriefMeta')}</small>
+                </span>
+                <ArrowRight size={14} aria-hidden />
+              </button>
               <button
                 type="button"
                 className="copilot__action"
