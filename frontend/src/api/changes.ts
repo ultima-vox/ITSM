@@ -160,19 +160,43 @@ export async function setChangeCabDecision(
     await delay(120);
     return storeSetCabDecision(id, decision, notes);
   }
-  return { ok: false, errorKey: 'module.errors.notFound' };
+  try {
+    // Chair decision = lifecycle transition after CAB
+    const target = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+    const dto = await apiRequest<BackendChange>(`/changes/${id}/transitions`, {
+      method: 'POST',
+      body: {
+        target,
+        cabNotes: notes,
+      },
+    });
+    return { ok: true, change: mapChange(dto) };
+  } catch {
+    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
 }
 
 export async function castCabMemberVote(
   id: string,
-  memberId: string,
+  _memberId: string,
   decision: CabVoteDecision,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
   if (useMock()) {
     await delay(80);
-    return storeCastCabVote(id, memberId, decision);
+    return storeCastCabVote(id, _memberId, decision);
   }
-  return { ok: false, errorKey: 'module.errors.notFound' };
+  try {
+    await apiRequest(`/changes/${id}/votes`, {
+      method: 'POST',
+      body: {
+        decision: decision === 'reject' ? 'REJECT' : 'APPROVE',
+      },
+    });
+    const dto = await apiRequest<BackendChange>(`/changes/${id}`);
+    return { ok: true, change: mapChange(dto) };
+  } catch {
+    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
 }
 
 export { getChangeTransitions };

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import ru.ultimavox.itsm.changemanagement.application.CabVoteService;
 import ru.ultimavox.itsm.changemanagement.application.ChangeCommands;
 import ru.ultimavox.itsm.changemanagement.application.ChangeQuery;
 import ru.ultimavox.itsm.changemanagement.domain.Change;
@@ -32,11 +33,18 @@ import ru.ultimavox.itsm.platform.authorization.AccessControl;
 class ChangeController {
   private final ChangeQuery query;
   private final ChangeCommands commands;
+  private final CabVoteService cabVotes;
   private final AccessControl access;
 
-  ChangeController(ChangeQuery query, ChangeCommands commands, AccessControl access) {
+  ChangeController(
+      ChangeQuery query,
+      ChangeCommands commands,
+      CabVoteService cabVotes,
+      AccessControl access
+  ) {
     this.query = query;
     this.commands = commands;
+    this.cabVotes = cabVotes;
     this.access = access;
   }
 
@@ -126,6 +134,39 @@ class ChangeController {
     }
   }
 
+  @GetMapping("/{id}/votes")
+  @Operation(summary = "List CAB votes for a change")
+  CabVotesResponse listVotes(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "change.read", "change", id.toString());
+    try {
+      List<CabVoteService.CabVote> votes = cabVotes.listVotes(id);
+      return new CabVotesResponse(
+          votes,
+          cabVotes.countApproves(id),
+          CabVoteService.QUORUM_APPROVES
+      );
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
+  @PostMapping("/{id}/votes")
+  @Operation(summary = "Cast CAB member vote (APPROVE or REJECT)")
+  CabVoteService.CabVote castVote(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @Valid @RequestBody CabVoteRequest body
+  ) {
+    access.require(authentication.getName(), "change.approve", "change", id.toString());
+    try {
+      return cabVotes.castVote(id, body.decision(), body.comment(), authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
   record CreateRequest(
       @NotNull Change.Type type,
       @NotNull Change.Risk risk,
@@ -143,5 +184,16 @@ class ChangeController {
       @NotNull Change.Status target,
       @Size(max = 8000) String cabNotes,
       Change.Risk cabRiskLevel
+  ) {}
+
+  record CabVoteRequest(
+      @NotBlank @Size(max = 20) String decision,
+      @Size(max = 4000) String comment
+  ) {}
+
+  record CabVotesResponse(
+      List<CabVoteService.CabVote> votes,
+      long approveCount,
+      int quorum
   ) {}
 }
