@@ -1260,6 +1260,8 @@
     "disabledToast": "Policy disabled — work-item SLA falls back to seed targets",
     "save": "Save targets",
     "savedToast": "SLA targets saved (session)",
+    "savedReseedToast": "SLA targets saved — open work-item countdowns reseeded",
+    "reseedToast": "Open work-item SLA countdowns reseeded from policies",
     "unsavedHint": "You have unsaved target changes.",
     "calendar": "Working calendar",
     "zone": "Timezone",

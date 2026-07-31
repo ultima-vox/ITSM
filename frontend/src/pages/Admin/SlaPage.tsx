@@ -10,6 +10,7 @@ import {
   subscribeSlaPolicies,
   updateSlaPolicyTargets,
 } from '@/mock/sla';
+import { reseedOpenWorkItemSlaFromPolicies } from '@/mock/store';
 import type { SlaPolicy, SlaTarget, WorkingCalendarMock } from '@/types';
 import { Badge, Button, EmptyState, ErrorState, Input } from '@/components/ui';
 
@@ -96,7 +97,8 @@ export function SlaPage() {
     const updated = updateSlaPolicyTargets(selected.id, draftTargets);
     if (updated) {
       setDirty(false);
-      success(t('slaAdmin.savedToast'));
+      reseedOpenWorkItemSlaFromPolicies();
+      success(t('slaAdmin.savedReseedToast'));
     }
   };
 
@@ -104,6 +106,7 @@ export function SlaPage() {
     if (!selected) return;
     const updated = setSlaPolicyEnabled(selected.id, !selected.enabled);
     if (updated) {
+      reseedOpenWorkItemSlaFromPolicies();
       success(
         updated.enabled
           ? t('slaAdmin.enabledToast')
