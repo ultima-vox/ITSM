@@ -532,6 +532,22 @@
     "fieldCriticality": "Kritikalität",
     "relationships": "Beziehungen",
     "noRelations": "Keine Beziehungen für dieses CI erfasst.",
+    "relForm": {
+      "title": "Beziehung hinzufügen",
+      "target": "Ziel-CI",
+      "targetPlaceholder": "CI wählen…",
+      "type": "Typ",
+      "add": "Beziehung hinzufügen",
+      "remove": "Beziehung entfernen",
+      "added": "Beziehung hinzugefügt",
+      "removed": "Beziehung entfernt",
+      "required": "Ziel-CI auswählen",
+      "selfLink": "CI kann nicht mit sich selbst verknüpft werden",
+      "unknownCi": "Unbekanntes Konfigurationselement",
+      "duplicate": "Diese Beziehung existiert bereits",
+      "notFound": "Beziehung nicht gefunden",
+      "error": "Beziehung konnte nicht aktualisiert werden"
+    },
     "unknownCi": "Unbekanntes CI",
     "env": {
       "production": "Produktion",
@@ -603,6 +619,11 @@
     "relatedEmptyCta": "CMDB öffnen",
     "relatedCi": "Konfigurationselement",
     "relatedWorkItem": "Work Item",
+    "bulk": {
+      "changeStatus": "Status:",
+      "assigned": "Ihnen zugewiesen: {n}",
+      "statusChanged": "Status geändert für {n}: {status}"
+    },
     "errors": {
       "notFound": "Datensatz nicht gefunden",
       "invalidTransition": "Dieser Statusübergang ist ungültig"
@@ -793,6 +814,22 @@
         "reject": "Ablehnen",
         "abstain": "Enthalten"
       }
+    },
+    "calendar": {
+      "title": "Planungswoche",
+      "hint": "Fenster für Entwurf, CAB, geplant und in Umsetzung",
+      "prev": "Vorherige Woche",
+      "next": "Nächste Woche",
+      "today": "Diese Woche"
+    },
+    "cabBoard": {
+      "title": "CAB-Board",
+      "hint": "Changes mit ausstehender Vorsitz-Entscheidung",
+      "empty": "Derzeit keine Changes in CAB-Prüfung."
+    },
+    "conflict": {
+      "title": "Freeze / CI-Konflikt",
+      "body": "{n} Konfliktpaar(e) — zwei NORMAL-Changes am selben Tag auf verwandten CIs: {pairs}"
     }
   },
   "reports": {
@@ -821,7 +858,20 @@
     "byStatusHint": "Lebenszyklus-Verteilung",
     "urgentQueue": "Braucht Aufmerksamkeit",
     "urgentQueueHint": "SLA verletzt, gefährdet oder kritisch",
-    "noUrgent": "Derzeit keine dringenden Tickets."
+    "noUrgent": "Derzeit keine dringenden Tickets.",
+    "exportCsv": "CSV exportieren",
+    "filterType": "Typ",
+    "filterPriority": "Priorität",
+    "filterCount": "{n} Tickets",
+    "trendTitle": "7-Tage-Trend",
+    "trendHint": "Eröffnet vs. gelöst (Store + leichtes Synthetic-Fill)",
+    "trendOpened": "Eröffnet",
+    "trendResolved": "Gelöst",
+    "resolutionRate": "Lösungsquote",
+    "resolutionRateHint": "Gelöst ÷ (gelöst + aktiv)",
+    "mttr": "MTTR (Mock)",
+    "mttrHint": "Ø Stunden von Erstellung bis Lösung",
+    "mttrValue": "{n} Std."
   },
   "settings": {
     "title": "Einstellungen",

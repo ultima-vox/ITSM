@@ -2,6 +2,8 @@ import { delay, useMock, apiRequest } from './client';
 import { mapChange, type BackendChange } from './mappers/changes';
 import {
   addChange as storeAddChange,
+  bulkAssignChanges as storeBulkAssignChanges,
+  bulkSetChangeStatus as storeBulkSetChangeStatus,
   castCabMemberVote as storeCastCabVote,
   getChangeTransitions,
   listChanges,
@@ -94,3 +96,22 @@ export async function castCabMemberVote(
 }
 
 export { getChangeTransitions };
+
+export async function bulkAssignChanges(ids: string[]): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkAssignChanges(ids);
+  }
+  return ids.length;
+}
+
+export async function bulkSetChangeStatus(
+  ids: string[],
+  status: ChangeStatus,
+): Promise<number> {
+  if (useMock()) {
+    await delay(80);
+    return storeBulkSetChangeStatus(ids, status);
+  }
+  return ids.length;
+}

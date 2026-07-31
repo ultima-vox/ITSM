@@ -4,6 +4,7 @@ export * from './Textarea';
 export * from './Select';
 export * from './Badge';
 export * from './Skeleton';
+export * from './PageLoader';
 export * from './EmptyState';
 export * from './ErrorState';
 export * from './Modal';

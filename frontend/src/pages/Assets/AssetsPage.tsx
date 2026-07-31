@@ -12,6 +12,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
 import {
+  bulkAssignAssets,
+  bulkSetAssetStatus,
   createAsset,
   fetchAssets,
   getAssetTransitions,
@@ -66,6 +68,7 @@ export function AssetsPage() {
   const [focusIndex, setFocusIndex] = useState(-1);
   const [validation, setValidation] = useState<string | null>(null);
   const [assignName, setAssignName] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -98,10 +101,54 @@ export function AssetsPage() {
     return filtered;
   }, [data, query, status, sortKey, sortDir]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(list.map((a) => a.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [list]);
+
   const selected = useMemo(
     () => (selectedId ? (data ?? []).find((a) => a.id === selectedId) ?? null : null),
     [data, selectedId],
   );
+
+  const allSelected = list.length > 0 && selectedIds.size === list.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(list.map((a) => a.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
+    if (sortKey !== col) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const handleBulkAssign = async () => {
+    const ids = [...selectedIds];
+    const n = await bulkAssignAssets(ids);
+    success(t('module.bulk.assigned', { n }));
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkStatus = async (next: AssetStatus) => {
+    const ids = [...selectedIds];
+    const n = await bulkSetAssetStatus(ids, next);
+    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+    setSelectedIds(new Set());
+  };
 
   const activities = useMemo(
     () => (selected ? getModuleActivities(selected.id) : []),
@@ -144,8 +191,15 @@ export function AssetsPage() {
     } else if (e.key === 'Enter' && focusIndex >= 0) {
       e.preventDefault();
       openRow(list[focusIndex]);
+    } else if (e.key === ' ' && focusIndex >= 0) {
+      e.preventDefault();
+      toggleOne(list[focusIndex].id);
+    } else if ((e.metaKey || e.ctrlKey) && key === 'a') {
+      e.preventDefault();
+      toggleAll();
     } else if (e.key === 'Escape') {
       setFocusIndex(-1);
+      setSelectedIds(new Set());
     }
   };
 
@@ -261,6 +315,42 @@ export function AssetsPage() {
           <span>{t('grid.kbdNav')}</span>
           <kbd>Enter</kbd>
           <span>{t('grid.kbdOpen')}</span>
+          <kbd>Space</kbd>
+          <span>{t('grid.kbdSelect')}</span>
+          <kbd>Ctrl</kbd>
+          <kbd>A</kbd>
+          <span>{t('grid.selectAll')}</span>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar" role="toolbar" aria-label={t('grid.bulkActions')}>
+          <span className="bulk-bar__count">
+            {t('grid.selected', { n: selectedIds.size })}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => void handleBulkAssign()}>
+            {t('grid.assignToMe')}
+          </Button>
+          <div className="bulk-bar__priority">
+            <span>{t('module.bulk.changeStatus')}</span>
+            {(['in_use', 'stock', 'repair', 'retired'] as AssetStatus[]).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="chip chip--toggle"
+                onClick={() => void handleBulkStatus(s)}
+              >
+                {t(`status.${s}`)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="text-link bulk-bar__clear"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            {t('grid.clearSelection')}
+          </button>
         </div>
       )}
 
@@ -275,6 +365,19 @@ export function AssetsPage() {
         >
           <thead>
             <tr>
+              <th scope="col" className="grid-check">
+                <label onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    aria-label={t('grid.selectAll')}
+                  />
+                </label>
+              </th>
               {(
                 [
                   ['tag', 'assets.colTag'],
@@ -283,7 +386,7 @@ export function AssetsPage() {
                   ['location', 'assets.colLocation'],
                 ] as [SortKey, string][]
               ).map(([key, labelKey]) => (
-                <th key={key} scope="col">
+                <th key={key} scope="col" aria-sort={ariaSortFor(key)}>
                   <button
                     type="button"
                     className="th-sort"
@@ -301,13 +404,13 @@ export function AssetsPage() {
           <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
             {loading ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <SkeletonRows rows={4} />
                 </td>
               </tr>
             ) : list.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <EmptyState
                     title={t('assets.emptyTitle')}
                     description={t('assets.emptyHint')}
@@ -320,43 +423,59 @@ export function AssetsPage() {
                 </td>
               </tr>
             ) : (
-              list.map((a, index) => (
-                <tr
-                  key={a.id}
-                  tabIndex={focusIndex === index ? 0 : -1}
-                  data-row-index={index}
-                  className={
-                    focusIndex === index
-                      ? 'is-focused'
-                      : selectedId === a.id
-                        ? 'is-selected'
-                        : undefined
-                  }
-                  onClick={() => openRow(a)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      openRow(a);
-                    }
-                  }}
-                >
-                  <td>
-                    <b className="mono">{a.tag}</b>
-                  </td>
-                  <td>
-                    {a.name}
-                    <small className="cell-sub">
-                      {formatDate(a.purchasedAt, locale)}
-                    </small>
-                  </td>
-                  <td>
-                    <StatusChip status={a.status} />
-                  </td>
-                  <td>{a.location}</td>
-                  <td>{t(a.typeKey)}</td>
-                  <td>{a.assignedTo ?? t('assets.unassigned')}</td>
-                </tr>
-              ))
+              list.map((a, index) => {
+                const isChecked = selectedIds.has(a.id);
+                return (
+                  <tr
+                    key={a.id}
+                    tabIndex={focusIndex === index ? 0 : -1}
+                    data-row-index={index}
+                    aria-selected={isChecked}
+                    className={[
+                      focusIndex === index ? 'is-focused' : '',
+                      selectedId === a.id || isChecked ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
+                    onClick={() => openRow(a)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        openRow(a);
+                      }
+                    }}
+                  >
+                    <td className="grid-check">
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(a.id)}
+                          aria-label={t('grid.selectRow', { n: a.tag })}
+                        />
+                      </label>
+                    </td>
+                    <td>
+                      <b className="mono">{a.tag}</b>
+                    </td>
+                    <td>
+                      {a.name}
+                      <small className="cell-sub">
+                        {formatDate(a.purchasedAt, locale)}
+                      </small>
+                    </td>
+                    <td>
+                      <StatusChip status={a.status} />
+                    </td>
+                    <td>{a.location}</td>
+                    <td>{t(a.typeKey)}</td>
+                    <td>{a.assignedTo ?? t('assets.unassigned')}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
