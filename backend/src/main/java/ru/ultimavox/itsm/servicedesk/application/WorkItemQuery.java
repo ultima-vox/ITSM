@@ -1,3 +1,41 @@
 package ru.ultimavox.itsm.servicedesk.application;
-import ru.ultimavox.itsm.servicedesk.domain.WorkItem; import java.time.Instant; import java.util.*; import org.springframework.stereotype.Service;
-@Service public class WorkItemQuery { private final List<WorkItem> items=List.of(new WorkItem(UUID.fromString("b2ff9175-7a70-4d16-b60b-051deb0d2e01"),"INC-1842","incident","Недоступен VPN для удалённых сотрудников",WorkItem.Priority.CRITICAL,"Алексей К.",Instant.now()),new WorkItem(UUID.fromString("64e011c1-d2f9-4563-aed0-98c7a9e133a2"),"REQ-9217","request","Доступ к финансовой витрине данных",WorkItem.Priority.HIGH,"Мария В.",Instant.now())); public List<WorkItem> findVisibleTo(String subject){ return items; } }
+
+import java.util.List;
+import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem.State;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Type;
+
+@Service
+public class WorkItemQuery {
+
+  private final WorkItemStore store;
+
+  WorkItemQuery(WorkItemStore store) {
+    this.store = store;
+  }
+
+  public PageResult search(Filter filter, int page, int size) {
+    int safePage = Math.max(page, 0);
+    int safeSize = Math.min(Math.max(size, 1), 200);
+    long total = store.count(filter);
+    List<WorkItem> items = store.search(filter, safePage, safeSize);
+    return new PageResult(items, total, safePage, safeSize);
+  }
+
+  /** Legacy convenience used by early list endpoint. */
+  public List<WorkItem> findVisibleTo(String subject) {
+    return search(new Filter(null, null, null, null, null), 0, 50).items();
+  }
+
+  public record Filter(
+      State state,
+      Type type,
+      String assigneeId,
+      Priority priority,
+      String query
+  ) {}
+
+  public record PageResult(List<WorkItem> items, long total, int page, int size) {}
+}

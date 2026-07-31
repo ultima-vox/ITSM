@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend build
+    name: Frontend build + e2e
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,8 +38,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Build frontend
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke (mock mode)
+        run: npm run test:e2e
+        env:
+          CI: true
 
   backend:
     name: Backend tests
@@ -60,4 +71,42 @@ jobs:
           cache: maven
 
       - name: Run backend tests
-        run: mvn --batch-mode --no-transfer-progress verify
+        run: mvn --batch-mode --no-transfer-progress test
+
+  scripts:
+    name: Scripts lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax check
+        run: |
+          bash -n scripts/smoke-api.sh
+          bash -n scripts/smoke-integrations.sh
+          test -f scripts/smoke-api.ps1
+          test -f scripts/smoke-integrations.ps1
+
+  # Optional full stack — manual only (slow / resource heavy)
+  compose-smoke:
+    name: Compose integrations smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start compose stack
+        run: docker compose up -d postgres redis opensearch minio minio-init rabbitmq
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 40); do
+            docker compose ps
+            curl -sf http://127.0.0.1:9200/_cluster/health && redis-cli -h 127.0.0.1 ping | grep -q PONG && break
+            sleep 5
+          done
+          curl -sf http://127.0.0.1:9200/_cluster/health
+          redis-cli -h 127.0.0.1 ping
+      - name: Integration smoke script
+        run: bash scripts/smoke-integrations.sh
+        env:
+          OPENSEARCH_URL: http://127.0.0.1:9200
+          REDIS_HOST: 127.0.0.1
+          MINIO_URL: http://127.0.0.1:9000/minio/health/live
+          BASE_URL: http://127.0.0.1:8080

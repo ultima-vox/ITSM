@@ -1,0 +1,35 @@
+# =============================================================================
+# DEV PROFILE ONLY — activate with: --spring.profiles.active=dev
+# or SPRING_PROFILES_ACTIVE=dev
+#
+# WARNING: Disables OIDC JWT resource-server enforcement so local demos work
+# when Keycloak is unavailable. NEVER use this profile in production.
+# Synthetic principal: dev-local (see DevAuthenticationFilter).
+# =============================================================================
+
+spring:
+  # Avoid startup failure when Keycloak is down: do not resolve JWT issuer metadata.
+  # Keep Redis auto-config excluded (optional CachePort wiring owns Redis when enabled).
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Cleared under dev so Boot does not contact the issuer on startup.
+          issuer-uri:
+
+logging:
+  level:
+    ru.ultimavox.itsm.platform.security: INFO
+
+itsm:
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  security:
+    # Documented flag; enforcement is profile-based in DevSecurityConfiguration.
+    permit-unauthenticated: true
