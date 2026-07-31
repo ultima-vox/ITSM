@@ -1487,23 +1487,38 @@ export function bulkAssignChanges(ids: string[]): number {
   return n;
 }
 
+export interface BulkStatusResult {
+  /** Rows that transitioned */
+  ok: number;
+  /** Rows skipped with i18n error keys */
+  skipped: { id: string; number: string; errorKey: string }[];
+}
+
 /**
  * Bulk status for changes. Same policy gates as transitionChange
  * (plan + backout + CAB for NORMAL schedule). Skips blocked rows;
- * returns count of items actually transitioned.
+ * returns count + per-row skip reasons (S16).
  */
-export function bulkSetChangeStatus(ids: string[], next: ChangeStatus): number {
+export function bulkSetChangeStatus(
+  ids: string[],
+  next: ChangeStatus,
+): BulkStatusResult {
   const set = new Set(ids);
-  let n = 0;
+  let ok = 0;
+  const skipped: BulkStatusResult['skipped'] = [];
   changeItems = changeItems.map((c) => {
     if (!set.has(c.id) && !set.has(c.number)) return c;
-    if (changeTransitionBlockReason(c, next)) return c;
-    n += 1;
+    const block = changeTransitionBlockReason(c, next);
+    if (block) {
+      skipped.push({ id: c.id, number: c.number, errorKey: block });
+      return c;
+    }
+    ok += 1;
     pushModuleActivity(c.id, 'status', changeStatusActivityKey(c, next));
     return applyChangeStatus(c, next);
   });
-  if (n) notifySecondary();
-  return n;
+  if (ok) notifySecondary();
+  return { ok, skipped };
 }
 
 /** Explicit CAB chair approve / reject (not silent on schedule). */

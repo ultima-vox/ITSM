@@ -706,7 +706,9 @@
     "bulk": {
       "changeStatus": "Статус:",
       "assigned": "Назначено на вас: {n}",
-      "statusChanged": "Статус изменён для {n}: {status}"
+      "statusChanged": "Статус изменён для {n}: {status}",
+      "statusChangedPartial": "Обновлено {n}; пропущено {skipped} ({status})",
+      "skippedDetail": "Пропущено {n}: {reason}"
     },
     "errors": {
       "notFound": "Объект не найден",
@@ -1033,6 +1035,7 @@
     "breachedDetail": "ещё {n} под угрозой",
     "satisfaction": "CSAT",
     "satisfactionDetail": "Период",
+    "satisfactionFilteredDetail": "Фильтр · resolved без breach (proxy CSAT)",
     "slaSummary": "Нагрузка по SLA",
     "slaSummaryHint": "Переход в соответствующий фильтр очереди",
     "placeholderNote": "Счётчики обновляются при назначении и решении обращений.",
