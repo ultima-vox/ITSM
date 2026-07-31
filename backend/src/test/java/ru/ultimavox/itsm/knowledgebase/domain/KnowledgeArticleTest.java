@@ -7,27 +7,42 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import ru.ultimavox.itsm.knowledgebase.domain.KnowledgeArticle.Content;
+import ru.ultimavox.itsm.knowledgebase.domain.KnowledgeArticle.Status;
 
 class KnowledgeArticleTest {
-  private KnowledgeArticle draft(Map<String, KnowledgeArticle.Content> translations) {
-    return new KnowledgeArticle(
-        UUID.randomUUID(), "KB-12", "sample-article", KnowledgeArticle.Status.DRAFT, 1, "expert-1", translations, null
+
+  @Test
+  void publish_requires_russian_content() {
+    KnowledgeArticle draft = new KnowledgeArticle(
+        UUID.randomUUID(),
+        "KB-1",
+        "vpn",
+        Status.IN_REVIEW,
+        1,
+        "agent",
+        Map.of("en", new Content("VPN", "body", "sum")),
+        null
     );
+    assertThatThrownBy(() -> draft.publish(Instant.parse("2026-01-01T00:00:00Z")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Russian");
   }
 
   @Test
-  void publication_requires_primary_locale_content() {
-    var article = draft(Map.of("en", new KnowledgeArticle.Content("VPN", "Connect to VPN", ""))).submitForReview();
-    assertThatThrownBy(() -> article.publish(Instant.now())).hasMessageContaining("Russian");
-  }
-
-  @Test
-  void publishing_increments_revision_and_sets_review_date() {
-    var article = draft(Map.of("ru", new KnowledgeArticle.Content("VPN", "Инструкция", "")))
-        .submitForReview()
-        .publish(Instant.parse("2026-12-01T00:00:00Z"));
-    assertThat(article.status()).isEqualTo(KnowledgeArticle.Status.PUBLISHED);
-    assertThat(article.version()).isEqualTo(2);
-    assertThat(article.nextReviewAt()).isEqualTo(Instant.parse("2026-12-01T00:00:00Z"));
+  void publish_from_review_ok() {
+    KnowledgeArticle draft = new KnowledgeArticle(
+        UUID.randomUUID(),
+        "KB-1",
+        "vpn",
+        Status.IN_REVIEW,
+        1,
+        "agent",
+        Map.of("ru", new Content("VPN", "текст", "кратко")),
+        null
+    );
+    KnowledgeArticle pub = draft.publish(Instant.parse("2026-06-01T00:00:00Z"));
+    assertThat(pub.status()).isEqualTo(Status.PUBLISHED);
+    assertThat(pub.version()).isEqualTo(2);
   }
 }

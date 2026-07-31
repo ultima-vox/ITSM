@@ -102,7 +102,49 @@ export async function patchProblem(
     await delay(100);
     return storeUpdateProblem(id, patch);
   }
-  return { ok: false, errorKey: 'module.errors.notFound' };
+  try {
+    if (patch.knownError === true) {
+      const dto = await apiRequest<BackendProblemSummary>(
+        `/problems/${id}/transitions`,
+        {
+          method: 'POST',
+          body: {
+            target: 'KNOWN_ERROR',
+            rootCause: patch.rootCause,
+            workaround: patch.workaround,
+            resolution: (patch as { resolution?: string }).resolution,
+          },
+        },
+      );
+      return { ok: true, problem: mapProblem(dto) };
+    }
+    if (patch.knownError === false) {
+      const dto = await apiRequest<BackendProblemSummary>(
+        `/problems/${id}/transitions`,
+        {
+          method: 'POST',
+          body: {
+            target: 'UNDER_INVESTIGATION',
+            rootCause: patch.rootCause,
+            workaround: patch.workaround,
+            resolution: (patch as { resolution?: string }).resolution,
+          },
+        },
+      );
+      return { ok: true, problem: mapProblem(dto) };
+    }
+    const dto = await apiRequest<BackendProblemSummary>(`/problems/${id}`, {
+      method: 'PATCH',
+      body: {
+        rootCause: patch.rootCause,
+        workaround: patch.workaround,
+        resolution: (patch as { resolution?: string }).resolution,
+      },
+    });
+    return { ok: true, problem: mapProblem(dto) };
+  } catch {
+    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
 }
 
 export { getProblemTransitions };
@@ -112,7 +154,6 @@ export async function bulkAssignProblems(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignProblems(ids);
   }
-  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
   refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }
 
@@ -124,7 +165,6 @@ export async function bulkSetProblemStatus(
     await delay(80);
     return storeBulkSetProblemStatus(ids, status);
   }
-  // Live: per-item transitions (honest count of successes).
   const results = await Promise.all(
     ids.map((id) => transitionProblemStatus(id, status)),
   );

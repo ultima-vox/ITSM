@@ -16,8 +16,16 @@ public class KnowledgeQuery {
   }
 
   public List<ArticleSummary> searchPublished(String titleQuery, String locale) {
+    return search(titleQuery, locale, true);
+  }
+
+  /**
+   * @param publishedOnly when true only PUBLISHED; when false all statuses (CMS authoring).
+   */
+  public List<ArticleSummary> search(String titleQuery, String locale, boolean publishedOnly) {
     String loc = locale == null || locale.isBlank() ? "ru" : locale;
     String q = blankToNull(titleQuery);
+    String statusSql = publishedOnly ? " AND a.status = 'PUBLISHED' " : "";
     return jdbc.query(
         """
             SELECT a.id, a.number, a.slug, a.status, a.version, a.owner_subject, a.next_review_at,
@@ -25,9 +33,12 @@ public class KnowledgeQuery {
             FROM knowledge_article a
             JOIN knowledge_article_revision r
               ON r.article_id = a.id AND r.version = a.version AND r.locale = ?
-            WHERE a.status = 'PUBLISHED'
+            WHERE 1=1
+            """
+            + statusSql
+            + """
               AND (? IS NULL OR r.title ILIKE '%' || ? || '%')
-            ORDER BY r.title
+            ORDER BY a.updated_at DESC, r.title
             """,
         (rs, i) -> new ArticleSummary(
             (UUID) rs.getObject("id"),

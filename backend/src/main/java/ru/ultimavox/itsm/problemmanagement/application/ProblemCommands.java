@@ -60,6 +60,48 @@ public class ProblemCommands {
     return problem;
   }
 
+  /** Update RCA fields without changing lifecycle status. */
+  @Transactional
+  public Problem updateNotes(
+      UUID id,
+      String rootCause,
+      String workaround,
+      String resolution,
+      String actor
+  ) {
+    Problem current = query.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
+    Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution);
+    Instant now = Instant.now();
+    UUID correlationId = UUID.randomUUID();
+    jdbc.update(
+        """
+            UPDATE problem
+            SET root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
+            WHERE id = ?
+            """,
+        updated.rootCause(),
+        updated.workaround(),
+        updated.resolution(),
+        now,
+        id
+    );
+    Map<String, Object> after = Map.of(
+        "rootCause", String.valueOf(updated.rootCause()),
+        "workaround", String.valueOf(updated.workaround()),
+        "resolution", String.valueOf(updated.resolution())
+    );
+    audit.append(new AuditTrail.Entry(
+        actor, "problem.notes-updated", "problem", id.toString(),
+        Map.of("status", current.status().name()), after, correlationId, now
+    ));
+    outbox.record(new DomainEvent(
+        UUID.randomUUID(), "problem.notes-updated", 1, now, correlationId,
+        "problem", id.toString(), after
+    ));
+    return updated;
+  }
+
   @Transactional
   public Problem transition(
       UUID id,
