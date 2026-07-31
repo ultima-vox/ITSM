@@ -109,6 +109,7 @@ public class TransitionWorkItem {
     ));
     searchIndexer.index(updated);
     notifyTransitioned(existing, updated, actorId, correlationId);
+    notifyWatchersTransitioned(existing, updated, actorId, correlationId);
     return updated;
   }
 
@@ -123,24 +124,67 @@ public class TransitionWorkItem {
       return;
     }
     try {
-      Map<String, Object> variables = new HashMap<>();
-      variables.put("workItemId", after.id().toString());
-      variables.put("number", after.number());
-      variables.put("title", after.title());
-      variables.put("fromState", before.state().name());
-      variables.put("toState", after.state().name());
-      variables.put("actorId", actorId);
       notifications.send(new NotificationRequest(
           correlationId,
           "work-item.transitioned",
           recipient,
           "ru",
-          variables,
+          transitionVars(before, after, actorId),
           NotificationRequest.Channel.IN_APP
       ));
     } catch (Exception ex) {
       log.warn("Notification failed for work-item transition {}: {}", after.id(), ex.toString());
     }
+  }
+
+  private void notifyWatchersTransitioned(
+      WorkItem before,
+      WorkItem after,
+      String actorId,
+      UUID correlationId
+  ) {
+    try {
+      java.util.List<String> watcherList = store.listWatchers(after.id());
+      if (watcherList == null || watcherList.isEmpty()) {
+        return;
+      }
+      String primary = primaryRecipient(after);
+      for (String watcher : watcherList) {
+        if (watcher == null || watcher.isBlank()) {
+          continue;
+        }
+        if (watcher.equals(actorId) || watcher.equals(primary)) {
+          continue;
+        }
+        Map<String, Object> variables = transitionVars(before, after, actorId);
+        variables.put("watcherSubject", watcher);
+        notifications.send(new NotificationRequest(
+            correlationId,
+            "work-item.transitioned.watcher",
+            watcher,
+            "ru",
+            variables,
+            NotificationRequest.Channel.IN_APP
+        ));
+      }
+    } catch (Exception ex) {
+      log.warn("Watcher notification failed for work-item transition {}: {}", after.id(), ex.toString());
+    }
+  }
+
+  private static Map<String, Object> transitionVars(
+      WorkItem before,
+      WorkItem after,
+      String actorId
+  ) {
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("workItemId", after.id().toString());
+    variables.put("number", after.number());
+    variables.put("title", after.title());
+    variables.put("fromState", before.state().name());
+    variables.put("toState", after.state().name());
+    variables.put("actorId", actorId);
+    return variables;
   }
 
   private static String primaryRecipient(WorkItem item) {
