@@ -43,6 +43,26 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public List<SlaPolicyView> listAll() {
+        return jdbc.query(
+                """
+                SELECT id, policy_key, enabled, version, definition::text
+                FROM sla_policy
+                ORDER BY policy_key
+                """,
+                (rs, i) -> new SlaPolicyView(
+                        map(
+                                rs.getObject("id", UUID.class),
+                                rs.getString("policy_key"),
+                                rs.getString("definition")
+                        ),
+                        rs.getBoolean("enabled"),
+                        rs.getInt("version")
+                )
+        );
+    }
+
     private SlaPolicy map(UUID id, String key, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);
