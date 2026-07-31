@@ -20,6 +20,18 @@ interface BackendNotification {
   locale?: string | null;
   variables?: Record<string, unknown> | null;
   channel?: string | null;
+  readAt?: string | null;
+  unread?: boolean | null;
+  source?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+}
+
+interface BackendNotificationList {
+  items?: BackendNotification[];
+  unreadCount?: number;
+  limit?: number;
+  offset?: number;
 }
 
 function kindFromTemplate(templateKey?: string | null): NotificationKind {
@@ -33,7 +45,14 @@ function kindFromTemplate(templateKey?: string | null): NotificationKind {
   return 'mention';
 }
 
-function hrefFromVariables(vars?: Record<string, unknown> | null): string {
+function hrefFromVariables(
+  vars?: Record<string, unknown> | null,
+  entityType?: string | null,
+  entityId?: string | null,
+): string {
+  if (entityId && (!entityType || entityType === 'work_item')) {
+    return `/work-items/${entityId}`;
+  }
   if (!vars) return '/my-work';
   const wi =
     vars.workItemId ??
@@ -68,6 +87,11 @@ function mapLiveNotification(dto: BackendNotification): AppNotification {
     dto.templateKey ||
     '';
 
+  const unread =
+    typeof dto.unread === 'boolean'
+      ? dto.unread
+      : dto.readAt == null || dto.readAt === '';
+
   return {
     id: String(dto.id),
     kind: kindFromTemplate(dto.templateKey),
@@ -76,15 +100,25 @@ function mapLiveNotification(dto: BackendNotification): AppNotification {
     title,
     body,
     at: dto.createdAt ?? new Date().toISOString(),
-    href: hrefFromVariables(vars),
+    href: hrefFromVariables(vars, dto.entityType, dto.entityId),
     workItemId:
-      vars.workItemId != null
-        ? String(vars.workItemId)
-        : vars.work_item_id != null
-          ? String(vars.work_item_id)
-          : undefined,
-    unread: true,
+      dto.entityId != null
+        ? String(dto.entityId)
+        : vars.workItemId != null
+          ? String(vars.workItemId)
+          : vars.work_item_id != null
+            ? String(vars.work_item_id)
+            : undefined,
+    unread,
   };
+}
+
+function extractList(
+  payload: BackendNotification[] | BackendNotificationList | null | undefined,
+): BackendNotification[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  return payload.items ?? [];
 }
 
 /**
@@ -97,8 +131,10 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
     ensureNotificationCenter();
     return listMockNotifications();
   }
-  const list = await apiRequest<BackendNotification[]>('/notifications');
-  return (list ?? []).map(mapLiveNotification);
+  const payload = await apiRequest<
+    BackendNotification[] | BackendNotificationList
+  >('/notifications?limit=50');
+  return extractList(payload).map(mapLiveNotification);
 }
 
 export function subscribeNotifications(listener: () => void): () => void {
@@ -110,10 +146,22 @@ export function listNotifications(): AppNotification[] {
   return listMockNotifications();
 }
 
-export function markNotificationRead(id: string): void {
-  markMockRead(id);
+export async function markNotificationRead(id: string): Promise<void> {
+  if (useMock()) {
+    markMockRead(id);
+    return;
+  }
+  await apiRequest<void>(`/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+  });
 }
 
-export function markAllNotificationsRead(): void {
-  markAllMockRead();
+export async function markAllNotificationsRead(): Promise<void> {
+  if (useMock()) {
+    markAllMockRead();
+    return;
+  }
+  await apiRequest<{ updated: number }>('/notifications/read-all', {
+    method: 'POST',
+  });
 }

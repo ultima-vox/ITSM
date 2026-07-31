@@ -114,7 +114,9 @@ export function NotificationsPage() {
         liveItems.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
       );
     }
-    markNotificationRead(n.id);
+    void markNotificationRead(n.id).catch(() => {
+      /* optimistic UI; reload corrects */
+    });
     navigate(n.href);
   };
 
@@ -122,7 +124,9 @@ export function NotificationsPage() {
     if (liveMode && liveItems) {
       setLiveItems(liveItems.map((n) => ({ ...n, unread: false })));
     }
-    markAllNotificationsRead();
+    void markAllNotificationsRead().catch(() => {
+      /* optimistic UI; reload corrects */
+    });
     if (!liveMode) setMockTick((n) => n + 1);
   };
 
