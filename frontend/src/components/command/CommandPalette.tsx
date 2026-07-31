@@ -19,6 +19,7 @@ import {
   TicketCheck,
   AlertTriangle,
   ScrollText,
+  Shield,
   Timer,
   Workflow,
   Zap,
@@ -275,6 +276,15 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         icon: Timer,
         run: () => go('/admin/sla'),
         keywords: 'sla policy response resolution calendar hours targets admin',
+      },
+      {
+        id: 'nav-rbac',
+        kind: 'nav',
+        label: t('nav.rbac'),
+        hint: t('command.navigate'),
+        icon: Shield,
+        run: () => go('/admin/rbac'),
+        keywords: 'rbac roles permissions users access control admin security',
       },
       {
         id: 'nav-audit',

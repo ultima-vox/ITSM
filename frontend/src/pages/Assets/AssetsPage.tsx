@@ -5,6 +5,7 @@ import {
   useState,
 } from 'react';
 import { Plus, Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
@@ -58,10 +59,12 @@ export function AssetsPage() {
   const { locale } = useI18n();
   const { isCompact, toggleDensity } = useDensity();
   const { success, error: toastError } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const idFromQuery = searchParams.get('id');
   const { data, loading, error, reload } = useAsync(() => fetchAssets(), []);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(idFromQuery);
   const [createOpen, setCreateOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('tag');
   const [sortDir, setSortDir] = useState<ModuleGridSortDir>('asc');
@@ -72,6 +75,23 @@ export function AssetsPage() {
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
   }, [reload]);
+
+  // Honor ?id= deep-link from search / related links
+  useEffect(() => {
+    if (!data?.length || !idFromQuery) return;
+    if (data.some((a) => a.id === idFromQuery)) {
+      setSelectedId(idFromQuery);
+      const a = data.find((x) => x.id === idFromQuery);
+      if (a) setAssignName(a.assignedTo ?? '');
+    }
+  }, [data, idFromQuery]);
+
+  const clearIdParam = useCallback(() => {
+    if (!searchParams.has('id')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const list = useMemo(() => {
     const filtered = (data ?? []).filter((a) => {
@@ -325,6 +345,7 @@ export function AssetsPage() {
           onClose={() => {
             setSelectedId(null);
             setValidation(null);
+            clearIdParam();
           }}
           code={selected.tag}
           title={selected.name}

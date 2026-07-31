@@ -3,6 +3,7 @@
  */
 
 import { apiRequest, delay, useMock } from './client';
+import { resolveRelatedHref } from '@/lib/resolveRelated';
 import {
   listAssets,
   listChanges,
@@ -34,28 +35,40 @@ export const SEARCH_OBJECT_TYPES = [
 
 export type SearchObjectType = (typeof SEARCH_OBJECT_TYPES)[number];
 
-/** Resolve a search hit to an in-app path when possible. */
+/**
+ * Resolve a search hit to an in-app deep-link path.
+ * Prefers `resolveRelatedHref` (store + id prefix); falls back to objectType.
+ */
 export function searchHitPath(hit: SearchHit): string | null {
+  const id = hit.id;
+  if (!id) return null;
+
+  const fromRelated = resolveRelatedHref(id);
+  if (fromRelated) return fromRelated;
+
+  // Type-based deep links when store/prefix cannot resolve (live API ids)
   const type = (hit.objectType || '').toLowerCase();
+  const enc = encodeURIComponent(id);
+
   if (
     type === 'work-item' ||
     type === 'workitem' ||
     type === 'incident' ||
     type === 'request'
   ) {
-    return `/work-items/${hit.id}`;
+    return `/work-items/${id}`;
   }
   if (type === 'knowledge' || type === 'article' || type === 'kb') {
-    return `/knowledge`;
+    return `/knowledge?article=${enc}`;
   }
   if (type === 'ci' || type === 'configuration-item' || type === 'cmdb') {
-    return `/cmdb`;
+    return `/cmdb?ci=${enc}`;
   }
-  if (type === 'asset') return `/assets`;
-  if (type === 'problem') return `/problems`;
-  if (type === 'change') return `/changes`;
+  if (type === 'asset') return `/assets?id=${enc}`;
+  if (type === 'problem') return `/problems?id=${enc}`;
+  if (type === 'change') return `/changes?id=${enc}`;
   if (!type || type.includes('work')) {
-    return `/work-items/${hit.id}`;
+    return `/work-items/${id}`;
   }
   return null;
 }

@@ -5,6 +5,7 @@ import {
   useState,
 } from 'react';
 import { Plus, Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
@@ -85,11 +86,13 @@ export function ProblemsPage() {
   const t = useT();
   const { isCompact, toggleDensity } = useDensity();
   const { success, error: toastError } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const idFromQuery = searchParams.get('id');
   const { data, loading, error, reload } = useAsync(() => fetchProblems(), []);
   const [query, setQuery] = useState('');
   const [priority, setPriority] = useState('');
   const [status, setStatus] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(idFromQuery);
   const [createOpen, setCreateOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('priority');
   const [sortDir, setSortDir] = useState<ModuleGridSortDir>('asc');
@@ -101,6 +104,21 @@ export function ProblemsPage() {
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
   }, [reload]);
+
+  // Honor ?id= deep-link from search / related links
+  useEffect(() => {
+    if (!data?.length || !idFromQuery) return;
+    if (data.some((p) => p.id === idFromQuery)) {
+      setSelectedId(idFromQuery);
+    }
+  }, [data, idFromQuery]);
+
+  const clearIdParam = useCallback(() => {
+    if (!searchParams.has('id')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const list = useMemo(() => {
     const filtered = (data ?? []).filter((p) => {
@@ -459,6 +477,7 @@ export function ProblemsPage() {
           onClose={() => {
             setSelectedId(null);
             setValidation(null);
+            clearIdParam();
           }}
           code={selected.number}
           title={selected.title}

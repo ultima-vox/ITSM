@@ -20,6 +20,7 @@ import {
   ListTodo,
   MessageCircleQuestion,
   X,
+  GitBranch,
 } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
@@ -64,6 +65,15 @@ import { DynamicForm } from '@/components/form/DynamicForm';
 import { PriorityBadge, StatusChip } from '@/components/data-display';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { slaConsumedPct } from '@/lib/sla';
+import {
+  getWorkItemRuntimeTransitions,
+  workflowStateLabelKey,
+  type WorkItemRuntimeTransition,
+} from '@/lib/workflowRuntime';
+import {
+  getActiveWorkflowDefinition,
+  subscribeWorkflowDefinitions,
+} from '@/mock/workflow';
 import { currentUser } from '@/mock/data';
 import type {
   ImpactLevel,
@@ -160,10 +170,81 @@ function ActivityDiff({
   );
 }
 
-function activityFieldLabel(t: (k: string) => string, field: string): string {
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number>,
+) => string;
+
+function activityFieldLabel(t: TranslateFn, field: string): string {
   const key = `workItem.fields.${field}`;
   const translated = t(key);
   return translated === key ? field : translated;
+}
+
+/** Human label for a workflow required-field key (assignee_id → Assignee). */
+function requiredFieldLabel(t: TranslateFn, field: string): string {
+  const normalized = field.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+  const aliases: Record<string, string> = {
+    assignee_id: 'assignee',
+    resolution_notes: 'resolutionNotes',
+    resolutionnotes: 'resolutionNotes',
+  };
+  const logical = aliases[normalized] ?? normalized;
+  const fieldKey = `workItem.fields.${logical}`;
+  const fromFields = t(fieldKey);
+  if (fromFields !== fieldKey) return fromFields;
+  const topKey = `workItem.${logical}`;
+  const fromTop = t(topKey);
+  if (fromTop !== topKey) return fromTop;
+  return field;
+}
+
+function transitionActionLabel(
+  t: TranslateFn,
+  tr: WorkItemRuntimeTransition,
+): string {
+  const byKey = `workItem.transition.${tr.key}`;
+  const translated = t(byKey);
+  if (translated !== byKey) return translated;
+  if (tr.toStatus) {
+    const byStatus = `workItem.actions.to_${tr.toStatus}`;
+    const s = t(byStatus);
+    if (s !== byStatus) return s;
+    return t(`status.${tr.toStatus}`);
+  }
+  return tr.to;
+}
+
+function transitionDisabledReason(
+  t: TranslateFn,
+  tr: WorkItemRuntimeTransition,
+): string | undefined {
+  if (tr.enabled) return undefined;
+  if (tr.unsupportedTarget) {
+    return t('workItem.workflowUnsupportedState', { state: tr.to });
+  }
+  // Match enablement: resolution_notes alone does not block resolve (modal supplies it)
+  const blocking =
+    tr.toStatus === 'resolved'
+      ? tr.missingFields.filter((f) => {
+          const k = f.trim().toLowerCase();
+          return k !== 'resolution_notes' && k !== 'resolutionnotes';
+        })
+      : tr.missingFields;
+  if (blocking.length > 0) {
+    const labels = blocking.map((f) => requiredFieldLabel(t, f));
+    return t('workItem.workflowMissingFields', { fields: labels.join(', ') });
+  }
+  return t('workItem.workflowTransitionBlocked');
+}
+
+function transitionVariant(
+  tr: WorkItemRuntimeTransition,
+): 'primary' | 'secondary' | 'danger' | 'ghost' {
+  if (tr.toStatus === 'resolved' || tr.toStatus === 'closed') return 'primary';
+  if (tr.toStatus === 'cancelled') return 'danger';
+  if (tr.toStatus === 'waiting') return 'secondary';
+  return 'secondary';
 }
 
 const MORE_INFO_TEMPLATE =
@@ -184,6 +265,8 @@ export function WorkItemDetailPage() {
   const [uploading, setUploading] = useState(false);
   const attachInputRef = useRef<HTMLInputElement>(null);
   const { success } = useToast();
+  /** Bumps when admin toggles active workflow version (session store). */
+  const [workflowTick, setWorkflowTick] = useState(0);
 
   const item = useAsync(() => fetchWorkItem(id), [id]);
   const activity = useAsync(() => fetchWorkItemActivity(id), [id]);
@@ -198,6 +281,12 @@ export function WorkItemDetailPage() {
     commentsQ.reload,
     allItems.reload,
   );
+
+  useEffect(() => {
+    return subscribeWorkflowDefinitions(() => {
+      setWorkflowTick((n) => n + 1);
+    });
+  }, []);
 
   // Sync local field drafts when item loads / reloads from store
   const wi = item.data;
@@ -297,6 +386,20 @@ export function WorkItemDetailPage() {
     setResolutionNotes(wi?.resolutionNotes ?? '');
     setResolveError('');
     setResolveOpen(true);
+  };
+
+  const handleWorkflowTransition = async (tr: WorkItemRuntimeTransition) => {
+    if (!tr.enabled || !tr.toStatus) return;
+    if (tr.toStatus === 'resolved') {
+      openResolve();
+      return;
+    }
+    await patchWorkItem(id, { status: tr.toStatus });
+    flash(
+      t('workItem.transitionOk', {
+        status: t(`status.${tr.toStatus}`),
+      }),
+    );
   };
 
   const handleResolve = async () => {
@@ -438,6 +541,18 @@ export function WorkItemDetailPage() {
   const resolved = wi.status === 'resolved' || wi.status === 'closed';
   const displayStatus: WorkItemStatus = wi.status;
 
+  // Active workflow (session) → next transitions; falls back when inactive.
+  // workflowTick invalidates after admin active-version toggle.
+  const wfRuntime = getWorkItemRuntimeTransitions(wi, {
+    definition:
+      workflowTick >= 0 ? getActiveWorkflowDefinition('work-item') : null,
+  });
+  const workflowStateLabel = (() => {
+    const key = workflowStateLabelKey(wfRuntime.currentState);
+    const labeled = t(key);
+    return labeled === key ? wfRuntime.currentState : labeled;
+  })();
+
   const relatedWorkItems = (allItems.data ?? []).filter((w) =>
     wi.relatedIds?.includes(w.id),
   );
@@ -456,6 +571,16 @@ export function WorkItemDetailPage() {
 
   const timeline = activity.data ?? [];
 
+  const primaryTransitions = wfRuntime.transitions.filter(
+    (tr) =>
+      tr.toStatus === 'resolved' ||
+      tr.toStatus === 'closed' ||
+      tr.toStatus === 'in_progress',
+  );
+  const secondaryTransitions = wfRuntime.transitions.filter(
+    (tr) => !primaryTransitions.includes(tr),
+  );
+
   return (
     <section className="page page--detail">
       <div className="detail-sticky">
@@ -467,6 +592,24 @@ export function WorkItemDetailPage() {
           <div className="detail-sticky__meta">
             <b className="mono accent">{wi.number}</b>
             <StatusChip status={displayStatus} />
+            <span
+              className="chip chip--workflow"
+              title={
+                wfRuntime.definition
+                  ? t('workItem.workflowChipTitle', {
+                      name: wfRuntime.definition.name ?? wfRuntime.definition.objectKey,
+                      version: wfRuntime.definition.version,
+                      state: wfRuntime.currentState,
+                    })
+                  : t('workItem.workflowFallbackChipTitle')
+              }
+            >
+              <GitBranch size={12} aria-hidden />
+              {workflowStateLabel}
+              <span className="chip--workflow__key mono">
+                {wfRuntime.currentState}
+              </span>
+            </span>
             <PriorityBadge priority={wi.priority} />
             <span className="type-pill">{t(`workItemType.${wi.type}`)}</span>
             {assigned && (
@@ -534,6 +677,94 @@ export function WorkItemDetailPage() {
             {t('workItem.created')}: {formatDateTime(wi.createdAt, locale)}
           </p>
         </div>
+      </div>
+
+      <div
+        className="work-item-workflow"
+        role="group"
+        aria-label={t('workItem.workflow')}
+      >
+        <div className="work-item-workflow__head">
+          <p className="work-item-workflow__label">
+            <GitBranch size={14} aria-hidden />
+            {t('workItem.workflow')}
+          </p>
+          <span className="work-item-workflow__meta muted">
+            {wfRuntime.source === 'workflow' && wfRuntime.definition
+              ? t('workItem.workflowSourceActive', {
+                  name:
+                    wfRuntime.definition.name ?? wfRuntime.definition.objectKey,
+                  version: wfRuntime.definition.version,
+                })
+              : t('workItem.workflowSourceFallback')}
+          </span>
+        </div>
+        {wfRuntime.transitions.length === 0 ? (
+          <p className="work-item-workflow__empty muted">
+            {t('workItem.workflowNoTransitions')}
+          </p>
+        ) : (
+          <div className="module-workflow__stack">
+            {primaryTransitions.length > 0 && (
+              <div className="module-workflow__primary">
+                {primaryTransitions.map((tr) => {
+                  const reason = transitionDisabledReason(t, tr);
+                  const btn = (
+                    <Button
+                      size="sm"
+                      variant={transitionVariant(tr)}
+                      disabled={!tr.enabled}
+                      aria-disabled={!tr.enabled}
+                      onClick={() => void handleWorkflowTransition(tr)}
+                    >
+                      {transitionActionLabel(t, tr)}
+                    </Button>
+                  );
+                  return reason ? (
+                    <span
+                      key={tr.key}
+                      className="work-item-workflow__tip"
+                      title={reason}
+                    >
+                      {btn}
+                    </span>
+                  ) : (
+                    <span key={tr.key}>{btn}</span>
+                  );
+                })}
+              </div>
+            )}
+            {secondaryTransitions.length > 0 && (
+              <div className="module-workflow__secondary">
+                {secondaryTransitions.map((tr) => {
+                  const reason = transitionDisabledReason(t, tr);
+                  const btn = (
+                    <Button
+                      size="sm"
+                      variant={transitionVariant(tr)}
+                      disabled={!tr.enabled}
+                      aria-disabled={!tr.enabled}
+                      onClick={() => void handleWorkflowTransition(tr)}
+                    >
+                      {transitionActionLabel(t, tr)}
+                    </Button>
+                  );
+                  return reason ? (
+                    <span
+                      key={tr.key}
+                      className="work-item-workflow__tip"
+                      title={reason}
+                    >
+                      {btn}
+                    </span>
+                  ) : (
+                    <span key={tr.key}>{btn}</span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {(wi.slaState === 'breached' || wi.slaState === 'at_risk') && (
