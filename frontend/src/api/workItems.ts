@@ -129,6 +129,58 @@ export async function createWorkItemLink(
   });
 }
 
+export async function fetchWorkItemCiIds(id: string): Promise<string[]> {
+  if (useMock()) {
+    await delay(40);
+    return getWorkItem(id)?.ciIds ?? [];
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items`,
+  );
+  return (list ?? []).map(String);
+}
+
+export async function linkWorkItemCi(
+  id: string,
+  configurationItemId: string,
+): Promise<string[]> {
+  if (useMock()) {
+    await delay(80);
+    const wi = getWorkItem(id);
+    if (!wi) return [];
+    const next = [...new Set([...(wi.ciIds ?? []), configurationItemId])];
+    storeUpdate(id, { ciIds: next });
+    return next;
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items`,
+    {
+      method: 'POST',
+      body: { configurationItemId },
+    },
+  );
+  return (list ?? []).map(String);
+}
+
+export async function unlinkWorkItemCi(
+  id: string,
+  configurationItemId: string,
+): Promise<string[]> {
+  if (useMock()) {
+    await delay(60);
+    const wi = getWorkItem(id);
+    if (!wi) return [];
+    const next = (wi.ciIds ?? []).filter((c) => c !== configurationItemId);
+    storeUpdate(id, { ciIds: next });
+    return next;
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items/${encodeURIComponent(configurationItemId)}`,
+    { method: 'DELETE' },
+  );
+  return (list ?? []).map(String);
+}
+
 export async function deleteWorkItemLink(
   id: string,
   linkId: string,
@@ -179,6 +231,14 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
       item = { ...item, relatedIds };
     } catch {
       /* links optional */
+    }
+    try {
+      const ciIds = await apiRequest<string[]>(
+        `/work-items/${id}/configuration-items`,
+      );
+      item = { ...item, ciIds: (ciIds ?? []).map(String) };
+    } catch {
+      /* CI links optional */
     }
     return item;
   } catch (err) {

@@ -41,6 +41,7 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
@@ -68,6 +69,7 @@ class WorkItemController {
   private final WorkItemAttachmentService workItemAttachments;
   private final WorkItemWatcherService watchers;
   private final WorkItemLinkService links;
+  private final WorkItemCiLinkService ciLinks;
   private final AccessControl access;
 
   WorkItemController(
@@ -84,6 +86,7 @@ class WorkItemController {
       WorkItemAttachmentService workItemAttachments,
       WorkItemWatcherService watchers,
       WorkItemLinkService links,
+      WorkItemCiLinkService ciLinks,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -99,6 +102,7 @@ class WorkItemController {
     this.workItemAttachments = workItemAttachments;
     this.watchers = watchers;
     this.links = links;
+    this.ciLinks = ciLinks;
     this.access = access;
   }
 
@@ -347,6 +351,41 @@ class WorkItemController {
     links.unlink(id, linkId, actor);
   }
 
+  @GetMapping("/{id}/configuration-items")
+  @Operation(summary = "List configuration items linked to a work item")
+  List<UUID> listConfigurationItems(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return ciLinks.listCiIds(id);
+  }
+
+  @PostMapping("/{id}/configuration-items")
+  @Operation(summary = "Link a configuration item to a work item")
+  List<UUID> linkConfigurationItem(
+      @PathVariable UUID id,
+      @Valid @RequestBody LinkCiRequest request,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    try {
+      return ciLinks.link(id, request.configurationItemId(), actor);
+    } catch (IllegalArgumentException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping("/{id}/configuration-items/{ciId}")
+  @Operation(summary = "Unlink a configuration item from a work item")
+  List<UUID> unlinkConfigurationItem(
+      @PathVariable UUID id,
+      @PathVariable UUID ciId,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    return ciLinks.unlink(id, ciId, actor);
+  }
+
   record CreateRequest(
       @NotNull Type type,
       @NotBlank @Size(max = 240) String title,
@@ -387,6 +426,8 @@ class WorkItemController {
       @NotNull UUID targetId,
       @NotNull WorkItemLink.Type linkType
   ) {}
+
+  record LinkCiRequest(@NotNull UUID configurationItemId) {}
 
   record LinkResponse(
       UUID id,
