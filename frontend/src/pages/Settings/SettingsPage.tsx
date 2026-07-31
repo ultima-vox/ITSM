@@ -1,13 +1,36 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Database,
+  Globe,
+  HardDrive,
+  Languages,
+  Plus,
+  Server,
+} from 'lucide-react';
 import { useAuth } from '@/auth';
 import { useI18n, useT } from '@/i18n';
 import { useDensity } from '@/hooks/useDensity';
 import { useTheme, type ThemeMode } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
-import { useMock, getBaseUrl, getApiToken } from '@/api/client';
+import { useAsync } from '@/hooks/useAsync';
+import {
+  useMock,
+  getBaseUrl,
+  getApiToken,
+  fetchPlatformIntegrations,
+  SAMPLE_WORK_ITEM_TRANSLATIONS,
+} from '@/api';
 import { currentUser } from '@/mock/data';
-import { Button, Toggle } from '@/components/ui';
+import { Button, Toggle, SkeletonRows, ErrorState } from '@/components/ui';
 import type { LocaleCode, NotificationPrefs } from '@/types';
+
+function healthTone(status?: string): 'live' | 'mock' | 'warn' {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'UP' || s === 'OK') return 'live';
+  if (s === 'DOWN' || s === 'OUT_OF_SERVICE') return 'warn';
+  return 'mock';
+}
 
 export function SettingsPage() {
   const t = useT();
@@ -32,6 +55,13 @@ export function SettingsPage() {
     assignment: true,
     mentions: true,
   });
+
+  const {
+    data: integrations,
+    loading: integrationsLoading,
+    error: integrationsError,
+    reload: reloadIntegrations,
+  } = useAsync(() => fetchPlatformIntegrations(), []);
 
   const save = () => {
     success(t('settings.saved'));
@@ -186,6 +216,33 @@ export function SettingsPage() {
               </label>
             ))}
           </div>
+
+          <div className="settings-lang-admin">
+            <div className="settings-lang-admin__head">
+              <Languages size={15} aria-hidden />
+              <span>{t('settings.supportedLanguages')}</span>
+            </div>
+            <ul className="settings-lang-list">
+              {locales.map((code) => (
+                <li key={code}>
+                  <Globe size={14} aria-hidden />
+                  <span>{t(`locale.${code}`)}</span>
+                  <code className="mono">{code}</code>
+                  {locale === code && (
+                    <span className="api-mode-pill api-mode-pill--live">
+                      {t('settings.localeActive')}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="settings-lang-add">
+              <Button variant="secondary" size="sm" disabled icon={<Plus size={14} />}>
+                {t('settings.addLanguage')}
+              </Button>
+              <p className="settings-soon-note">{t('settings.addLanguageSoon')}</p>
+            </div>
+          </div>
         </section>
 
         <section className="panel settings-card">
@@ -209,6 +266,132 @@ export function SettingsPage() {
               </dd>
             </div>
           </dl>
+          <p className="settings-meta-link">
+            <Link to="/admin/metadata">{t('settings.openMetadata')}</Link>
+          </p>
+        </section>
+
+        <section className="panel settings-card settings-card--wide">
+          <h2>{t('settings.integrations')}</h2>
+          <p className="panel-hint">{t('settings.integrationsHint')}</p>
+          {integrationsError && !integrations ? (
+            <ErrorState onRetry={reloadIntegrations} />
+          ) : integrationsLoading && !integrations ? (
+            <SkeletonRows rows={3} />
+          ) : integrations ? (
+            <div className="integration-cards">
+              <article className="integration-card">
+                <div className="integration-card__icon" aria-hidden>
+                  <Server size={18} />
+                </div>
+                <div className="integration-card__body">
+                  <header>
+                    <h3>Redis</h3>
+                    <span
+                      className={`api-mode-pill api-mode-pill--${
+                        integrations.redis.enabled
+                          ? healthTone(integrations.redis.health?.status)
+                          : 'mock'
+                      }`}
+                    >
+                      {integrations.redis.enabled
+                        ? integrations.redis.health?.status ?? t('settings.integrationOn')
+                        : t('settings.integrationOff')}
+                    </span>
+                  </header>
+                  <dl className="settings-dl settings-dl--compact">
+                    <div>
+                      <dt>{t('settings.integrationHost')}</dt>
+                      <dd>
+                        <code>
+                          {integrations.redis.host}:{integrations.redis.port}
+                        </code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('settings.integrationEnabled')}</dt>
+                      <dd>
+                        {integrations.redis.enabled ? t('app.yes') : t('app.no')}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </article>
+
+              <article className="integration-card">
+                <div className="integration-card__icon" aria-hidden>
+                  <Database size={18} />
+                </div>
+                <div className="integration-card__body">
+                  <header>
+                    <h3>OpenSearch</h3>
+                    <span
+                      className={`api-mode-pill api-mode-pill--${
+                        integrations.opensearch.enabled
+                          ? healthTone(integrations.opensearch.health?.status)
+                          : 'mock'
+                      }`}
+                    >
+                      {integrations.opensearch.enabled
+                        ? integrations.opensearch.health?.status ??
+                          t('settings.integrationOn')
+                        : t('settings.integrationOff')}
+                    </span>
+                  </header>
+                  <dl className="settings-dl settings-dl--compact">
+                    <div>
+                      <dt>{t('settings.integrationUrl')}</dt>
+                      <dd>
+                        <code className="settings-mono">
+                          {integrations.opensearch.url || '—'}
+                        </code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('settings.integrationIndex')}</dt>
+                      <dd>
+                        <code>{integrations.opensearch.index || '—'}</code>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </article>
+
+              <article className="integration-card">
+                <div className="integration-card__icon" aria-hidden>
+                  <HardDrive size={18} />
+                </div>
+                <div className="integration-card__body">
+                  <header>
+                    <h3>S3 / MinIO</h3>
+                    <span
+                      className={`api-mode-pill api-mode-pill--${
+                        integrations.storage.type ? 'live' : 'mock'
+                      }`}
+                    >
+                      {integrations.storage.type || t('settings.integrationOff')}
+                    </span>
+                  </header>
+                  <dl className="settings-dl settings-dl--compact">
+                    <div>
+                      <dt>{t('settings.integrationEndpoint')}</dt>
+                      <dd>
+                        <code className="settings-mono">
+                          {integrations.storage.endpoint || '—'}
+                        </code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('settings.integrationBucket')}</dt>
+                      <dd>
+                        <code>{integrations.storage.bucket || '—'}</code>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </article>
+            </div>
+          ) : null}
         </section>
 
         <section className="panel settings-card">
@@ -263,8 +446,16 @@ export function SettingsPage() {
                   onChange={() => setTheme(mode)}
                 />
                 <span>
-                  <b>{t(`settings.theme_${mode === 'high-contrast' ? 'highContrast' : mode}`)}</b>
-                  <small>{t(`settings.theme_${mode === 'high-contrast' ? 'highContrast' : mode}Hint`)}</small>
+                  <b>
+                    {t(
+                      `settings.theme_${mode === 'high-contrast' ? 'highContrast' : mode}`,
+                    )}
+                  </b>
+                  <small>
+                    {t(
+                      `settings.theme_${mode === 'high-contrast' ? 'highContrast' : mode}Hint`,
+                    )}
+                  </small>
                 </span>
               </label>
             ))}
@@ -281,6 +472,40 @@ export function SettingsPage() {
               onChange={(v) => setDensity(v ? 'compact' : 'comfortable')}
             />
           </div>
+        </section>
+
+        <section className="panel settings-card settings-card--wide">
+          <h2>{t('settings.translationAdmin')}</h2>
+          <p className="panel-hint">{t('settings.translationAdminHint')}</p>
+          <div className="data-table-wrap translation-admin-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('settings.colNamespace')}</th>
+                  <th scope="col">{t('settings.colKey')}</th>
+                  <th scope="col">EN</th>
+                  <th scope="col">RU</th>
+                  <th scope="col">DE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SAMPLE_WORK_ITEM_TRANSLATIONS.map((row) => (
+                  <tr key={`${row.namespace}.${row.key}`}>
+                    <td>
+                      <code className="mono">{row.namespace}</code>
+                    </td>
+                    <td>
+                      <code className="mono">{row.key}</code>
+                    </td>
+                    <td>{row.en}</td>
+                    <td>{row.ru}</td>
+                    <td>{row.de}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="settings-soon-note">{t('settings.translationAdminReadOnly')}</p>
         </section>
       </div>
     </section>

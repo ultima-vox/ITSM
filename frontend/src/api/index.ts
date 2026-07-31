@@ -8,3 +8,5 @@ export * from './changes';
 export * from './locale';
 export * from './attachments';
 export * from './search';
+export * from './platform';
+export * from './metadata';

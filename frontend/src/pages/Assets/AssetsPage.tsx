@@ -1,34 +1,79 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
+import { ArrowDown, ArrowUp, ChevronUp, Plus, Search } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
-import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useToast } from '@/hooks/useToast';
-import { fetchAssets } from '@/api';
+import {
+  createAsset,
+  fetchAssets,
+  getAssetTransitions,
+  subscribeSecondaryModules,
+  transitionAssetStatus,
+} from '@/api';
 import {
   Button,
   EmptyState,
   ErrorState,
+  Input,
+  Modal,
   Select,
   SkeletonRows,
+  Textarea,
 } from '@/components/ui';
 import { StatusChip } from '@/components/data-display';
+import {
+  ModuleDetailDrawer,
+  type ModuleRelatedItem,
+} from '@/components/modules/ModuleDetailDrawer';
 import { formatDate } from '@/lib/format';
-import type { Asset } from '@/types';
+import {
+  resolveRelatedHref,
+  resolveRelatedLabel,
+} from '@/lib/resolveRelated';
+import { getModuleActivities } from '@/mock/store';
+import type { Asset, AssetStatus } from '@/types';
+
+type SortKey = 'tag' | 'name' | 'status' | 'location' | 'purchased';
+type SortDir = 'asc' | 'desc';
+
+const STATUS_RANK: Record<string, number> = {
+  repair: 0,
+  in_use: 1,
+  stock: 2,
+  retired: 3,
+};
 
 export function AssetsPage() {
   const t = useT();
   const { locale } = useI18n();
   const { isCompact, toggleDensity } = useDensity();
-  const { info } = useToast();
+  const { success, error: toastError } = useToast();
   const { data, loading, error, reload } = useAsync(() => fetchAssets(), []);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState<Asset | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('tag');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [focusIndex, setFocusIndex] = useState(-1);
+  const [validation, setValidation] = useState<string | null>(null);
+  const [assignName, setAssignName] = useState('');
+  const listRef = useRef<HTMLTableSectionElement>(null);
+
+  useEffect(() => {
+    return subscribeSecondaryModules(() => reload());
+  }, [reload]);
 
   const list = useMemo(() => {
-    return (data ?? []).filter((a) => {
+    const filtered = (data ?? []).filter((a) => {
       if (status && a.status !== status) return false;
       if (!query.trim()) return true;
       const q = query.toLowerCase();
@@ -39,7 +84,93 @@ export function AssetsPage() {
         (a.assignedTo?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [data, query, status]);
+    const dir = sortDir === 'asc' ? 1 : -1;
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'status') {
+        cmp = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9);
+      } else if (sortKey === 'tag') cmp = a.tag.localeCompare(b.tag);
+      else if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortKey === 'location') cmp = a.location.localeCompare(b.location);
+      else cmp = a.purchasedAt.localeCompare(b.purchasedAt);
+      return cmp * dir;
+    });
+    return filtered;
+  }, [data, query, status, sortKey, sortDir]);
+
+  const selected = useMemo(
+    () => (selectedId ? (data ?? []).find((a) => a.id === selectedId) ?? null : null),
+    [data, selectedId],
+  );
+
+  const activities = useMemo(
+    () => (selected ? getModuleActivities(selected.id) : []),
+    [selected, data],
+  );
+
+  const related: ModuleRelatedItem[] = useMemo(() => {
+    if (!selected?.relatedCiIds?.length) return [];
+    return selected.relatedCiIds.map((id) => ({
+      id,
+      label: resolveRelatedLabel(id),
+      meta: t('module.relatedCi'),
+      href: resolveRelatedHref(id) ?? '/cmdb',
+    }));
+  }, [selected, t]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const openRow = useCallback((a: Asset) => {
+    setSelectedId(a.id);
+    setValidation(null);
+    setAssignName(a.assignedTo ?? '');
+  }, []);
+
+  const onListKeyDown = (e: ReactKeyboardEvent) => {
+    if (list.length === 0) return;
+    const key = e.key.toLowerCase();
+    if (e.key === 'ArrowDown' || key === 'j') {
+      e.preventDefault();
+      setFocusIndex((i) => Math.min(i < 0 ? 0 : i + 1, list.length - 1));
+    } else if (e.key === 'ArrowUp' || key === 'k') {
+      e.preventDefault();
+      setFocusIndex((i) => Math.max(i < 0 ? 0 : i - 1, 0));
+    } else if (e.key === 'Enter' && focusIndex >= 0) {
+      e.preventDefault();
+      openRow(list[focusIndex]);
+    } else if (e.key === 'Escape') {
+      setFocusIndex(-1);
+    }
+  };
+
+  useEffect(() => {
+    if (focusIndex < 0) return;
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `[data-row-index="${focusIndex}"]`,
+    );
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusIndex]);
+
+  const runTransition = async (next: AssetStatus) => {
+    if (!selected) return;
+    setValidation(null);
+    const result = await transitionAssetStatus(selected.id, next, {
+      assignedTo: assignName.trim() || selected.assignedTo,
+    });
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      toastError(t(result.errorKey));
+      return;
+    }
+    success(t('assets.transitionOk', { status: t(`status.${next}`) }));
+    setSelectedId(result.asset.id);
+  };
 
   if (error && !loading && !data) {
     return (
@@ -54,6 +185,18 @@ export function AssetsPage() {
       </section>
     );
   }
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col)
+      return <ChevronUp size={12} className="sort-icon sort-icon--idle" />;
+    return sortDir === 'asc' ? (
+      <ArrowUp size={12} className="sort-icon" />
+    ) : (
+      <ArrowDown size={12} className="sort-icon" />
+    );
+  };
+
+  const transitions = selected ? getAssetTransitions(selected.status) : [];
 
   return (
     <section className="page">
@@ -74,7 +217,7 @@ export function AssetsPage() {
           <Button
             variant="primary"
             icon={<Plus size={18} />}
-            onClick={() => info(t('assets.addMock'))}
+            onClick={() => setCreateOpen(true)}
           >
             {t('assets.addAsset')}
           </Button>
@@ -108,19 +251,54 @@ export function AssetsPage() {
         />
       </div>
 
-      <div className="panel panel--flush data-table-wrap">
-        <table className="data-table data-table--clickable">
+      {!loading && list.length > 0 && (
+        <div className="grid-kbd-hint" aria-hidden>
+          <kbd>↑</kbd>
+          <kbd>↓</kbd>
+          <span>/</span>
+          <kbd>J</kbd>
+          <kbd>K</kbd>
+          <span>{t('grid.kbdNav')}</span>
+          <kbd>Enter</kbd>
+          <span>{t('grid.kbdOpen')}</span>
+        </div>
+      )}
+
+      <div
+        className={`panel panel--flush data-table-wrap module-table${
+          isCompact ? ' is-compact' : ''
+        }`}
+      >
+        <table
+          className="data-table data-table--clickable data-table--sortable"
+          aria-label={t('assets.title')}
+        >
           <thead>
             <tr>
-              <th scope="col">{t('assets.colTag')}</th>
-              <th scope="col">{t('assets.colName')}</th>
+              {(
+                [
+                  ['tag', 'assets.colTag'],
+                  ['name', 'assets.colName'],
+                  ['status', 'assets.colStatus'],
+                  ['location', 'assets.colLocation'],
+                ] as [SortKey, string][]
+              ).map(([key, labelKey]) => (
+                <th key={key} scope="col">
+                  <button
+                    type="button"
+                    className="th-sort"
+                    onClick={() => toggleSort(key)}
+                  >
+                    {t(labelKey)}
+                    <SortIcon col={key} />
+                  </button>
+                </th>
+              ))}
               <th scope="col">{t('assets.colType')}</th>
-              <th scope="col">{t('assets.colStatus')}</th>
               <th scope="col">{t('assets.colAssignee')}</th>
-              <th scope="col">{t('assets.colLocation')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
             {loading ? (
               <tr>
                 <td colSpan={6}>
@@ -142,15 +320,23 @@ export function AssetsPage() {
                 </td>
               </tr>
             ) : (
-              list.map((a) => (
+              list.map((a, index) => (
                 <tr
                   key={a.id}
-                  tabIndex={0}
-                  onClick={() => setSelected(a)}
+                  tabIndex={focusIndex === index ? 0 : -1}
+                  data-row-index={index}
+                  className={
+                    focusIndex === index
+                      ? 'is-focused'
+                      : selectedId === a.id
+                        ? 'is-selected'
+                        : undefined
+                  }
+                  onClick={() => openRow(a)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setSelected(a);
+                      openRow(a);
                     }
                   }}
                 >
@@ -163,12 +349,12 @@ export function AssetsPage() {
                       {formatDate(a.purchasedAt, locale)}
                     </small>
                   </td>
-                  <td>{t(a.typeKey)}</td>
                   <td>
                     <StatusChip status={a.status} />
                   </td>
-                  <td>{a.assignedTo ?? t('assets.unassigned')}</td>
                   <td>{a.location}</td>
+                  <td>{t(a.typeKey)}</td>
+                  <td>{a.assignedTo ?? t('assets.unassigned')}</td>
                 </tr>
               ))
             )}
@@ -178,131 +364,242 @@ export function AssetsPage() {
 
       {selected && (
         <ModuleDetailDrawer
+          open
+          onClose={() => {
+            setSelectedId(null);
+            setValidation(null);
+          }}
+          code={selected.tag}
           title={selected.name}
-          subtitle={selected.tag}
-          onClose={() => setSelected(null)}
-        >
-          <dl className="module-detail-dl">
-            <div>
-              <dt>{t('assets.colStatus')}</dt>
-              <dd>
-                <StatusChip status={selected.status} />
-              </dd>
-            </div>
-            <div>
-              <dt>{t('assets.colType')}</dt>
-              <dd>{t(selected.typeKey)}</dd>
-            </div>
-            <div>
-              <dt>{t('assets.colAssignee')}</dt>
-              <dd>{selected.assignedTo ?? t('assets.unassigned')}</dd>
-            </div>
-            <div>
-              <dt>{t('assets.colLocation')}</dt>
-              <dd>{selected.location}</dd>
-            </div>
-            <div>
-              <dt>{t('assets.purchased')}</dt>
-              <dd>{formatDate(selected.purchasedAt, locale)}</dd>
-            </div>
-            {selected.serial && (
+          chips={<StatusChip status={selected.status} />}
+          validationMessage={validation}
+          activities={activities}
+          history={activities.filter((a) => a.kind === 'field' || a.kind === 'status')}
+          related={related}
+          relatedEmptyHint={t('module.relatedEmptyHint')}
+          relatedEmptyAction={{
+            label: t('module.relatedEmptyCta'),
+            href: '/cmdb',
+          }}
+          overview={
+            <dl className="module-detail-dl">
               <div>
-                <dt>{t('assets.serial')}</dt>
-                <dd className="mono">{selected.serial}</dd>
+                <dt>{t('assets.colStatus')}</dt>
+                <dd>
+                  <StatusChip status={selected.status} />
+                </dd>
               </div>
-            )}
-            {selected.model && (
               <div>
-                <dt>{t('assets.model')}</dt>
-                <dd>{selected.model}</dd>
+                <dt>{t('assets.colType')}</dt>
+                <dd>{t(selected.typeKey)}</dd>
               </div>
-            )}
-            {selected.vendor && (
               <div>
-                <dt>{t('assets.vendor')}</dt>
-                <dd>{selected.vendor}</dd>
+                <dt>{t('assets.colAssignee')}</dt>
+                <dd>
+                  {selected.status === 'retired' ? (
+                    selected.assignedTo ?? t('assets.unassigned')
+                  ) : (
+                    <input
+                      className="module-inline-input"
+                      value={assignName}
+                      onChange={(e) => setAssignName(e.target.value)}
+                      placeholder={t('assets.unassigned')}
+                      aria-label={t('assets.colAssignee')}
+                    />
+                  )}
+                </dd>
               </div>
-            )}
-            {selected.costCenter && (
               <div>
-                <dt>{t('assets.costCenter')}</dt>
-                <dd>{selected.costCenter}</dd>
+                <dt>{t('assets.colLocation')}</dt>
+                <dd>{selected.location}</dd>
               </div>
-            )}
-            {selected.notes && (
-              <div className="module-detail-dl__wide">
-                <dt>{t('assets.notes')}</dt>
-                <dd>{selected.notes}</dd>
+              <div>
+                <dt>{t('assets.purchased')}</dt>
+                <dd>{formatDate(selected.purchasedAt, locale)}</dd>
               </div>
-            )}
-          </dl>
-        </ModuleDetailDrawer>
+              {selected.serial && (
+                <div>
+                  <dt>{t('assets.serial')}</dt>
+                  <dd className="mono">{selected.serial}</dd>
+                </div>
+              )}
+              {selected.model && (
+                <div>
+                  <dt>{t('assets.model')}</dt>
+                  <dd>{selected.model}</dd>
+                </div>
+              )}
+              {selected.vendor && (
+                <div>
+                  <dt>{t('assets.vendor')}</dt>
+                  <dd>{selected.vendor}</dd>
+                </div>
+              )}
+              {selected.costCenter && (
+                <div>
+                  <dt>{t('assets.costCenter')}</dt>
+                  <dd>{selected.costCenter}</dd>
+                </div>
+              )}
+              {selected.notes && (
+                <div className="module-detail-dl__wide">
+                  <dt>{t('assets.notes')}</dt>
+                  <dd>{selected.notes}</dd>
+                </div>
+              )}
+            </dl>
+          }
+          actions={
+            transitions.length > 0 ? (
+              <>
+                {transitions.map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={s === 'retired' ? 'secondary' : 'primary'}
+                    onClick={() => void runTransition(s)}
+                  >
+                    {t(`assets.actions.to_${s}`)}
+                  </Button>
+                ))}
+              </>
+            ) : (
+              <span className="muted">{t('module.noTransitions')}</span>
+            )
+          }
+        />
       )}
+
+      <CreateAssetModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(a) => {
+          setCreateOpen(false);
+          success(t('assets.created', { tag: a.tag }));
+          setSelectedId(a.id);
+          reload();
+        }}
+      />
     </section>
   );
 }
 
-function ModuleDetailDrawer({
-  title,
-  subtitle,
+function CreateAssetModal({
+  open,
   onClose,
-  children,
+  onCreated,
 }: {
-  title: string;
-  subtitle: string;
+  open: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  onCreated: (a: Asset) => void;
 }) {
   const t = useT();
-  const ref = useRef<HTMLElement>(null);
-  useFocusTrap(ref, true);
+  const [tag, setTag] = useState('');
+  const [name, setName] = useState('');
+  const [typeKey, setTypeKey] = useState('assets.types.laptop');
+  const [location, setLocation] = useState('');
+  const [serial, setSerial] = useState('');
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [onClose]);
+    if (!open) {
+      setTag('');
+      setName('');
+      setTypeKey('assets.types.laptop');
+      setLocation('');
+      setSerial('');
+      setNotes('');
+      setErrors({});
+      setSubmitting(false);
+    }
+  }, [open]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const next: Record<string, string> = {};
+    if (!tag.trim()) next.tag = t('assets.validation.tag');
+    if (!name.trim()) next.name = t('assets.validation.name');
+    if (!location.trim()) next.location = t('assets.validation.location');
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSubmitting(true);
+    try {
+      const created = await createAsset({
+        tag: tag.trim(),
+        name: name.trim(),
+        typeKey,
+        location: location.trim(),
+        serial: serial.trim() || undefined,
+        notes: notes.trim() || undefined,
+        status: 'stock',
+      });
+      onCreated(created);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div
-      className="drawer-backdrop"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <aside
-        ref={ref}
-        className="service-drawer module-detail-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="module-detail-title"
-      >
-        <div className="service-drawer__head">
-          <p className="eyebrow mono">{subtitle}</p>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={t('app.close')}
-            onClick={onClose}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <h2 id="module-detail-title">{title}</h2>
-        {children}
-        <div className="service-drawer__actions">
-          <Button variant="secondary" fullWidth onClick={onClose}>
-            {t('app.close')}
+    <Modal open={open} onClose={onClose} title={t('assets.addAsset')} labelledBy="create-asset-title">
+      <form className="module-create-form" onSubmit={(e) => void submit(e)}>
+        <Input
+          label={t('assets.colTag')}
+          value={tag}
+          onChange={(e) => setTag(e.target.value)}
+          error={errors.tag}
+          required
+          autoFocus
+        />
+        <Input
+          label={t('assets.colName')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={errors.name}
+          required
+        />
+        <Select
+          label={t('assets.colType')}
+          value={typeKey}
+          onChange={(e) => setTypeKey(e.target.value)}
+          options={[
+            { value: 'assets.types.laptop', label: t('assets.types.laptop') },
+            { value: 'assets.types.monitor', label: t('assets.types.monitor') },
+            { value: 'assets.types.phone', label: t('assets.types.phone') },
+            {
+              value: 'assets.types.peripheral',
+              label: t('assets.types.peripheral'),
+            },
+          ]}
+        />
+        <Input
+          label={t('assets.colLocation')}
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          error={errors.location}
+          required
+        />
+        <Input
+          label={t('assets.serial')}
+          value={serial}
+          onChange={(e) => setSerial(e.target.value)}
+        />
+        <Textarea
+          label={t('assets.notes')}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+        />
+        <div className="module-create-form__actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {t('app.cancel')}
+          </Button>
+          <Button type="submit" variant="primary" disabled={submitting}>
+            {t('app.create')}
           </Button>
         </div>
-      </aside>
-    </div>
+      </form>
+    </Modal>
   );
 }
