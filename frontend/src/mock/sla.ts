@@ -154,6 +154,18 @@ export function updateSlaPolicyTargets(
   return clonePolicy(policies[idx]);
 }
 
+/** Toggle enabled flag (S22) — session store; drives runtime bind. */
+export function setSlaPolicyEnabled(
+  id: string,
+  enabled: boolean,
+): SlaPolicy | null {
+  const idx = policies.findIndex((p) => p.id === id || p.key === id);
+  if (idx < 0) return null;
+  policies[idx] = { ...policies[idx], enabled };
+  notify();
+  return clonePolicy(policies[idx]);
+}
+
 export function resetSlaPolicies(): void {
   policies = SEED_POLICIES.map(clonePolicy);
   notify();

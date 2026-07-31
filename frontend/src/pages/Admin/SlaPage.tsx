@@ -6,6 +6,7 @@ import {
   getWorkingCalendar,
   listSlaPolicies,
   listWorkingCalendars,
+  setSlaPolicyEnabled,
   subscribeSlaPolicies,
   updateSlaPolicyTargets,
 } from '@/mock/sla';
@@ -96,6 +97,18 @@ export function SlaPage() {
     if (updated) {
       setDirty(false);
       success(t('slaAdmin.savedToast'));
+    }
+  };
+
+  const handleToggleEnabled = () => {
+    if (!selected) return;
+    const updated = setSlaPolicyEnabled(selected.id, !selected.enabled);
+    if (updated) {
+      success(
+        updated.enabled
+          ? t('slaAdmin.enabledToast')
+          : t('slaAdmin.disabledToast'),
+      );
     }
   };
 
@@ -205,11 +218,17 @@ export function SlaPage() {
                   )}
                 </div>
                 <div className="sla-admin-detail__actions">
-                  <Badge tone={selected.enabled ? 'mint' : 'neutral'} dot>
+                  <button
+                    type="button"
+                    className={`chip chip--toggle${selected.enabled ? ' is-on' : ''}`}
+                    aria-pressed={selected.enabled}
+                    onClick={handleToggleEnabled}
+                    title={t('slaAdmin.toggleEnabled')}
+                  >
                     {selected.enabled
                       ? t('slaAdmin.statusEnabled')
                       : t('slaAdmin.statusDisabled')}
-                  </Badge>
+                  </button>
                   <Button
                     variant="primary"
                     size="sm"

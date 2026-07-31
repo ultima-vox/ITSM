@@ -66,6 +66,10 @@ import { PriorityBadge, StatusChip } from '@/components/data-display';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { slaConsumedPct } from '@/lib/sla';
 import {
+  getWorkItemSlaRuntime,
+  resolveSlaPolicyLabel,
+} from '@/lib/slaRuntime';
+import {
   findResolveTransition,
   getWorkItemRuntimeTransitions,
   workflowStateLabelKey,
@@ -76,6 +80,7 @@ import {
   getActiveWorkflowDefinition,
   subscribeWorkflowDefinitions,
 } from '@/mock/workflow';
+import { subscribeSlaPolicies } from '@/mock/sla';
 import {
   getUserPermissions,
   missingPermissionsFor,
@@ -84,29 +89,12 @@ import {
 import { currentUser } from '@/mock/data';
 import type {
   ImpactLevel,
+  Priority,
   SlaState,
   UrgencyLevel,
   WorkItemActivity,
   WorkItemStatus,
 } from '@/types';
-
-function policyKey(priority: string): string {
-  if (priority === 'critical') return 'sla.policyP1';
-  if (priority === 'high') return 'sla.policyP2';
-  return 'sla.policyP3';
-}
-
-function responseMins(priority: string): number {
-  if (priority === 'critical') return 15;
-  if (priority === 'high') return 30;
-  return 60;
-}
-
-function resolutionHours(priority: string): number {
-  if (priority === 'critical') return 4;
-  if (priority === 'high') return 8;
-  return 24;
-}
 
 function activityIcon(kind: WorkItemActivity['kind']) {
   switch (kind) {
@@ -298,6 +286,8 @@ export function WorkItemDetailPage() {
   const [workflowTick, setWorkflowTick] = useState(0);
   /** Bumps when RBAC role assignment changes (session store). */
   const [rbacTick, setRbacTick] = useState(0);
+  /** Bumps when admin edits SLA policy targets / enabled (session store). */
+  const [slaTick, setSlaTick] = useState(0);
 
   const item = useAsync(() => fetchWorkItem(id), [id]);
   const activity = useAsync(() => fetchWorkItemActivity(id), [id]);
@@ -322,6 +312,12 @@ export function WorkItemDetailPage() {
   useEffect(() => {
     return subscribeRbac(() => {
       setRbacTick((n) => n + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribeSlaPolicies(() => {
+      setSlaTick((n) => n + 1);
     });
   }, []);
 
@@ -636,6 +632,21 @@ export function WorkItemDetailPage() {
   const progress = slaConsumedPct(wi.slaState, wi.slaTarget);
   const responseProgress =
     wi.slaState === 'breached' ? 100 : wi.slaState === 'at_risk' ? 88 : 55;
+
+  // SLA admin → runtime targets (S21). slaTick invalidates after policy edit/toggle.
+  const slaRuntime =
+    slaTick >= 0
+      ? getWorkItemSlaRuntime(wi.priority as Priority, wi.status)
+      : getWorkItemSlaRuntime(wi.priority as Priority, wi.status);
+  const slaPolicyLabel =
+    resolveSlaPolicyLabel(slaRuntime.primaryPolicy) ||
+    t(
+      wi.priority === 'critical'
+        ? 'sla.policyP1'
+        : wi.priority === 'high'
+          ? 'sla.policyP2'
+          : 'sla.policyP3',
+    );
 
   const timeline = activity.data ?? [];
 
@@ -1518,7 +1529,14 @@ export function WorkItemDetailPage() {
                 <div className="sla-grid">
                   <div className="sla-card">
                     <span>{t('workItem.slaPolicy')}</span>
-                    <b>{t(policyKey(wi.priority))}</b>
+                    <b title={slaRuntime.primaryPolicy?.key}>{slaPolicyLabel}</b>
+                    <small className="muted">
+                      {slaRuntime.source === 'policy'
+                        ? t('workItem.slaSourcePolicy')
+                        : slaRuntime.source === 'mixed'
+                          ? t('workItem.slaSourceMixed')
+                          : t('workItem.slaSourceFallback')}
+                    </small>
                   </div>
                   <div className={`sla-card sla-card--${wi.slaState}`}>
                     <span>{t('workItem.slaState')}</span>
@@ -1531,6 +1549,11 @@ export function WorkItemDetailPage() {
                         <Clock3 size={16} aria-hidden />
                       )}{' '}
                       {t(`sla.${wi.slaState}`)}
+                      {slaRuntime.paused && (
+                        <span className="chip chip--warn" style={{ marginLeft: 8 }}>
+                          {t('workItem.slaPaused')}
+                        </span>
+                      )}
                     </b>
                   </div>
                 </div>
@@ -1540,7 +1563,7 @@ export function WorkItemDetailPage() {
                     label={t('workItem.slaResponse')}
                     value={responseProgress}
                     meta={t('sla.responseTarget', {
-                      n: responseMins(wi.priority),
+                      n: slaRuntime.response.targetMinutes,
                     })}
                     state={wi.slaState}
                     remaining={wi.slaTarget}
@@ -1550,7 +1573,9 @@ export function WorkItemDetailPage() {
                     label={t('workItem.slaResolution')}
                     value={progress}
                     meta={t('sla.resolutionTarget', {
-                      n: resolutionHours(wi.priority),
+                      n:
+                        Math.round(slaRuntime.resolution.targetHours * 100) /
+                        100,
                     })}
                     state={wi.slaState}
                     remaining={wi.slaTarget}
@@ -1571,7 +1596,18 @@ export function WorkItemDetailPage() {
                   >
                     {wi.slaTarget} · {t(`sla.${wi.slaState}`)}
                   </b>
+                  {slaRuntime.calendar && (
+                    <small className="muted">
+                      {t('workItem.slaCalendar', {
+                        zone: slaRuntime.calendar.zone,
+                        window: `${slaRuntime.calendar.startsAt}–${slaRuntime.calendar.endsAt}`,
+                      })}
+                    </small>
+                  )}
                 </div>
+                <p className="muted" style={{ marginTop: 10, fontSize: 'var(--text-meta)' }}>
+                  <Link to="/admin/sla">{t('workItem.slaAdminLink')}</Link>
+                </p>
               </section>
             )}
           </div>
