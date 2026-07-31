@@ -60,7 +60,7 @@ class CmdbController {
   }
 
   @GetMapping("/cis/{id}/impact")
-  @Operation(summary = "Impact analysis stub (1-2 hops of related CIs)")
+  @Operation(summary = "Impact analysis (BFS over CI relationships, up to 8 hops)")
   CmdbQuery.ImpactResult impact(
       Authentication authentication,
       @PathVariable UUID id,
@@ -70,7 +70,11 @@ class CmdbController {
     try {
       return query.impactAnalysis(id, hops);
     } catch (IllegalArgumentException ex) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+      String msg = ex.getMessage() == null ? "" : ex.getMessage();
+      if (msg.contains("maxHops")) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msg);
+      }
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, msg);
     }
   }
 }

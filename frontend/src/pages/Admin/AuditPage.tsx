@@ -1,9 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ScrollText, Filter } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
-import { fetchAuditEvents, listAuditActionKeys } from '@/api';
+import {
+  fetchAuditActionKeys,
+  fetchAuditEvents,
+  listAuditActionKeys,
+  useMock,
+} from '@/api';
 import { Badge, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import type { AuditEvent } from '@/types';
@@ -43,9 +48,18 @@ function actionTone(
 }
 
 function objectHref(ev: AuditEvent): string | null {
-  const type = (ev.objectType || '').toLowerCase();
-  if ((type === 'work-item' || type === 'workitem') && ev.objectId) {
+  const type = (ev.objectType || '').toLowerCase().replace(/_/g, '-');
+  if (
+    (type === 'work-item' || type === 'workitem' || type === 'incident') &&
+    ev.objectId
+  ) {
     return `/work-items/${ev.objectId}`;
+  }
+  if ((type === 'problem' || type === 'change') && ev.objectId) {
+    return `/${type}s/${ev.objectId}`;
+  }
+  if ((type === 'knowledge' || type === 'knowledge-article') && ev.objectId) {
+    return `/knowledge/${ev.objectId}`;
   }
   return null;
 }
@@ -53,8 +67,32 @@ function objectHref(ev: AuditEvent): string | null {
 export function AuditPage() {
   const t = useT();
   const { locale } = useI18n();
+  const liveMode = !useMock();
   const [action, setAction] = useState<string>('all');
-  const actionKeys = useMemo(() => listAuditActionKeys(), []);
+  const [liveActionKeys, setLiveActionKeys] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!liveMode) {
+      setLiveActionKeys(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchAuditActionKeys()
+      .then((keys) => {
+        if (!cancelled) setLiveActionKeys(keys);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveActionKeys([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveMode]);
+
+  const actionKeys = useMemo(() => {
+    if (liveMode) return liveActionKeys ?? [];
+    return listAuditActionKeys();
+  }, [liveMode, liveActionKeys]);
 
   const { data, loading, error, reload } = useAsync(
     () => fetchAuditEvents({ action, limit: 100 }),
@@ -75,7 +113,9 @@ export function AuditPage() {
             <ScrollText size={14} aria-hidden />
             {t('audit.eventCount', { n: events.length })}
           </span>
-          <span className="chip chip--muted">{t('audit.mockHint')}</span>
+          {!liveMode && (
+            <span className="chip chip--muted">{t('audit.mockHint')}</span>
+          )}
         </div>
       </div>
 

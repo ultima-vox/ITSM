@@ -82,7 +82,7 @@ public class CmdbQuery {
   public ImpactResult impactAnalysis(UUID ciId, int hops) {
     ConfigurationItem root = findById(ciId)
         .orElseThrow(() -> new IllegalArgumentException("Configuration item not found: " + ciId));
-    int maxHops = hops <= 0 ? 1 : Math.min(hops, 2);
+    int maxHops = hops <= 0 ? 1 : Math.min(hops, ImpactGraph.MAX_SUPPORTED_HOPS);
 
     List<ImpactGraph.Edge> edges = jdbc.query(
         "SELECT source_ci_id, target_ci_id, relationship_type FROM ci_relationship",

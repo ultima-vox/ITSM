@@ -39,9 +39,18 @@ class ImpactGraphTest {
   }
 
   @Test
-  void rejects_hops_outside_stub_range() {
-    assertThatThrownBy(() -> ImpactGraph.traverse(SERVICE, 3, seedEdges))
+  void multi_hop_beyond_legacy_stub_limit() {
+    var impacted = ImpactGraph.traverse(SERVICE, 4, seedEdges);
+    assertThat(impacted).extracting(ImpactGraph.Node::ciId)
+        .contains(APP, DB, HOST);
+  }
+
+  @Test
+  void rejects_hops_outside_supported_range() {
+    assertThatThrownBy(() -> ImpactGraph.traverse(SERVICE, ImpactGraph.MAX_SUPPORTED_HOPS + 1, seedEdges))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("maxHops");
+    assertThatThrownBy(() -> ImpactGraph.traverse(SERVICE, -1, seedEdges))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

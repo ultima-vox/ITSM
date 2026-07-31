@@ -25,10 +25,15 @@ public final class ImpactGraph {
    * Returns impacted nodes excluding the root when hops &gt;= 1, including hop distance.
    * Edges are treated as bidirectional for blast-radius style impact analysis.
    */
+  /** Hard ceiling to keep blast-radius queries bounded. */
+  public static final int MAX_SUPPORTED_HOPS = 8;
+
   public static List<Node> traverse(UUID rootCiId, int maxHops, List<Edge> edges) {
     Objects.requireNonNull(rootCiId, "rootCiId");
-    if (maxHops < 0 || maxHops > 2) {
-      throw new IllegalArgumentException("maxHops must be 0..2 for the impact stub");
+    if (maxHops < 0 || maxHops > MAX_SUPPORTED_HOPS) {
+      throw new IllegalArgumentException(
+          "maxHops must be 0.." + MAX_SUPPORTED_HOPS
+      );
     }
     Map<UUID, List<Edge>> adjacency = new HashMap<>();
     for (Edge edge : edges) {
