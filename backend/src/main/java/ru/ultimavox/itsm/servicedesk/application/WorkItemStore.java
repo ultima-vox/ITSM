@@ -168,6 +168,53 @@ class WorkItemStore {
     );
   }
 
+  void addWatcher(UUID workItemId, String subjectId, Instant watchedAt) {
+    jdbc.update(
+        """
+        INSERT INTO work_item_watcher (work_item_id, subject_id, watched_at)
+        VALUES (?,?,?)
+        ON CONFLICT (work_item_id, subject_id) DO NOTHING
+        """,
+        workItemId,
+        subjectId,
+        Timestamp.from(watchedAt)
+    );
+  }
+
+  boolean removeWatcher(UUID workItemId, String subjectId) {
+    int n = jdbc.update(
+        "DELETE FROM work_item_watcher WHERE work_item_id = ? AND subject_id = ?",
+        workItemId,
+        subjectId
+    );
+    return n > 0;
+  }
+
+  List<String> listWatchers(UUID workItemId) {
+    return jdbc.query(
+        """
+        SELECT subject_id FROM work_item_watcher
+        WHERE work_item_id = ?
+        ORDER BY watched_at ASC
+        """,
+        (rs, i) -> rs.getString("subject_id"),
+        workItemId
+    );
+  }
+
+  boolean isWatching(UUID workItemId, String subjectId) {
+    Integer n = jdbc.queryForObject(
+        """
+        SELECT COUNT(*) FROM work_item_watcher
+        WHERE work_item_id = ? AND subject_id = ?
+        """,
+        Integer.class,
+        workItemId,
+        subjectId
+    );
+    return n != null && n > 0;
+  }
+
   long countOpen() {
     Long n = jdbc.queryForObject(
         """

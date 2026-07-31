@@ -40,6 +40,7 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.State;
@@ -62,6 +63,7 @@ class WorkItemController {
   private final WorkItemActivityQuery activityQuery;
   private final WorkItemStatsQuery statsQuery;
   private final WorkItemAttachmentService workItemAttachments;
+  private final WorkItemWatcherService watchers;
   private final AccessControl access;
 
   WorkItemController(
@@ -76,6 +78,7 @@ class WorkItemController {
       WorkItemActivityQuery activityQuery,
       WorkItemStatsQuery statsQuery,
       WorkItemAttachmentService workItemAttachments,
+      WorkItemWatcherService watchers,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -89,6 +92,7 @@ class WorkItemController {
     this.activityQuery = activityQuery;
     this.statsQuery = statsQuery;
     this.workItemAttachments = workItemAttachments;
+    this.watchers = watchers;
     this.access = access;
   }
 
@@ -273,6 +277,29 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.update", "work-item", id.toString());
     workItemAttachments.unlink(id, attachmentId, actor);
+  }
+
+  @GetMapping("/{id}/watchers")
+  @Operation(summary = "List subjects watching a work item")
+  List<String> listWatchers(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return watchers.list(id);
+  }
+
+  @PostMapping("/{id}/watchers/me")
+  @Operation(summary = "Watch a work item as the authenticated actor")
+  List<String> watch(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    return watchers.watch(id, actor);
+  }
+
+  @DeleteMapping("/{id}/watchers/me")
+  @Operation(summary = "Stop watching a work item")
+  List<String> unwatch(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    return watchers.unwatch(id, actor);
   }
 
   record CreateRequest(

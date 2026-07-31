@@ -416,8 +416,19 @@ export async function watchWorkItem(id: string): Promise<WorkItem | null> {
     await delay(80);
     return storeAddWatcher(id);
   }
-  // No watch endpoint on backend yet — return current item unchanged
-  return fetchWorkItem(id);
+  const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers/me`, {
+    method: 'POST',
+  });
+  const item = await fetchWorkItem(id);
+  if (!item) return null;
+  return {
+    ...item,
+    watchers: (subjects ?? []).map((sid) => ({
+      id: sid,
+      name: sid,
+      initials: sid.slice(0, 2).toUpperCase(),
+    })),
+  };
 }
 
 export async function unwatchWorkItem(id: string): Promise<WorkItem | null> {
@@ -425,7 +436,19 @@ export async function unwatchWorkItem(id: string): Promise<WorkItem | null> {
     await delay(80);
     return storeRemoveWatcher(id, currentUser.id);
   }
-  return fetchWorkItem(id);
+  const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers/me`, {
+    method: 'DELETE',
+  });
+  const item = await fetchWorkItem(id);
+  if (!item) return null;
+  return {
+    ...item,
+    watchers: (subjects ?? []).map((sid) => ({
+      id: sid,
+      name: sid,
+      initials: sid.slice(0, 2).toUpperCase(),
+    })),
+  };
 }
 
 /** Transition helper for live mode (targetState uses backend enum names). */
