@@ -453,23 +453,10 @@ export async function escalateWorkItem(id: string): Promise<WorkItem | null> {
     await delay(120);
     return storeEscalate(id);
   }
-  // No /escalate endpoint: raise impact/urgency (→ CRITICAL/HIGH) and start work if NEW
-  const current = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
-  let dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`, {
-    method: 'PATCH',
-    body: {
-      impact: 'HIGH',
-      urgency: 'HIGH',
-    },
+  const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}/escalate`, {
+    method: 'POST',
   });
-  if (current.state === 'NEW') {
-    dto = await apiRequest<BackendWorkItem>(`/work-items/${id}/transitions`, {
-      method: 'POST',
-      body: { targetState: 'IN_PROGRESS' },
-    });
-  }
-  const item = mapWorkItem(dto);
-  return { ...item, escalated: true, priority: item.priority === 'critical' ? 'critical' : 'high' };
+  return mapWorkItem(dto);
 }
 
 export async function resolveWorkItem(

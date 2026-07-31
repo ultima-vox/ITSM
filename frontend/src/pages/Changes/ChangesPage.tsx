@@ -28,11 +28,13 @@ import {
   countCabApproves,
   createChange,
   fetchChanges,
+  fetchScheduleConflicts,
   isLiveFeatureUnsupported,
   patchChange,
   setChangeCabDecision,
   subscribeSecondaryModules,
   transitionChangeStatus,
+  useMock,
 } from '@/api';
 import {
   Avatar,
@@ -439,17 +441,11 @@ export function ChangesPage() {
   }, [selected, t]);
 
   const allChanges = data ?? [];
+  const liveMode = !useMock();
 
-  const conflicts = useMemo(
+  /** Client-side CI-overlap pairs (mock-friendly + always available). */
+  const clientConflicts = useMemo(
     () => findNormalScheduleConflicts(allChanges),
-    [allChanges],
-  );
-
-  const cabQueue = useMemo(
-    () =>
-      allChanges.filter(
-        (c) => c.status === 'cab_review' && !c.cabApproved && !c.cabRejected,
-      ),
     [allChanges],
   );
 
@@ -460,6 +456,41 @@ export function ChangesPage() {
   }, [weekOffset]);
 
   const weekDays = useMemo(() => weekDaysFrom(weekMonday), [weekMonday]);
+
+  /** Live window conflicts from PostgreSQL schedule overlap. */
+  const liveConflictsQ = useAsync(async () => {
+    if (!liveMode || weekDays.length === 0) return [] as Change[];
+    const start = weekDays[0];
+    const end = new Date(weekDays[weekDays.length - 1]);
+    end.setDate(end.getDate() + 1);
+    try {
+      return await fetchScheduleConflicts({
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+    } catch {
+      return [];
+    }
+  }, [liveMode, weekMonday]);
+
+  /**
+   * Banner conflicts: prefer client CI-pair analysis; when live API returns
+   * overlapping changes not in client pairs, surface day-level flag via calendar.
+   */
+  const conflicts = clientConflicts;
+  const liveConflictIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of liveConflictsQ.data ?? []) set.add(c.id);
+    return set;
+  }, [liveConflictsQ.data]);
+
+  const cabQueue = useMemo(
+    () =>
+      allChanges.filter(
+        (c) => c.status === 'cab_review' && !c.cabApproved && !c.cabRejected,
+      ),
+    [allChanges],
+  );
 
   const calendarByDay = useMemo(() => {
     const map = new Map<string, Change[]>();
@@ -895,7 +926,9 @@ export function ChangesPage() {
               const key = localDayKey(day);
               const dayChanges = calendarByDay.get(key) ?? [];
               const isToday = key === localDayKey(new Date());
-              const hasConflict = conflicts.some((c) => c.dayKey === key);
+              const hasConflict =
+                conflicts.some((c) => c.dayKey === key) ||
+                dayChanges.some((ch) => liveConflictIds.has(ch.id));
               return (
                 <div
                   key={key}

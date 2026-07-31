@@ -33,6 +33,7 @@ import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.WorkItemResponse;
 import ru.ultimavox.itsm.servicedesk.application.AddWorkItemComment;
 import ru.ultimavox.itsm.servicedesk.application.AssignWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.CreateWorkItem;
+import ru.ultimavox.itsm.servicedesk.application.EscalateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.GetWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.ListWorkItemComments;
 import ru.ultimavox.itsm.servicedesk.application.TransitionWorkItem;
@@ -61,6 +62,7 @@ class WorkItemController {
   private final GetWorkItem getWorkItem;
   private final UpdateWorkItem updateWorkItem;
   private final AssignWorkItem assignWorkItem;
+  private final EscalateWorkItem escalateWorkItem;
   private final TransitionWorkItem transitionWorkItem;
   private final AddWorkItemComment addWorkItemComment;
   private final ListWorkItemComments listWorkItemComments;
@@ -78,6 +80,7 @@ class WorkItemController {
       GetWorkItem getWorkItem,
       UpdateWorkItem updateWorkItem,
       AssignWorkItem assignWorkItem,
+      EscalateWorkItem escalateWorkItem,
       TransitionWorkItem transitionWorkItem,
       AddWorkItemComment addWorkItemComment,
       ListWorkItemComments listWorkItemComments,
@@ -94,6 +97,7 @@ class WorkItemController {
     this.getWorkItem = getWorkItem;
     this.updateWorkItem = updateWorkItem;
     this.assignWorkItem = assignWorkItem;
+    this.escalateWorkItem = escalateWorkItem;
     this.transitionWorkItem = transitionWorkItem;
     this.addWorkItemComment = addWorkItemComment;
     this.listWorkItemComments = listWorkItemComments;
@@ -198,6 +202,18 @@ class WorkItemController {
         new AssignWorkItem.Command(request.assigneeId(), request.teamId()),
         actor
     ));
+  }
+
+  @PostMapping("/{id}/escalate")
+  @Operation(summary = "Escalate work item (HIGH/HIGH priority, start work if NEW)")
+  WorkItemResponse escalate(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.transition", "work-item", id.toString());
+    try {
+      return WorkItemResponse.from(escalateWorkItem.escalate(id, actor));
+    } catch (IllegalStateException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
   }
 
   @PostMapping("/{id}/transitions")

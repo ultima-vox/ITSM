@@ -34,6 +34,7 @@ export interface BackendWorkItem {
   teamId?: string | null;
   resolutionCode?: string | null;
   resolutionNotes?: string | null;
+  escalated?: boolean | null;
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
@@ -250,6 +251,7 @@ export function mapWorkItem(dto: BackendWorkItem): WorkItem {
     impact: mapBackendImpact(dto.impact),
     urgency: mapBackendUrgency(dto.urgency),
     resolutionNotes: dto.resolutionNotes ?? undefined,
+    escalated: Boolean(dto.escalated),
     watchers: [],
     childTasks: [],
   };

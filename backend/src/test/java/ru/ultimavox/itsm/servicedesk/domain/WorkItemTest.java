@@ -126,6 +126,7 @@ class WorkItemTest {
         null,
         null,
         null,
+        false,
         now,
         now,
         null

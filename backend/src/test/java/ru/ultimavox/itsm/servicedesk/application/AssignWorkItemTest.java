@@ -101,6 +101,7 @@ class AssignWorkItemTest {
         "sd-l1",
         null,
         null,
+        false,
         now,
         now,
         null

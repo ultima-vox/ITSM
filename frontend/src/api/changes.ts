@@ -66,6 +66,35 @@ export async function fetchChanges(): Promise<Change[]> {
   return (list ?? []).map(mapChange);
 }
 
+/** Live schedule overlap from backend; mock returns []. */
+export async function fetchScheduleConflicts(params: {
+  start: string;
+  end: string;
+  excludeId?: string;
+}): Promise<Change[]> {
+  if (useMock()) {
+    await delay(40);
+    return [];
+  }
+  const qs = new URLSearchParams();
+  qs.set('start', params.start);
+  qs.set('end', params.end);
+  if (params.excludeId) qs.set('excludeId', params.excludeId);
+  const list = await apiRequest<BackendChange[]>(`/changes/conflicts?${qs}`);
+  return (list ?? []).map(mapChange);
+}
+
+export async function fetchChangeConflicts(id: string): Promise<Change[]> {
+  if (useMock()) {
+    await delay(40);
+    return [];
+  }
+  const list = await apiRequest<BackendChange[]>(
+    `/changes/${encodeURIComponent(id)}/conflicts`,
+  );
+  return (list ?? []).map(mapChange);
+}
+
 export async function createChange(
   payload: CreateChangePayload,
 ): Promise<Change> {

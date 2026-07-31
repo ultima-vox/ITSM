@@ -49,8 +49,8 @@ export async function uploadAttachment(file: File): Promise<AttachmentMeta> {
       size: file.size,
       objectKey: `mock/attachments/${file.name}`,
       scanStatus: infected ? 'INFECTED' : 'CLEAN',
-      scanEngine: 'allowlist-stub',
-      scanDetail: infected ? 'EICAR test pattern in filename' : 'ok',
+      scanEngine: 'content-signature-v1',
+      scanDetail: infected ? 'EICAR marker in filename' : 'ok',
     };
     mockStore.set(meta.id, meta);
     return meta;
