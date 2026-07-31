@@ -1,6 +1,5 @@
 package ru.ultimavox.itsm.platform.notification;
 
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,7 +28,28 @@ public class LoggingNotificationService implements NotificationService {
 
   /** Test constructor without webhook. */
   public LoggingNotificationService(NotificationStore store) {
-    this(store, Optional::empty);
+    this.store = store;
+    this.webhook = new ObjectProvider<>() {
+      @Override
+      public WebhookNotificationAdapter getObject() {
+        return null;
+      }
+
+      @Override
+      public WebhookNotificationAdapter getObject(Object... args) {
+        return null;
+      }
+
+      @Override
+      public WebhookNotificationAdapter getIfAvailable() {
+        return null;
+      }
+
+      @Override
+      public WebhookNotificationAdapter getIfUnique() {
+        return null;
+      }
+    };
   }
 
   @Override
