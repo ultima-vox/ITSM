@@ -70,6 +70,15 @@ class WorkItemTest {
   }
 
   @Test
+  void escalate_raises_priority_and_flag() {
+    WorkItem escalated = sample(State.NEW).escalate(now);
+    assertThat(escalated.escalated()).isTrue();
+    assertThat(escalated.priority()).isEqualTo(Priority.CRITICAL);
+    assertThat(escalated.impact()).isEqualTo(Impact.HIGH);
+    assertThat(escalated.urgency()).isEqualTo(Urgency.HIGH);
+  }
+
+  @Test
   void resolve_requires_resolution_code() {
     WorkItem inProgress = sample(State.NEW).transition(State.IN_PROGRESS, null, null, now);
     assertThatThrownBy(() -> inProgress.transition(State.RESOLVED, null, "notes", now))
