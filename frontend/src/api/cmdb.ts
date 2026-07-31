@@ -190,7 +190,13 @@ export async function createConfigurationItem(input: {
   }
   const created = await apiRequest<BackendCi>('/cmdb/cis', {
     method: 'POST',
-    body: input,
+    body: {
+      name: input.name,
+      classKey: input.kindKey,
+      kindKey: input.kindKey,
+      status: (input.status ?? 'operational').toUpperCase(),
+      owner: input.owner,
+    },
   });
   return mapConfigurationItem(created);
 }
@@ -212,11 +218,28 @@ export async function createAsset(payload: CreateAssetPayload): Promise<Asset> {
     await delay(180);
     return storeAddAsset(payload);
   }
+  const kind = mapFrontendAssetKind(payload.typeKey);
   const created = await apiRequest<BackendAsset>('/assets', {
     method: 'POST',
-    body: payload,
+    body: {
+      assetTag: payload.tag ?? payload.name,
+      tag: payload.tag ?? payload.name,
+      kind,
+      status: 'IN_STOCK',
+      ownerSubject: payload.assignedTo ?? null,
+      acquiredOn: payload.purchasedAt ?? null,
+    },
   });
   return mapAsset(created);
+}
+
+function mapFrontendAssetKind(typeKey?: string): string {
+  const k = (typeKey ?? '').toLowerCase();
+  if (k.includes('laptop')) return 'LAPTOP';
+  if (k.includes('monitor')) return 'MONITOR';
+  if (k.includes('phone') || k.includes('mobile')) return 'MOBILE_DEVICE';
+  if (k.includes('server')) return 'SERVER';
+  return 'OTHER';
 }
 
 export async function transitionAssetStatus(
