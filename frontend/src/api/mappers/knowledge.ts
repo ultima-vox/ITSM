@@ -23,17 +23,23 @@ function hash(s: string): number {
 
 export function mapKnowledgeArticle(dto: BackendArticleSummary): KnowledgeArticle {
   const id = String(dto.id);
+  const statusUpper = (dto.status ?? '').toUpperCase();
+  const published = statusUpper === 'PUBLISHED';
   return {
     id,
     titleKey: dto.title,
     summaryKey: dto.summary ?? dto.title,
     tagKey: dto.slug ?? dto.number ?? id,
+    title: dto.title,
+    summary: dto.summary ?? dto.title,
     readMinutes: 5,
     helpfulScore: 0,
-    verified: (dto.status ?? '').toUpperCase() === 'PUBLISHED',
+    verified: published,
     icon: ICONS[hash(id) % ICONS.length],
     topicId: 'general',
     updatedAt: dto.nextReviewAt ?? new Date().toISOString(),
+    status: published ? 'published' : 'pending',
+    version: dto.version,
   };
 }
 

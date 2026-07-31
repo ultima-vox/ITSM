@@ -23,6 +23,8 @@ import {
   fetchCatalogCategories,
   fetchCatalogServices,
   fetchFormDefinition,
+  submitCatalogRequest,
+  useMock,
   type FormDefinition,
 } from '@/api';
 import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
@@ -465,11 +467,48 @@ function ServiceDrawer({
     try {
       const kind = service.id === 'svc-incident' ? 'incident' : 'request';
       const impactRaw = (values.impact ?? '').trim();
+      const formPayload = {
+        title: values.title.trim(),
+        description: values.description.trim(),
+        service: (values.service || t(service.titleKey)).trim(),
+        urgency: values.urgency,
+        impact: impactRaw || undefined,
+      };
+
+      // Live backend: prefer catalog request endpoint for UUID catalog items
+      if (!useMock() && /^[0-9a-f-]{36}$/i.test(service.id)) {
+        const submitted = await submitCatalogRequest(service.id, { formPayload });
+        const item: WorkItem = {
+          id: submitted.workItemId ?? submitted.id,
+          number: submitted.number ?? submitted.id.slice(0, 8).toUpperCase(),
+          title: values.title.trim(),
+          description: values.description.trim(),
+          type: kind,
+          priority: kind === 'incident' ? 'high' : 'medium',
+          status: 'new',
+          assignee: null,
+          requester: {
+            id: 'me',
+            name: 'You',
+            initials: 'YO',
+          },
+          service: formPayload.service,
+          slaTarget: '—',
+          slaState: 'on_track',
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          queue: 'Service Desk L1',
+        };
+        setDone(true);
+        onCreated(item);
+        return;
+      }
+
       const item = await createWorkItem({
         kind,
         title: values.title.trim(),
         description: values.description.trim(),
-        service: (values.service || t(service.titleKey)).trim(),
+        service: formPayload.service,
         priority: kind === 'incident' ? 'high' : 'medium',
         queue: 'Service Desk L1',
         impact: impactRaw

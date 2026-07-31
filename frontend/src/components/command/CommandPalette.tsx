@@ -18,11 +18,14 @@ import {
   Settings,
   TicketCheck,
   AlertTriangle,
+  ScrollText,
+  Timer,
+  Workflow,
   Zap,
 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { fetchWorkItems, searchAll, useMock } from '@/api';
+import { fetchWorkItems, searchAll, searchHitPath, useMock } from '@/api';
 import type { SearchHit } from '@/api';
 import type { CreateKind, WorkItem } from '@/types';
 import { PriorityBadge } from '@/components/data-display';
@@ -68,18 +71,6 @@ function pushRecent(id: string) {
   } catch {
     /* ignore */
   }
-}
-
-function workItemPathFromHit(hit: SearchHit): string | null {
-  const type = (hit.objectType || '').toLowerCase();
-  if (type === 'work-item' || type === 'workitem' || type === 'incident' || type === 'request') {
-    return `/work-items/${hit.id}`;
-  }
-  // Indexed id may be bare UUID for work items
-  if (!type || type.includes('work')) {
-    return `/work-items/${hit.id}`;
-  }
-  return null;
 }
 
 export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps) {
@@ -268,6 +259,42 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         keywords: 'automation rules events triggers actions when if then admin',
       },
       {
+        id: 'nav-workflow',
+        kind: 'nav',
+        label: t('nav.workflow'),
+        hint: t('command.navigate'),
+        icon: Workflow,
+        run: () => go('/admin/workflow'),
+        keywords: 'workflow states transitions lifecycle version admin',
+      },
+      {
+        id: 'nav-sla',
+        kind: 'nav',
+        label: t('nav.sla'),
+        hint: t('command.navigate'),
+        icon: Timer,
+        run: () => go('/admin/sla'),
+        keywords: 'sla policy response resolution calendar hours targets admin',
+      },
+      {
+        id: 'nav-audit',
+        kind: 'nav',
+        label: t('nav.audit'),
+        hint: t('command.navigate'),
+        icon: ScrollText,
+        run: () => go('/admin/audit'),
+        keywords: 'audit trail log history events security admin',
+      },
+      {
+        id: 'nav-search',
+        kind: 'nav',
+        label: t('nav.search'),
+        hint: t('command.navigate'),
+        icon: Search,
+        run: () => go('/search'),
+        keywords: 'search find global full-text',
+      },
+      {
         id: 'nav-settings',
         kind: 'nav',
         label: t('nav.settings'),
@@ -312,6 +339,7 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const rawQ = query.trim();
     const liveMode = !useMock();
 
     const workCmds: CmdItem[] = items.map((w) => ({
@@ -326,7 +354,7 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
     }));
 
     const searchCmds: CmdItem[] = liveHits.map((hit) => {
-      const path = workItemPathFromHit(hit);
+      const path = searchHitPath(hit);
       const id = `search-${hit.objectType}-${hit.id}`;
       return {
         id,
@@ -352,6 +380,18 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
       return hay.includes(q);
     };
 
+    const searchAllCmd: CmdItem | null = rawQ
+      ? {
+          id: 'act-search-all',
+          kind: 'action' as const,
+          label: t('command.searchAll', { q: rawQ }),
+          hint: t('command.searchAllHint'),
+          icon: Search,
+          run: () => go(`/search?q=${encodeURIComponent(rawQ)}`),
+          keywords: `search all full ${rawQ}`,
+        }
+      : null;
+
     if (!q) {
       const recent = recentIds
         .map((id) => workCmds.find((c) => c.id === id) || staticCommands.find((c) => c.id === id))
@@ -363,6 +403,7 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         nav: staticCommands.filter((c) => c.kind === 'nav'),
         work: workCmds.slice(0, 8),
         search: [] as CmdItem[],
+        searchAll: null as CmdItem | null,
       };
     }
 
@@ -375,11 +416,13 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
       nav: staticCommands.filter((c) => c.kind === 'nav' && match(c)),
       work: useLiveSearch ? [] : workCmds.filter(match).slice(0, 12),
       search: useLiveSearch ? searchCmds.slice(0, 12) : [],
+      searchAll: searchAllCmd,
     };
   }, [query, items, staticCommands, recentIds, liveHits, t, go]);
 
   const flat = useMemo(() => {
     const list: CmdItem[] = [];
+    if (results.searchAll) list.push(results.searchAll);
     if (results.recent.length) list.push(...results.recent);
     list.push(...results.actions, ...results.nav, ...results.search, ...results.work);
     return list;
@@ -406,19 +449,29 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const item = flat[active];
+        const rawQ = query.trim();
+        // Prefer selected item; if none, open full search for the typed query
         if (item) {
           pushRecent(item.id);
           item.run();
+        } else if (rawQ) {
+          navigate(`/search?q=${encodeURIComponent(rawQ)}`);
+          onClose();
         }
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, flat, active, onClose]);
+  }, [open, flat, active, onClose, query, navigate]);
 
   if (!open) return null;
 
   const groups: { key: string; title: string; items: CmdItem[] }[] = [
+    {
+      key: 'searchAll',
+      title: t('command.search'),
+      items: results.searchAll ? [results.searchAll] : [],
+    },
     { key: 'recent', title: t('command.recent'), items: results.recent },
     { key: 'actions', title: t('command.actions'), items: results.actions },
     { key: 'nav', title: t('command.pages'), items: results.nav },

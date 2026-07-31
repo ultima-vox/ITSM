@@ -17,6 +17,7 @@ import type {
   CreateChangePayload,
   CreateKnowledgeArticlePayload,
   CreateProblemPayload,
+  UpdateKnowledgeArticlePayload,
   ImpactLevel,
   KnowledgeArticle,
   ModuleActivity,
@@ -98,7 +99,12 @@ function seedActivitiesMap(): Record<string, WorkItemActivity[]> {
   return Object.fromEntries(
     Object.entries(seedActivities).map(([k, list]) => [
       k,
-      list.map((a) => ({ ...a, actor: { ...a.actor } })),
+      list.map((a) => ({
+        ...a,
+        actor: { ...a.actor },
+        before: a.before ? { ...a.before } : a.before,
+        after: a.after ? { ...a.after } : a.after,
+      })),
     ]),
   );
 }
@@ -154,6 +160,10 @@ function pushActivity(
   kind: WorkItemActivity['kind'],
   text: string,
   actor: Person = actorFromCurrent(),
+  diff?: {
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
+  },
 ) {
   const entry: WorkItemActivity = {
     id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -161,6 +171,8 @@ function pushActivity(
     actor: { ...actor },
     kind,
     text,
+    before: diff?.before ?? undefined,
+    after: diff?.after ?? undefined,
   };
   // Normalize lookup key to item id
   const item = items.find((i) => i.id === id || i.number === id);
@@ -252,12 +264,22 @@ export function assignWorkItems(
       updatedAt: nowIso(),
     };
   });
-  ids.forEach((id) => pushActivity(id, 'assignment', 'assigned_to_me'));
+  ids.forEach((id) => {
+    pushActivity(id, 'assignment', 'assigned_to_me', actorFromCurrent(), {
+      before: { assignee: null },
+      after: { assignee: assignee.name },
+    });
+  });
   notify();
 }
 
 export function setWorkItemPriority(ids: string[], priority: Priority): void {
   const set = new Set(ids);
+  const prev = new Map(
+    items
+      .filter((w) => set.has(w.id) || set.has(w.number))
+      .map((w) => [w.id, w.priority] as const),
+  );
   items = items.map((w) => {
     if (!set.has(w.id) && !set.has(w.number)) return w;
     return {
@@ -266,11 +288,19 @@ export function setWorkItemPriority(ids: string[], priority: Priority): void {
       updatedAt: nowIso(),
     };
   });
-  ids.forEach((id) => pushActivity(id, 'field', 'priority_changed'));
+  ids.forEach((id) => {
+    const item = items.find((i) => i.id === id || i.number === id);
+    const key = item?.id ?? id;
+    pushActivity(id, 'field', 'priority_changed', actorFromCurrent(), {
+      before: { priority: prev.get(key) ?? null },
+      after: { priority },
+    });
+  });
   notify();
 }
 
 export function escalateWorkItem(id: string): WorkItem | null {
+  const prev = items.find((w) => w.id === id || w.number === id);
   items = items.map((w) => {
     if (w.id !== id && w.number !== id) return w;
     const tags = new Set(w.tags ?? []);
@@ -286,15 +316,26 @@ export function escalateWorkItem(id: string): WorkItem | null {
       updatedAt: nowIso(),
     };
   });
-  pushActivity(id, 'status', 'escalated');
+  const next = getWorkItem(id);
+  pushActivity(id, 'status', 'escalated', actorFromCurrent(), {
+    before: {
+      escalated: prev?.escalated ?? false,
+      priority: prev?.priority ?? null,
+    },
+    after: {
+      escalated: true,
+      priority: next?.priority ?? null,
+    },
+  });
   notify();
-  return getWorkItem(id);
+  return next;
 }
 
 export function resolveWorkItem(
   id: string,
   resolutionNotes?: string,
 ): WorkItem | null {
+  const prev = items.find((w) => w.id === id || w.number === id);
   items = items.map((w) => {
     if (w.id !== id && w.number !== id) return w;
     return {
@@ -305,7 +346,10 @@ export function resolveWorkItem(
       updatedAt: nowIso(),
     };
   });
-  pushActivity(id, 'status', 'status_resolved');
+  pushActivity(id, 'status', 'status_resolved', actorFromCurrent(), {
+    before: { status: prev?.status ?? null },
+    after: { status: 'resolved' },
+  });
   notify();
   return getWorkItem(id);
 }
@@ -349,13 +393,22 @@ export function updateWorkItem(id: string, patch: WorkItemPatch): WorkItem | nul
   });
   if (before) {
     if (patch.impact && patch.impact !== before.impact) {
-      pushActivity(id, 'field', 'impact_changed');
+      pushActivity(id, 'field', 'impact_changed', actorFromCurrent(), {
+        before: { impact: before.impact ?? null },
+        after: { impact: patch.impact },
+      });
     }
     if (patch.urgency && patch.urgency !== before.urgency) {
-      pushActivity(id, 'field', 'urgency_changed');
+      pushActivity(id, 'field', 'urgency_changed', actorFromCurrent(), {
+        before: { urgency: before.urgency ?? null },
+        after: { urgency: patch.urgency },
+      });
     }
     if (patch.service && patch.service !== before.service) {
-      pushActivity(id, 'field', 'service_changed');
+      pushActivity(id, 'field', 'service_changed', actorFromCurrent(), {
+        before: { service: before.service },
+        after: { service: patch.service },
+      });
     }
     if (patch.status && patch.status !== before.status) {
       pushActivity(
@@ -366,10 +419,18 @@ export function updateWorkItem(id: string, patch: WorkItemPatch): WorkItem | nul
           : patch.status === 'resolved'
             ? 'status_resolved'
             : 'status_changed_in_progress',
+        actorFromCurrent(),
+        {
+          before: { status: before.status },
+          after: { status: patch.status },
+        },
       );
     }
     if (patch.priority && patch.priority !== before.priority) {
-      pushActivity(id, 'field', 'priority_changed');
+      pushActivity(id, 'field', 'priority_changed', actorFromCurrent(), {
+        before: { priority: before.priority },
+        after: { priority: patch.priority },
+      });
     }
   }
   notify();
@@ -1562,6 +1623,7 @@ export function addKnowledgeArticle(
     body.length > 140 ? `${body.slice(0, 137).trimEnd()}…` : body;
   const words = body.split(/\s+/).filter(Boolean).length;
   const readMinutes = Math.max(1, Math.min(20, Math.ceil(words / 180)));
+  const tag = payload.tag?.trim() || undefined;
   const next: KnowledgeArticle = {
     id,
     titleKey: 'knowledge.articles.contributed.title',
@@ -1570,6 +1632,7 @@ export function addKnowledgeArticle(
     title,
     summary,
     body,
+    tag,
     readMinutes,
     helpfulScore: 0,
     helpfulYes: 0,
@@ -1579,10 +1642,80 @@ export function addKnowledgeArticle(
     topicId: payload.topicId ?? 'topic-start',
     updatedAt: nowIso(),
     status: payload.status ?? 'pending',
+    version: 1,
   };
   knowledgeItems = [next, ...knowledgeItems];
   notifyKnowledge();
   return cloneKnowledge(next);
+}
+
+export function updateKnowledgeArticle(
+  id: string,
+  payload: UpdateKnowledgeArticlePayload,
+): KnowledgeArticle | null {
+  const current = knowledgeItems.find((x) => x.id === id);
+  if (!current) return null;
+
+  const title =
+    payload.title !== undefined ? payload.title.trim() : current.title;
+  const body = payload.body !== undefined ? payload.body.trim() : current.body;
+  const tag =
+    payload.tag !== undefined
+      ? payload.tag.trim() || undefined
+      : current.tag;
+  const versionNote =
+    payload.versionNote !== undefined
+      ? payload.versionNote.trim() || undefined
+      : current.versionNote;
+
+  const resolvedBody = body ?? current.body ?? '';
+  const summary = resolvedBody
+    ? resolvedBody.length > 140
+      ? `${resolvedBody.slice(0, 137).trimEnd()}…`
+      : resolvedBody
+    : current.summary;
+  const words = resolvedBody.split(/\s+/).filter(Boolean).length;
+  const readMinutes = resolvedBody
+    ? Math.max(1, Math.min(20, Math.ceil(words / 180)))
+    : current.readMinutes;
+
+  knowledgeItems = knowledgeItems.map((a) => {
+    if (a.id !== id) return a;
+    return {
+      ...a,
+      title: title || a.title,
+      body: resolvedBody || a.body,
+      summary: summary || a.summary,
+      tag,
+      versionNote,
+      status: payload.status ?? a.status,
+      readMinutes,
+      version: (a.version ?? 1) + 1,
+      updatedAt: nowIso(),
+      // Once edited, plain fields own the display path
+      verified: payload.status === 'published' ? true : a.verified,
+    };
+  });
+  notifyKnowledge();
+  return getKnowledgeArticle(id);
+}
+
+export function publishKnowledgeArticle(id: string): KnowledgeArticle | null {
+  const current = knowledgeItems.find((x) => x.id === id);
+  if (!current) return null;
+  knowledgeItems = knowledgeItems.map((a) => {
+    if (a.id !== id) return a;
+    return {
+      ...a,
+      status: 'published',
+      verified: true,
+      version: (a.version ?? 1) + 1,
+      // Preserve operator note if present; publish still bumps updatedAt/version
+      updatedAt: nowIso(),
+    };
+  });
+  notifyKnowledge();
+  return getKnowledgeArticle(id);
 }
 
 // ── Persistence / reset / SLA live clock ─────────────────────────────

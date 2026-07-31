@@ -44,6 +44,18 @@ const MetadataPage = lazy(() =>
 const AutomationPage = lazy(() =>
   import('@/pages/Admin/AutomationPage').then((m) => ({ default: m.AutomationPage })),
 );
+const WorkflowPage = lazy(() =>
+  import('@/pages/Admin/WorkflowPage').then((m) => ({ default: m.WorkflowPage })),
+);
+const SlaPage = lazy(() =>
+  import('@/pages/Admin/SlaPage').then((m) => ({ default: m.SlaPage })),
+);
+const AuditPage = lazy(() =>
+  import('@/pages/Admin/AuditPage').then((m) => ({ default: m.AuditPage })),
+);
+const SearchPage = lazy(() =>
+  import('@/pages/Search/SearchPage').then((m) => ({ default: m.SearchPage })),
+);
 const WorkItemDetailPage = lazy(() =>
   import('@/pages/WorkItemDetail/WorkItemDetailPage').then((m) => ({
     default: m.WorkItemDetailPage,
@@ -164,6 +176,38 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <AutomationPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/workflow',
+        element: (
+          <LazyRoute>
+            <WorkflowPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/sla',
+        element: (
+          <LazyRoute>
+            <SlaPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/audit',
+        element: (
+          <LazyRoute>
+            <AuditPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'search',
+        element: (
+          <LazyRoute>
+            <SearchPage />
           </LazyRoute>
         ),
       },

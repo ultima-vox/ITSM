@@ -35,3 +35,39 @@ export async function fetchCatalogServices(q?: string): Promise<CatalogService[]
   const items = await apiRequest<BackendCatalogItem[]>(`/catalog/items${suffix}`);
   return (items ?? []).map(mapCatalogService);
 }
+
+export interface SubmitCatalogRequestPayload {
+  formPayload?: Record<string, unknown>;
+}
+
+export interface SubmittedCatalogRequest {
+  id: string;
+  workItemId?: string;
+  number?: string;
+}
+
+/**
+ * Live catalog request: POST /catalog/items/{id}/requests.
+ * Mock mode is not used — callers should prefer createWorkItem for mock.
+ */
+export async function submitCatalogRequest(
+  itemId: string,
+  payload: SubmitCatalogRequestPayload = {},
+): Promise<SubmittedCatalogRequest> {
+  if (useMock()) {
+    throw new Error('submitCatalogRequest is live-only; use createWorkItem in mock mode');
+  }
+  const result = await apiRequest<{
+    id: string;
+    workItemId?: string;
+    number?: string;
+  }>(`/catalog/items/${itemId}/requests`, {
+    method: 'POST',
+    body: { formPayload: payload.formPayload ?? {} },
+  });
+  return {
+    id: String(result.id),
+    workItemId: result.workItemId ? String(result.workItemId) : undefined,
+    number: result.number,
+  };
+}

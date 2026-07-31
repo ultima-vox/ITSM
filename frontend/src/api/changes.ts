@@ -18,6 +18,41 @@ import type {
   CreateChangePayload,
 } from '@/types';
 
+/** Map UI change status to backend Change.Status enum. */
+function toBackendChangeTarget(status: ChangeStatus): string {
+  switch (status) {
+    case 'draft':
+      return 'DRAFT';
+    case 'cab_review':
+      return 'CAB_REVIEW';
+    case 'scheduled':
+      return 'SCHEDULED';
+    case 'in_progress':
+      return 'IMPLEMENTING';
+    case 'completed':
+      return 'CLOSED';
+    case 'cancelled':
+      return 'REJECTED';
+    default:
+      return 'DRAFT';
+  }
+}
+
+function toBackendChangeType(type: string): string {
+  return (type || 'normal').toUpperCase();
+}
+
+function toBackendRisk(risk: string): string {
+  return (risk || 'medium').toUpperCase();
+}
+
+function toIsoOrUndefined(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  const v = value.trim();
+  if (v.length === 16) return `${v}:00.000Z`;
+  return v;
+}
+
 export async function fetchChanges(): Promise<Change[]> {
   if (useMock()) {
     await delay(220);
@@ -34,9 +69,21 @@ export async function createChange(
     await delay(180);
     return storeAddChange(payload);
   }
+  const implementationPlan =
+    payload.implementationPlan?.trim() || payload.description?.trim() || 'TBD';
+  const rollbackPlan = payload.backoutPlan?.trim() || 'TBD';
   const created = await apiRequest<BackendChange>('/changes', {
     method: 'POST',
-    body: payload,
+    body: {
+      type: toBackendChangeType(payload.type ?? 'normal'),
+      risk: toBackendRisk(payload.risk ?? 'medium'),
+      title: payload.title,
+      plannedStart: toIsoOrUndefined(payload.plannedStart),
+      plannedEnd: toIsoOrUndefined(payload.plannedEnd),
+      implementationPlan,
+      rollbackPlan,
+      businessJustification: payload.description,
+    },
   });
   return mapChange(created);
 }
@@ -50,9 +97,9 @@ export async function transitionChangeStatus(
     return storeTransitionChange(id, next);
   }
   try {
-    const dto = await apiRequest<BackendChange>(`/changes/${id}/transition`, {
+    const dto = await apiRequest<BackendChange>(`/changes/${id}/transitions`, {
       method: 'POST',
-      body: { status: next },
+      body: { target: toBackendChangeTarget(next) },
     });
     return { ok: true, change: mapChange(dto) };
   } catch {

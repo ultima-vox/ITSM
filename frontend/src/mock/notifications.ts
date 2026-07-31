@@ -16,6 +16,10 @@ export interface AppNotification {
   bodyKey: string;
   bodyVars?: Record<string, string | number>;
   titleVars?: Record<string, string | number>;
+  /** Plain title from live API (bypasses i18n when set) */
+  title?: string;
+  /** Plain body from live API (bypasses i18n when set) */
+  body?: string;
   /** ISO timestamp */
   at: string;
   /** Navigate target */

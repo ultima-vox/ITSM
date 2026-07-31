@@ -9,13 +9,16 @@ import {
   addKnowledgeArticle as storeAddArticle,
   getKnowledgeVote,
   listKnowledgeArticles,
+  publishKnowledgeArticle as storePublishArticle,
   subscribeKnowledge,
+  updateKnowledgeArticle as storeUpdateArticle,
   voteKnowledgeArticle,
 } from '@/mock/store';
 import type {
   CreateKnowledgeArticlePayload,
   KnowledgeArticle,
   KnowledgeTopic,
+  UpdateKnowledgeArticlePayload,
 } from '@/types';
 
 export async function fetchKnowledgeArticles(): Promise<KnowledgeArticle[]> {
@@ -46,8 +49,16 @@ export async function submitKnowledgeVote(
     await delay(120);
     return voteKnowledgeArticle(id, vote);
   }
-  // Live backend: no vote endpoint yet — no-op keep UI responsive
-  return null;
+  try {
+    await apiRequest(`/knowledge/articles/${id}/votes`, {
+      method: 'POST',
+      body: { helpful: vote === 'yes' },
+    });
+    // Backend returns vote receipt, not article — re-list is too heavy; no-op UI keeps prior score
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export function readKnowledgeVote(id: string): 'yes' | 'no' | null {
@@ -64,6 +75,28 @@ export async function createKnowledgeArticle(
   }
   // Backend authoring not wired — mock-first contribute path
   return storeAddArticle(payload);
+}
+
+export async function updateKnowledgeArticle(
+  id: string,
+  payload: UpdateKnowledgeArticlePayload,
+): Promise<KnowledgeArticle | null> {
+  if (useMock()) {
+    await delay(140);
+    return storeUpdateArticle(id, payload);
+  }
+  // Authoring CMS is mock-session only until backend write APIs exist
+  return storeUpdateArticle(id, payload);
+}
+
+export async function publishKnowledgeArticle(
+  id: string,
+): Promise<KnowledgeArticle | null> {
+  if (useMock()) {
+    await delay(140);
+    return storePublishArticle(id);
+  }
+  return storePublishArticle(id);
 }
 
 export { subscribeKnowledge };
