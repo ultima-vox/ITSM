@@ -22,10 +22,13 @@ import { useToast } from '@/hooks/useToast';
 import {
   bulkAssignChanges,
   bulkSetChangeStatus,
-  isLiveFeatureUnsupported,
+  CAB_QUORUM_APPROVES,
+  cabChairApproveAllowed,
   castCabMemberVote,
+  countCabApproves,
   createChange,
   fetchChanges,
+  isLiveFeatureUnsupported,
   patchChange,
   setChangeCabDecision,
   subscribeSecondaryModules,
@@ -936,22 +939,54 @@ export function ChangesPage() {
                     </span>
                   </button>
                   <div className="changes-cab-board__actions">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={cabBusyId === c.id}
-                      onClick={() => void runBoardCabDecision(c.id, 'approve')}
-                    >
-                      {t('changes.cab.approve')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={cabBusyId === c.id}
-                      onClick={() => void runBoardCabDecision(c.id, 'reject')}
-                    >
-                      {t('changes.cab.reject')}
-                    </Button>
+                    {(() => {
+                      const quorumOk = cabChairApproveAllowed(c);
+                      const approves = countCabApproves(c);
+                      return (
+                        <>
+                          <span
+                            className="changes-cab-board__quorum muted"
+                            title={t('changes.cab.quorumHint', {
+                              n: CAB_QUORUM_APPROVES,
+                              have: approves,
+                            })}
+                          >
+                            {t('changes.cab.quorumChip', {
+                              have: approves,
+                              need: CAB_QUORUM_APPROVES,
+                            })}
+                          </span>
+                          <span
+                            title={
+                              quorumOk
+                                ? undefined
+                                : t('changes.validation.cabQuorum')
+                            }
+                          >
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={cabBusyId === c.id || !quorumOk}
+                              onClick={() =>
+                                void runBoardCabDecision(c.id, 'approve')
+                              }
+                            >
+                              {t('changes.cab.approve')}
+                            </Button>
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={cabBusyId === c.id}
+                            onClick={() =>
+                              void runBoardCabDecision(c.id, 'reject')
+                            }
+                          >
+                            {t('changes.cab.reject')}
+                          </Button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </li>
               ))}
@@ -1214,14 +1249,25 @@ export function ChangesPage() {
                     >
                       {t('changes.cab.saveFields')}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={!!selected.cabApproved}
-                      onClick={() => void runCabDecision('approve')}
+                    <span
+                      title={
+                        cabChairApproveAllowed(selected) || selected.cabApproved
+                          ? undefined
+                          : t('changes.validation.cabQuorum')
+                      }
                     >
-                      {t('changes.cab.approve')}
-                    </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={
+                          !!selected.cabApproved ||
+                          !cabChairApproveAllowed(selected)
+                        }
+                        onClick={() => void runCabDecision('approve')}
+                      >
+                        {t('changes.cab.approve')}
+                      </Button>
+                    </span>
                     <Button
                       size="sm"
                       variant="danger"
@@ -1231,6 +1277,12 @@ export function ChangesPage() {
                       {t('changes.cab.reject')}
                     </Button>
                   </div>
+                  <p className="module-cab__hint muted">
+                    {t('changes.cab.quorumHint', {
+                      n: CAB_QUORUM_APPROVES,
+                      have: countCabApproves(selected),
+                    })}
+                  </p>
                   {selected.type === 'normal' && !selected.cabApproved && (
                     <p className="module-cab__hint muted">
                       {t('changes.cab.normalRequiresApprove')}

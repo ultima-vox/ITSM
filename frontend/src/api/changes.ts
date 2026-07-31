@@ -4,7 +4,10 @@ import {
   addChange as storeAddChange,
   bulkAssignChanges as storeBulkAssignChanges,
   bulkSetChangeStatus as storeBulkSetChangeStatus,
+  cabChairApproveAllowed as storeCabChairApproveAllowed,
   castCabMemberVote as storeCastCabVote,
+  countCabApproves as storeCountCabApproves,
+  CAB_QUORUM_APPROVES,
   getChangeTransitions,
   listChanges,
   setChangeCabDecision as storeSetCabDecision,
@@ -143,6 +146,20 @@ export async function castCabMemberVote(
 }
 
 export { getChangeTransitions };
+
+export function cabChairApproveAllowed(
+  change: Parameters<typeof storeCabChairApproveAllowed>[0],
+): boolean {
+  return storeCabChairApproveAllowed(change);
+}
+
+export function countCabApproves(
+  change: Parameters<typeof storeCountCabApproves>[0],
+): number {
+  return storeCountCabApproves(change);
+}
+
+export { CAB_QUORUM_APPROVES };
 
 export async function bulkAssignChanges(ids: string[]): Promise<number> {
   if (useMock()) {

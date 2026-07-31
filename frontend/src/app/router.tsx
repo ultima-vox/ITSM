@@ -1,8 +1,25 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  Navigate,
+  useParams,
+} from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { AuthCallbackPage } from '@/pages/Auth/CallbackPage';
+
+/** Redirect `/module/:id` → `/module?param=id` (S7 path-route remainder). */
+function ModuleIdRedirect({
+  base,
+  param,
+}: {
+  base: string;
+  param: string;
+}) {
+  const { id } = useParams();
+  const qs = id ? `?${param}=${encodeURIComponent(id)}` : '';
+  return <Navigate to={`${base}${qs}`} replace />;
+}
 
 /* Eager: auth callback + shell. Pages are code-split. */
 const OverviewPage = lazy(() =>
@@ -242,6 +259,27 @@ export const router = createBrowserRouter([
             <NotificationsPage />
           </LazyRoute>
         ),
+      },
+      /* S7: stable path routes → module query deep-links (shareable URLs) */
+      {
+        path: 'problems/:id',
+        element: <ModuleIdRedirect base="/problems" param="id" />,
+      },
+      {
+        path: 'changes/:id',
+        element: <ModuleIdRedirect base="/changes" param="id" />,
+      },
+      {
+        path: 'assets/:id',
+        element: <ModuleIdRedirect base="/assets" param="id" />,
+      },
+      {
+        path: 'knowledge/:id',
+        element: <ModuleIdRedirect base="/knowledge" param="article" />,
+      },
+      {
+        path: 'cmdb/:id',
+        element: <ModuleIdRedirect base="/cmdb" param="ci" />,
       },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

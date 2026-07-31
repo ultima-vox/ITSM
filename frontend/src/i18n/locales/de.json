@@ -915,6 +915,7 @@
       "cabRequired": "Normal-Changes müssen zuerst durch CAB",
       "cabApprovalRequired": "Explizite CAB-Genehmigung vor Planung eines Normal-Changes erforderlich",
       "cabRejected": "CAB hat abgelehnt — zurück zum Entwurf oder abbrechen",
+      "cabQuorum": "Chair-Approve braucht mindestens eine Mitglieder-Zustimmung",
       "planRequired": "Umsetzungsplan ist erforderlich",
       "backoutRequired": "Rückfallplan ist erforderlich"
     },
@@ -991,6 +992,8 @@
       "rejectedToast": "CAB hat diesen Change abgelehnt",
       "voteRecorded": "Mitgliederstimme erfasst",
       "normalRequiresApprove": "Normal-Changes brauchen explizite CAB-Genehmigung vor „Planen“.",
+      "quorumHint": "Quorum: {have}/{n} Mitglieder-Zustimmungen (mind. {n} vor Chair-Approve)",
+      "quorumChip": "{have}/{need} Stimmen",
       "emergencyTitle": "Notfall-CAB-Übersprung",
       "emergencyWarning": "Emergency-Changes dürfen ohne CAB-Genehmigung geplant werden. Eine Warnung erscheint in der Aktivität.",
       "vote": {
@@ -1546,6 +1549,9 @@
     "emptyQueryHint": "Feld oben nutzen oder Suche aus der Befehlspalette öffnen (Ctrl/⌘ K).",
     "emptyTitle": "Keine Treffer",
     "emptyHint": "Anderen Begriff versuchen oder Objekttyp-Filter zurücksetzen.",
+    "recents": "Letzte Suchen",
+    "recentsClear": "Leeren",
+    "kbdHint": "J / K navigieren · Enter öffnen",
     "types": {
       "work-item": "Ticket",
       "knowledge": "Wissen",

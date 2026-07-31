@@ -915,6 +915,7 @@
       "cabRequired": "Normal changes must pass CAB review before scheduling",
       "cabApprovalRequired": "CAB must explicitly approve before scheduling a normal change",
       "cabRejected": "CAB rejected this change — return to draft or cancel",
+      "cabQuorum": "Chair approve needs at least one CAB member approve vote first",
       "planRequired": "Implementation plan is required",
       "backoutRequired": "Backout plan is required"
     },
@@ -991,6 +992,8 @@
       "rejectedToast": "CAB rejected this change",
       "voteRecorded": "Member vote recorded",
       "normalRequiresApprove": "Normal changes require explicit CAB approval before Schedule.",
+      "quorumHint": "Quorum: {have}/{n} member approve votes (need ≥{n} before chair approve)",
+      "quorumChip": "{have}/{need} votes",
       "emergencyTitle": "Emergency CAB skip",
       "emergencyWarning": "Emergency changes may schedule without CAB approval. A warning is logged on the activity timeline.",
       "vote": {
@@ -1546,6 +1549,9 @@
     "emptyQueryHint": "Use the field above or open search from the command palette (Ctrl/⌘ K).",
     "emptyTitle": "No matches",
     "emptyHint": "Try another query or clear object-type filters.",
+    "recents": "Recent searches",
+    "recentsClear": "Clear",
+    "kbdHint": "J / K move · Enter open",
     "types": {
       "work-item": "Work item",
       "knowledge": "Knowledge",

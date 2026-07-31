@@ -915,6 +915,7 @@
       "cabRequired": "Normal-изменения нужно сначала отправить на CAB",
       "cabApprovalRequired": "Для планирования Normal требуется явное одобрение CAB",
       "cabRejected": "CAB отклонил изменение — верните в черновик или отмените",
+      "cabQuorum": "Для approve председателя нужно ≥1 голос approve от члена CAB",
       "planRequired": "Укажите план внедрения",
       "backoutRequired": "Укажите план отката"
     },
@@ -991,6 +992,8 @@
       "rejectedToast": "CAB отклонил это изменение",
       "voteRecorded": "Голос участника записан",
       "normalRequiresApprove": "Для Normal требуется явное одобрение CAB перед планированием.",
+      "quorumHint": "Кворум: {have}/{n} голосов approve (нужно ≥{n} до chair approve)",
+      "quorumChip": "{have}/{need} голосов",
       "emergencyTitle": "Экстренный обход CAB",
       "emergencyWarning": "Emergency-изменения можно планировать без одобрения CAB. Предупреждение попадёт в ленту активности.",
       "vote": {
@@ -1546,6 +1549,9 @@
     "emptyQueryHint": "Используйте поле выше или откройте поиск из палитры (Ctrl/⌘ K).",
     "emptyTitle": "Ничего не найдено",
     "emptyHint": "Попробуйте другой запрос или сбросьте фильтры типов.",
+    "recents": "Недавние запросы",
+    "recentsClear": "Очистить",
+    "kbdHint": "J / K — навигация · Enter — открыть",
     "types": {
       "work-item": "Обращение",
       "knowledge": "Знания",
