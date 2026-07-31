@@ -78,6 +78,24 @@ class WorkItemTest {
   }
 
   @Test
+  void reopen_from_resolved_and_closed() {
+    WorkItem resolved = sample(State.NEW)
+        .transition(State.IN_PROGRESS, null, null, now)
+        .transition(State.RESOLVED, "FIXED", "done", now);
+    WorkItem reopened = resolved.transition(State.IN_PROGRESS, null, null, now);
+    assertThat(reopened.state()).isEqualTo(State.IN_PROGRESS);
+    assertThat(reopened.closedAt()).isNull();
+
+    Instant closedAt = Instant.parse("2026-07-30T12:00:00Z");
+    WorkItem closed = reopened.transition(State.RESOLVED, "FIXED", "again", now)
+        .transition(State.CLOSED, "FIXED", "ok", closedAt);
+    assertThat(closed.closedAt()).isEqualTo(closedAt);
+    WorkItem reopenedClosed = closed.transition(State.IN_PROGRESS, null, null, now);
+    assertThat(reopenedClosed.state()).isEqualTo(State.IN_PROGRESS);
+    assertThat(reopenedClosed.closedAt()).isNull();
+  }
+
+  @Test
   void closed_is_terminal() {
     WorkItem closed = sample(State.NEW)
         .transition(State.IN_PROGRESS, null, null, now)

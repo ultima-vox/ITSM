@@ -109,7 +109,15 @@ public record WorkItem(
         throw new IllegalArgumentException("resolutionCode is required when resolving or closing");
       }
     }
-    Instant newClosedAt = (target == State.CLOSED || target == State.CANCELLED) ? now : closedAt;
+    // Reopen from RESOLVED/CLOSED clears closedAt so SLA/reporting treat item as active again
+    Instant newClosedAt;
+    if (target == State.CLOSED || target == State.CANCELLED) {
+      newClosedAt = now;
+    } else if (target == State.IN_PROGRESS && (state == State.RESOLVED || state == State.CLOSED)) {
+      newClosedAt = null;
+    } else {
+      newClosedAt = closedAt;
+    }
     String code = newResolutionCode != null ? newResolutionCode : resolutionCode;
     String notes = newResolutionNotes != null ? newResolutionNotes : resolutionNotes;
     return new WorkItem(
@@ -133,7 +141,8 @@ public record WorkItem(
       case IN_PROGRESS -> EnumSet.of(State.PENDING, State.RESOLVED, State.CANCELLED);
       case PENDING -> EnumSet.of(State.IN_PROGRESS, State.RESOLVED, State.CANCELLED);
       case RESOLVED -> EnumSet.of(State.CLOSED, State.IN_PROGRESS);
-      case CLOSED, CANCELLED -> EnumSet.noneOf(State.class);
+      case CLOSED -> EnumSet.of(State.IN_PROGRESS); // reopen
+      case CANCELLED -> EnumSet.noneOf(State.class);
     };
   }
 
