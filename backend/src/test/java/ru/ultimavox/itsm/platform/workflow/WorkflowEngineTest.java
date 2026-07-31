@@ -217,6 +217,13 @@ class WorkflowEngineTest {
         public Optional<WorkflowDefinition> findActiveByObjectKey(String objectKey) {
             return Optional.ofNullable(byKey.get(objectKey));
         }
+
+        @Override
+        public List<WorkflowDefinitionView> listAll() {
+            return byKey.values().stream()
+                .map(d -> new WorkflowDefinitionView(d, true))
+                .toList();
+        }
     }
 
     static final class InMemoryInstanceRepository implements WorkflowInstanceRepository {
