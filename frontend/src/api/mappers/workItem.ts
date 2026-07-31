@@ -290,6 +290,8 @@ export function mapActivity(dto: BackendActivity): WorkItemActivity {
       },
     kind,
     text: action,
+    before: dto.before ?? undefined,
+    after: dto.after ?? undefined,
   };
 }
 

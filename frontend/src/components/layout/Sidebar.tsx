@@ -15,6 +15,10 @@ import {
   ShieldCheck,
   TicketCheck,
   AlertOctagon,
+  ScrollText,
+  Search,
+  Timer,
+  Workflow,
   Zap,
 } from 'lucide-react';
 import { useT } from '@/i18n';
@@ -32,6 +36,7 @@ const primaryNav = [
   { to: '/', key: 'overview', icon: LayoutDashboard, end: true },
   { to: '/my-work', key: 'myWork', icon: TicketCheck, liveBadge: true },
   { to: '/queues', key: 'queues', icon: Grid2X2 },
+  { to: '/search', key: 'search', icon: Search },
   { to: '/catalog', key: 'catalog', icon: ClipboardList },
   { to: '/knowledge', key: 'knowledge', icon: BookOpen },
   { to: '/cmdb', key: 'cmdb', icon: Boxes },
@@ -40,10 +45,13 @@ const primaryNav = [
   { to: '/changes', key: 'changes', icon: GitBranch },
 ] as const;
 
-/** Management section — Metadata + Automation for demo configurability. */
+/** Management section — Metadata / Automation / Workflow / SLA / Audit for demo configurability. */
 const secondaryNav = [
   { to: '/admin/metadata', key: 'metadata', icon: Database },
   { to: '/admin/automation', key: 'automation', icon: Zap },
+  { to: '/admin/workflow', key: 'workflow', icon: Workflow },
+  { to: '/admin/sla', key: 'sla', icon: Timer },
+  { to: '/admin/audit', key: 'audit', icon: ScrollText },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;
 

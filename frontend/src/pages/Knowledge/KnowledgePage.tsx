@@ -8,6 +8,7 @@ import {
   FileText,
   KeyRound,
   Laptop,
+  Pencil,
   Printer,
   Search,
   Shield,
@@ -23,9 +24,11 @@ import {
   createKnowledgeArticle,
   fetchKnowledgeArticles,
   fetchKnowledgeTopics,
+  publishKnowledgeArticle,
   readKnowledgeVote,
   submitKnowledgeVote,
   subscribeKnowledge,
+  updateKnowledgeArticle,
 } from '@/api';
 import {
   Button,
@@ -37,7 +40,7 @@ import {
   Tabs,
   Textarea,
 } from '@/components/ui';
-import type { KnowledgeArticle } from '@/types';
+import type { KnowledgeArticle, KnowledgeArticleStatus } from '@/types';
 import { formatDateTime } from '@/lib/format';
 
 const articleIcons = {
@@ -48,6 +51,7 @@ const articleIcons = {
 } as const;
 
 type KnowledgeTab = 'recommended' | 'popular' | 'updated';
+type StatusFilter = 'all' | KnowledgeArticleStatus;
 
 function articleTitle(a: KnowledgeArticle, t: (k: string) => string): string {
   if (a.title?.trim()) return a.title;
@@ -60,6 +64,7 @@ function articleSummary(a: KnowledgeArticle, t: (k: string) => string): string {
 }
 
 function articleTag(a: KnowledgeArticle, t: (k: string) => string): string {
+  if (a.tag?.trim()) return a.tag;
   if (a.title?.trim() && a.tagKey === 'knowledge.articles.contributed.tag') {
     return t('knowledge.articles.contributed.tag');
   }
@@ -82,6 +87,7 @@ export function KnowledgePage() {
   const [tab, setTab] = useState<KnowledgeTab>('recommended');
   const [query, setQuery] = useState('');
   const [topicId, setTopicId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [active, setActive] = useState<KnowledgeArticle | null>(null);
   const [contributeOpen, setContributeOpen] = useState(false);
   const articles = useAsync(() => fetchKnowledgeArticles(), []);
@@ -93,7 +99,7 @@ export function KnowledgePage() {
     });
   }, [articles.reload]);
 
-  // Keep open reader in sync with store score mutations
+  // Keep open reader in sync with store score / edit mutations
   useEffect(() => {
     if (!active || !articles.data) return;
     const fresh = articles.data.find((a) => a.id === active.id);
@@ -101,6 +107,17 @@ export function KnowledgePage() {
       setActive(fresh);
     }
   }, [articles.data, active?.id]);
+
+  const statusCounts = useMemo(() => {
+    const list = articles.data ?? [];
+    let pending = 0;
+    let published = 0;
+    for (const a of list) {
+      if ((a.status ?? 'published') === 'pending') pending += 1;
+      else published += 1;
+    }
+    return { all: list.length, pending, published };
+  }, [articles.data]);
 
   const topicCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -112,6 +129,12 @@ export function KnowledgePage() {
 
   const list = useMemo(() => {
     let items = [...(articles.data ?? [])];
+
+    if (statusFilter !== 'all') {
+      items = items.filter(
+        (a) => (a.status ?? 'published') === statusFilter,
+      );
+    }
 
     if (topicId) {
       items = items.filter((a) => a.topicId === topicId);
@@ -134,6 +157,9 @@ export function KnowledgePage() {
       if (items.length === 0) {
         items = [...(articles.data ?? [])]
           .filter((a) => {
+            if (statusFilter !== 'all' && (a.status ?? 'published') !== statusFilter) {
+              return false;
+            }
             if (topicId && a.topicId !== topicId) return false;
             if (!query.trim()) return true;
             const q = query.toLowerCase();
@@ -158,7 +184,7 @@ export function KnowledgePage() {
     }
 
     return items;
-  }, [articles.data, topicId, query, tab, t]);
+  }, [articles.data, topicId, query, tab, t, statusFilter]);
 
   const sectionTitle =
     tab === 'popular'
@@ -217,6 +243,39 @@ export function KnowledgePage() {
         ]}
       />
 
+      <div
+        className="knowledge-status-filter"
+        role="group"
+        aria-label={t('knowledge.filterByStatus')}
+      >
+        {(
+          [
+            { id: 'all', label: t('knowledge.filterAll'), n: statusCounts.all },
+            {
+              id: 'published',
+              label: t('knowledge.filterPublished'),
+              n: statusCounts.published,
+            },
+            {
+              id: 'pending',
+              label: t('knowledge.filterPending'),
+              n: statusCounts.pending,
+            },
+          ] as const
+        ).map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={statusFilter === f.id ? 'is-active' : undefined}
+            aria-pressed={statusFilter === f.id}
+            onClick={() => setStatusFilter(f.id)}
+          >
+            {f.label}
+            <b>{f.n}</b>
+          </button>
+        ))}
+      </div>
+
       <div className="knowledge-layout">
         <section>
           <div className="section-head">
@@ -233,13 +292,14 @@ export function KnowledgePage() {
                   : sectionHint}
               </p>
             </div>
-            {(query || topicId) && (
+            {(query || topicId || statusFilter !== 'all') && (
               <button
                 type="button"
                 className="text-link"
                 onClick={() => {
                   setQuery('');
                   setTopicId(null);
+                  setStatusFilter('all');
                 }}
               >
                 {t('app.reset')}
@@ -261,6 +321,7 @@ export function KnowledgePage() {
               onAction={() => {
                 setQuery('');
                 setTopicId(null);
+                setStatusFilter('all');
               }}
             />
           ) : (
@@ -284,6 +345,11 @@ export function KnowledgePage() {
                       {a.status === 'pending' && (
                         <span className="article-pending-chip">
                           {t('knowledge.pending')}
+                        </span>
+                      )}
+                      {a.status === 'published' && a.version != null && a.version > 1 && (
+                        <span className="article-version-chip">
+                          {t('knowledge.versionLabel', { n: a.version })}
                         </span>
                       )}
                       <h3>{articleTitle(a, t)}</h3>
@@ -402,7 +468,7 @@ function ArticleReader({
 }) {
   const t = useT();
   const { locale } = useI18n();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const ref = useRef<HTMLElement>(null);
   const [feedback, setFeedback] = useState<'yes' | 'no' | null>(
     () => readKnowledgeVote(article.id) ?? article.userVote ?? null,
@@ -411,11 +477,25 @@ function ArticleReader({
   const [liveScore, setLiveScore] = useState(article.helpfulScore);
   const [liveYes, setLiveYes] = useState(article.helpfulYes ?? 0);
   const [liveNo, setLiveNo] = useState(article.helpfulNo ?? 0);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
+  const [editTag, setEditTag] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   useFocusTrap(ref, true);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (editing) {
+          setEditing(false);
+          return;
+        }
+        onClose();
+      }
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -423,7 +503,7 @@ function ArticleReader({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose]);
+  }, [onClose, editing]);
 
   useEffect(() => {
     setFeedback(readKnowledgeVote(article.id) ?? article.userVote ?? null);
@@ -431,9 +511,61 @@ function ArticleReader({
     setLiveYes(article.helpfulYes ?? 0);
     setLiveNo(article.helpfulNo ?? 0);
     setScorePulse(false);
+    setEditing(false);
   }, [article.id, article.helpfulScore, article.helpfulYes, article.helpfulNo, article.userVote]);
 
   const bodyText = articleBody(article, t);
+
+  const startEdit = () => {
+    setEditTitle(articleTitle(article, t));
+    setEditBody(articleBody(article, t));
+    setEditTag(articleTag(article, t));
+    setEditNote(article.versionNote ?? '');
+    setEditErrors({});
+    setEditing(true);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const next: Record<string, string> = {};
+    if (!editTitle.trim()) next.title = t('knowledge.validation.title');
+    if (!editBody.trim()) next.body = t('knowledge.validation.body');
+    setEditErrors(next);
+    if (Object.keys(next).length) return;
+    setSaving(true);
+    try {
+      const updated = await updateKnowledgeArticle(article.id, {
+        title: editTitle.trim(),
+        body: editBody.trim(),
+        tag: editTag.trim(),
+        versionNote: editNote.trim() || t('knowledge.defaultVersionNote'),
+      });
+      if (!updated) {
+        toastError(t('knowledge.editFailed'));
+        return;
+      }
+      setEditing(false);
+      onArticleUpdated(updated);
+      success(t('knowledge.editSuccess'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onPublish = async () => {
+    setPublishing(true);
+    try {
+      const updated = await publishKnowledgeArticle(article.id);
+      if (!updated) {
+        toastError(t('knowledge.publishFailed'));
+        return;
+      }
+      onArticleUpdated(updated);
+      success(t('knowledge.publishSuccess', { title: articleTitle(updated, t) }));
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const related = useMemo(() => {
     return all
@@ -479,7 +611,7 @@ function ArticleReader({
       className="modal-backdrop article-reader-backdrop"
       role="presentation"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !editing) onClose();
       }}
     >
       <article
@@ -495,6 +627,16 @@ function ArticleReader({
             {article.status === 'pending' && (
               <span className="article-pending-chip">
                 {t('knowledge.pending')}
+              </span>
+            )}
+            {article.status === 'published' && (
+              <span className="article-published-chip">
+                {t('knowledge.published')}
+              </span>
+            )}
+            {article.version != null && article.version > 0 && (
+              <span className="article-version-chip">
+                {t('knowledge.versionLabel', { n: article.version })}
               </span>
             )}
             <h2 id="kb-reader-title">{articleTitle(article, t)}</h2>
@@ -514,8 +656,25 @@ function ArticleReader({
                 {formatDateTime(article.updatedAt, locale)}
               </span>
             </div>
+            {article.versionNote?.trim() && (
+              <p className="article-version-note">
+                <strong>{t('knowledge.versionNoteLabel')}:</strong>{' '}
+                {article.versionNote}
+              </p>
+            )}
           </div>
           <div className="article-reader__tools">
+            {!editing && (
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t('knowledge.editArticle')}
+                onClick={startEdit}
+                title={t('knowledge.editArticle')}
+              >
+                <Pencil size={18} />
+              </button>
+            )}
             <button
               type="button"
               className="icon-btn"
@@ -535,75 +694,141 @@ function ArticleReader({
             </button>
           </div>
         </div>
-        <div className="article-reader__body">
-          {bodyText.split('\n').map((para, i) =>
-            para.trim() ? <p key={i}>{para}</p> : <br key={i} />,
-          )}
 
-          {related.length > 0 && (
-            <div className="article-related">
-              <h3>{t('knowledge.relatedArticles')}</h3>
-              <ul>
-                {related.map((r) => (
-                  <li key={r.id}>
-                    <button type="button" onClick={() => onOpenRelated(r)}>
-                      <span className="article-tag">{articleTag(r, t)}</span>
-                      <span className="article-related__title">
-                        {articleTitle(r, t)}
-                      </span>
-                      <small>
-                        {t('knowledge.readMinutes', { n: r.readMinutes })}
-                      </small>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+        {editing ? (
+          <form
+            className="article-reader__body module-create-form module-create-form--contribute"
+            onSubmit={(e) => void saveEdit(e)}
+          >
+            <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+              {t('knowledge.editHint')}
+            </p>
+            <Input
+              label={t('knowledge.contributeFieldTitle')}
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              error={editErrors.title}
+              required
+              autoFocus
+            />
+            <Input
+              label={t('knowledge.editFieldTag')}
+              value={editTag}
+              onChange={(e) => setEditTag(e.target.value)}
+              hint={t('knowledge.editFieldTagHint')}
+            />
+            <Textarea
+              label={t('knowledge.contributeFieldBody')}
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              error={editErrors.body}
+              rows={8}
+              required
+            />
+            <Input
+              label={t('knowledge.versionNoteField')}
+              value={editNote}
+              onChange={(e) => setEditNote(e.target.value)}
+              hint={t('knowledge.versionNoteHint')}
+              placeholder={t('knowledge.versionNotePlaceholder')}
+            />
+            <div className="module-create-form__actions">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditing(false)}
+              >
+                {t('app.cancel')}
+              </Button>
+              <Button type="submit" variant="primary" disabled={saving}>
+                {saving ? t('app.loading') : t('knowledge.saveEdit')}
+              </Button>
             </div>
-          )}
-        </div>
-        <div className="article-reader__foot">
-          <div className="article-feedback">
-            <span className="article-feedback__label">
-              {t('knowledge.wasHelpful')}
-            </span>
-            <button
-              type="button"
-              className={`article-feedback__btn${feedback === 'yes' ? ' is-active' : ''}`}
-              onClick={() => void onFeedback('yes')}
-              disabled={feedback !== null}
-              aria-pressed={feedback === 'yes'}
-            >
-              <ThumbsUp size={15} aria-hidden />
-              {t('knowledge.feedbackYes')}
-            </button>
-            <button
-              type="button"
-              className={`article-feedback__btn${feedback === 'no' ? ' is-active' : ''}`}
-              onClick={() => void onFeedback('no')}
-              disabled={feedback !== null}
-              aria-pressed={feedback === 'no'}
-            >
-              <ThumbsDown size={15} aria-hidden />
-              {t('knowledge.feedbackNo')}
-            </button>
-            <span
-              className={`article-feedback__score-live${scorePulse ? ' is-updated' : ''}`}
-              aria-live="polite"
-            >
-              <ThumbsUp size={14} aria-hidden />
-              <b>{liveScore}%</b>
-              <small>{t('knowledge.helpful')}</small>
-              {voteTotal > 0 && (
-                <span className="article-feedback__votes">
-                  {t('knowledge.voteCount', { n: voteTotal })}
-                </span>
+          </form>
+        ) : (
+          <>
+            <div className="article-reader__body">
+              {bodyText.split('\n').map((para, i) =>
+                para.trim() ? <p key={i}>{para}</p> : <br key={i} />,
               )}
-            </span>
-          </div>
-          <Button variant="secondary" onClick={onClose}>
-            {t('app.close')}
-          </Button>
-        </div>
+
+              {related.length > 0 && (
+                <div className="article-related">
+                  <h3>{t('knowledge.relatedArticles')}</h3>
+                  <ul>
+                    {related.map((r) => (
+                      <li key={r.id}>
+                        <button type="button" onClick={() => onOpenRelated(r)}>
+                          <span className="article-tag">{articleTag(r, t)}</span>
+                          <span className="article-related__title">
+                            {articleTitle(r, t)}
+                          </span>
+                          <small>
+                            {t('knowledge.readMinutes', { n: r.readMinutes })}
+                          </small>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="article-reader__foot">
+              <div className="article-feedback">
+                <span className="article-feedback__label">
+                  {t('knowledge.wasHelpful')}
+                </span>
+                <button
+                  type="button"
+                  className={`article-feedback__btn${feedback === 'yes' ? ' is-active' : ''}`}
+                  onClick={() => void onFeedback('yes')}
+                  disabled={feedback !== null}
+                  aria-pressed={feedback === 'yes'}
+                >
+                  <ThumbsUp size={15} aria-hidden />
+                  {t('knowledge.feedbackYes')}
+                </button>
+                <button
+                  type="button"
+                  className={`article-feedback__btn${feedback === 'no' ? ' is-active' : ''}`}
+                  onClick={() => void onFeedback('no')}
+                  disabled={feedback !== null}
+                  aria-pressed={feedback === 'no'}
+                >
+                  <ThumbsDown size={15} aria-hidden />
+                  {t('knowledge.feedbackNo')}
+                </button>
+                <span
+                  className={`article-feedback__score-live${scorePulse ? ' is-updated' : ''}`}
+                  aria-live="polite"
+                >
+                  <ThumbsUp size={14} aria-hidden />
+                  <b>{liveScore}%</b>
+                  <small>{t('knowledge.helpful')}</small>
+                  {voteTotal > 0 && (
+                    <span className="article-feedback__votes">
+                      {t('knowledge.voteCount', { n: voteTotal })}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="article-reader__foot-actions">
+                {article.status === 'pending' && (
+                  <Button
+                    variant="primary"
+                    onClick={() => void onPublish()}
+                    disabled={publishing}
+                  >
+                    {publishing ? t('app.loading') : t('knowledge.publish')}
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={onClose}>
+                  {t('app.close')}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </article>
     </div>
   );
@@ -621,6 +846,7 @@ function ContributeModal({
   const t = useT();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [tag, setTag] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -628,6 +854,7 @@ function ContributeModal({
     if (!open) {
       setTitle('');
       setBody('');
+      setTag('');
       setErrors({});
       setSubmitting(false);
     }
@@ -645,6 +872,7 @@ function ContributeModal({
       const created = await createKnowledgeArticle({
         title: title.trim(),
         body: body.trim(),
+        tag: tag.trim() || undefined,
         status: 'pending',
       });
       onCreated(created);
@@ -675,6 +903,12 @@ function ContributeModal({
           error={errors.title}
           required
           autoFocus
+        />
+        <Input
+          label={t('knowledge.editFieldTag')}
+          value={tag}
+          onChange={(e) => setTag(e.target.value)}
+          hint={t('knowledge.editFieldTagHint')}
         />
         <Textarea
           label={t('knowledge.contributeFieldBody')}

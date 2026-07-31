@@ -114,6 +114,58 @@ function activityText(t: (k: string) => string, text: string) {
   return translated === key ? text : translated;
 }
 
+function formatDiffValue(value: unknown): string {
+  if (value == null) return '—';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function ActivityDiff({
+  before,
+  after,
+  fieldLabel,
+}: {
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  fieldLabel: (field: string) => string;
+}) {
+  if (!before && !after) return null;
+  const keys = [
+    ...new Set([
+      ...Object.keys(before ?? {}),
+      ...Object.keys(after ?? {}),
+    ]),
+  ];
+  if (!keys.length) return null;
+  return (
+    <dl className="activity-diff">
+      {keys.map((field) => (
+        <div key={field} className="activity-diff__row">
+          <dt>{fieldLabel(field)}</dt>
+          <dd>
+            <span className="activity-diff__before">
+              {formatDiffValue(before?.[field])}
+            </span>
+            <span className="activity-diff__arrow" aria-hidden>
+              →
+            </span>
+            <span className="activity-diff__after">
+              {formatDiffValue(after?.[field])}
+            </span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function activityFieldLabel(t: (k: string) => string, field: string): string {
+  const key = `workItem.fields.${field}`;
+  const translated = t(key);
+  return translated === key ? field : translated;
+}
+
 const MORE_INFO_TEMPLATE =
   'Need more information to continue. Please provide: reproduction steps, screenshots, and business impact.';
 
@@ -869,6 +921,11 @@ export function WorkItemDetailPage() {
                           <small>{formatRelative(a.at, t)}</small>
                         </div>
                         <p>{activityText(t, a.text)}</p>
+                        <ActivityDiff
+                          before={a.before}
+                          after={a.after}
+                          fieldLabel={(f) => activityFieldLabel(t, f)}
+                        />
                       </div>
                     </li>
                   );
@@ -940,6 +997,11 @@ export function WorkItemDetailPage() {
                               <small>{formatDateTime(a.at, locale)}</small>
                             </div>
                             <p>{activityText(t, a.text)}</p>
+                            <ActivityDiff
+                              before={a.before}
+                              after={a.after}
+                              fieldLabel={(f) => activityFieldLabel(t, f)}
+                            />
                           </div>
                         </li>
                       );

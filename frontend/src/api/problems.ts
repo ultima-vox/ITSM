@@ -15,6 +15,25 @@ import type {
   WorkItemStatus,
 } from '@/types';
 
+/** Map UI work-item-like status to backend Problem.Status enum. */
+function toBackendProblemTarget(status: WorkItemStatus): string {
+  switch (status) {
+    case 'new':
+      return 'NEW';
+    case 'in_progress':
+      return 'UNDER_INVESTIGATION';
+    case 'waiting':
+      return 'KNOWN_ERROR';
+    case 'resolved':
+      return 'RESOLVED';
+    case 'closed':
+    case 'cancelled':
+      return 'CLOSED';
+    default:
+      return 'UNDER_INVESTIGATION';
+  }
+}
+
 export async function fetchProblems(): Promise<Problem[]> {
   if (useMock()) {
     await delay(220);
@@ -33,7 +52,11 @@ export async function createProblem(
   }
   const created = await apiRequest<BackendProblemSummary>('/problems', {
     method: 'POST',
-    body: payload,
+    body: {
+      title: payload.title,
+      rootCause: payload.rootCause,
+      workaround: payload.workaround,
+    },
   });
   return mapProblem(created);
 }
@@ -49,8 +72,15 @@ export async function transitionProblemStatus(
   }
   try {
     const dto = await apiRequest<BackendProblemSummary>(
-      `/problems/${id}/transition`,
-      { method: 'POST', body: { status: next, ...opts } },
+      `/problems/${id}/transitions`,
+      {
+        method: 'POST',
+        body: {
+          target: toBackendProblemTarget(next),
+          rootCause: opts?.rootCause,
+          workaround: opts?.workaround,
+        },
+      },
     );
     return { ok: true, problem: mapProblem(dto) };
   } catch {

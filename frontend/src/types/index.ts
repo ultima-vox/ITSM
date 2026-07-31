@@ -65,6 +65,23 @@ export interface WorkItemActivity {
   actor: Person;
   kind: 'status' | 'comment' | 'assignment' | 'system' | 'sla' | 'field';
   text: string;
+  /** Optional field-level before snapshot for audit-style diffs */
+  before?: Record<string, unknown> | null;
+  /** Optional field-level after snapshot for audit-style diffs */
+  after?: Record<string, unknown> | null;
+}
+
+/** Platform / admin audit event (mock list for /admin/audit) */
+export interface AuditEvent {
+  id: string;
+  at: string;
+  actor: Person;
+  /** Stable action key: create | update | assign | resolve | escalate | comment | login | config | delete */
+  action: string;
+  objectType: string;
+  objectId?: string;
+  objectLabel?: string;
+  detail?: string;
 }
 
 export interface WorkItemComment {
@@ -114,17 +131,32 @@ export interface KnowledgeArticle {
   icon: 'key' | 'shield' | 'laptop' | 'book';
   topicId: string;
   updatedAt: string;
-  /** Plain title for contributed articles (bypasses i18n keys) */
+  /** Plain title for contributed / edited articles (bypasses i18n keys) */
   title?: string;
   summary?: string;
   body?: string;
+  /** Plain tag override for contributed / edited articles */
+  tag?: string;
   status?: KnowledgeArticleStatus;
+  /** Operator note describing the latest edit */
+  versionNote?: string;
+  /** Monotonic edit/publish counter (mock CMS) */
+  version?: number;
 }
 
 export interface CreateKnowledgeArticlePayload {
   title: string;
   body: string;
   topicId?: string;
+  status?: KnowledgeArticleStatus;
+  tag?: string;
+}
+
+export interface UpdateKnowledgeArticlePayload {
+  title?: string;
+  body?: string;
+  tag?: string;
+  versionNote?: string;
   status?: KnowledgeArticleStatus;
 }
 
@@ -402,4 +434,67 @@ export interface AutomationCondition {
 export interface AutomationAction {
   type: string;
   parameters: Record<string, unknown>;
+}
+
+/**
+ * Deterministic workflow contract.
+ * Aligned with backend `WorkflowDefinition` (platform.workflow).
+ */
+export interface WorkflowTransition {
+  key: string;
+  from: string;
+  to: string;
+  requiredPermissions: string[];
+  requiredFields: string[];
+}
+
+export interface WorkflowDefinition {
+  id: string;
+  objectKey: string;
+  version: number;
+  /** Session-mutable: only one active version per objectKey */
+  active: boolean;
+  initialState: string;
+  states: string[];
+  transitions: WorkflowTransition[];
+  /** Optional UI label (not on backend record) */
+  name?: string;
+  description?: string;
+}
+
+/**
+ * SLA policy definition.
+ * Aligned with backend `SlaPolicy` — targets use hours in the mock admin UI
+ * (backend stores Duration / minutes).
+ */
+export interface SlaTarget {
+  metric: 'response' | 'resolution' | string;
+  /** e.g. priority=CRITICAL */
+  condition: string;
+  /** Target duration in hours (editable in mock store) */
+  targetHours: number;
+  /** Warning lead time in hours */
+  warningBeforeHours: number;
+}
+
+export interface SlaPolicy {
+  id: string;
+  key: string;
+  calendarKey: string;
+  enabled: boolean;
+  targets: SlaTarget[];
+  pauseStates: string[];
+  /** Optional UI label */
+  name?: string;
+  description?: string;
+}
+
+/** Explicit business-time calendar (backend WorkingCalendar). */
+export interface WorkingCalendarMock {
+  key: string;
+  zone: string;
+  workingDays: string[];
+  startsAt: string;
+  endsAt: string;
+  holidays: string[];
 }

@@ -27,6 +27,10 @@ const crumbMap: Record<string, string> = {
   '/settings': 'nav.settings',
   '/admin/metadata': 'nav.metadata',
   '/admin/automation': 'nav.automation',
+  '/admin/workflow': 'nav.workflow',
+  '/admin/sla': 'nav.sla',
+  '/admin/audit': 'nav.audit',
+  '/search': 'nav.search',
 };
 
 export function AppShell() {

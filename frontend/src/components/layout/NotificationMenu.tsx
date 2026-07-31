@@ -4,13 +4,15 @@ import { Bell, Clock3, ShieldAlert, UserPlus } from 'lucide-react';
 import { useT } from '@/i18n';
 import { formatRelative } from '@/lib/format';
 import {
+  fetchNotifications,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
   subscribeNotifications,
+  useMock,
   type AppNotification,
   type NotificationKind,
-} from '@/mock/notifications';
+} from '@/api';
 
 const kindIcon: Record<NotificationKind, typeof Bell> = {
   sla: ShieldAlert,
@@ -19,7 +21,7 @@ const kindIcon: Record<NotificationKind, typeof Bell> = {
   mention: Bell,
 };
 
-function useNotifications(): AppNotification[] {
+function useMockNotifications(): AppNotification[] {
   return useSyncExternalStore(
     subscribeNotifications,
     listNotifications,
@@ -27,13 +29,51 @@ function useNotifications(): AppNotification[] {
   );
 }
 
+function notifTitle(n: AppNotification, t: (k: string, v?: Record<string, string | number>) => string): string {
+  if (n.title?.trim()) return n.title;
+  return t(n.titleKey, n.titleVars);
+}
+
+function notifBody(n: AppNotification, t: (k: string, v?: Record<string, string | number>) => string): string {
+  if (n.body?.trim()) return n.body;
+  return t(n.bodyKey, n.bodyVars);
+}
+
 export function NotificationMenu() {
   const t = useT();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const items = useNotifications();
+  const mockItems = useMockNotifications();
+  const [liveItems, setLiveItems] = useState<AppNotification[] | null>(null);
+  const [liveLoaded, setLiveLoaded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const liveMode = !useMock();
+  const items = liveMode && liveLoaded ? (liveItems ?? mockItems) : mockItems;
   const unread = items.filter((n) => n.unread).length;
+
+  useEffect(() => {
+    if (!liveMode) {
+      setLiveItems(null);
+      setLiveLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    void fetchNotifications()
+      .then((list) => {
+        if (cancelled) return;
+        setLiveItems(list);
+        setLiveLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLiveItems(null);
+        setLiveLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,10 +92,18 @@ export function NotificationMenu() {
   }, [open]);
 
   const markAllRead = () => {
+    if (liveMode && liveItems) {
+      setLiveItems(liveItems.map((n) => ({ ...n, unread: false })));
+    }
     markAllNotificationsRead();
   };
 
   const openItem = (n: AppNotification) => {
+    if (liveMode && liveItems) {
+      setLiveItems(
+        liveItems.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
+      );
+    }
     markNotificationRead(n.id);
     setOpen(false);
     navigate(n.href);
@@ -106,8 +154,8 @@ export function NotificationMenu() {
                         <Icon size={14} />
                       </span>
                       <span className="notif-item__body">
-                        <b>{t(n.titleKey, n.titleVars)}</b>
-                        <small>{t(n.bodyKey, n.bodyVars)}</small>
+                        <b>{notifTitle(n, t)}</b>
+                        <small>{notifBody(n, t)}</small>
                         <em>
                           <Clock3 size={11} aria-hidden />
                           {formatRelative(n.at, t)}
