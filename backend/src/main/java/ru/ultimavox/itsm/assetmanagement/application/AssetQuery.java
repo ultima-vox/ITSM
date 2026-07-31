@@ -25,9 +25,9 @@ public class AssetQuery {
         """
             SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until
             FROM asset
-            WHERE (? IS NULL OR status = ?)
-              AND (? IS NULL OR kind = ?)
-              AND (? IS NULL OR owner_subject = ?)
+            WHERE (?::text IS NULL OR status = ?)
+              AND (?::text IS NULL OR kind = ?)
+              AND (?::text IS NULL OR owner_subject = ?)
             ORDER BY asset_tag
             """,
         (rs, i) -> map(rs.getObject("id", UUID.class),

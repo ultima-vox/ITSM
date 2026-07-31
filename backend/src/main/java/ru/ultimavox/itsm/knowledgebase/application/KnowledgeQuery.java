@@ -37,7 +37,7 @@ public class KnowledgeQuery {
             """
             + statusSql
             + """
-              AND (? IS NULL OR r.title ILIKE '%' || ? || '%')
+              AND (?::text IS NULL OR r.title ILIKE '%' || ? || '%')
             ORDER BY a.updated_at DESC, r.title
             """,
         (rs, i) -> new ArticleSummary(

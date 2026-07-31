@@ -24,7 +24,7 @@ public class ProblemQuery {
         """
             SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at
             FROM problem
-            WHERE (? IS NULL OR status = ?)
+            WHERE (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
             """,
         (rs, i) -> new ProblemSummary(

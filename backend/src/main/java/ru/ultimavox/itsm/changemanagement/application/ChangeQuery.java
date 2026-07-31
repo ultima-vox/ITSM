@@ -23,7 +23,7 @@ public class ChangeQuery {
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
             FROM change_request
-            WHERE (? IS NULL OR status = ?)
+            WHERE (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
             """,
         (rs, i) -> map(rs),

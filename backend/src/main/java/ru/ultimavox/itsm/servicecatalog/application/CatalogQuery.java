@@ -27,8 +27,8 @@ public class CatalogQuery {
         JOIN catalog_item_translation t ON t.catalog_item_id = ci.id
         WHERE ci.status = 'PUBLISHED'
           AND t.locale = ?
-          AND (? IS NULL OR t.category = ?)
-          AND (? IS NULL OR t.name ILIKE '%' || ? || '%' OR t.description ILIKE '%' || ? || '%' OR ci.item_key ILIKE '%' || ? || '%')
+          AND (?::text IS NULL OR t.category = ?)
+          AND (?::text IS NULL OR t.name ILIKE '%' || ? || '%' OR t.description ILIKE '%' || ? || '%' OR ci.item_key ILIKE '%' || ? || '%')
         ORDER BY t.category NULLS LAST, t.name
         """;
     String q = blankToNull(query);

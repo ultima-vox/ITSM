@@ -30,9 +30,9 @@ public class CmdbQuery {
         """
             SELECT id, name, class_key, status, attributes::text AS attributes
             FROM configuration_item
-            WHERE (? IS NULL OR class_key = ?)
-              AND (? IS NULL OR status = ?)
-              AND (? IS NULL OR name ILIKE '%' || ? || '%')
+            WHERE (?::text IS NULL OR class_key = ?)
+              AND (?::text IS NULL OR status = ?)
+              AND (?::text IS NULL OR name ILIKE '%' || ? || '%')
             ORDER BY name
             """,
         (rs, i) -> mapCi(
