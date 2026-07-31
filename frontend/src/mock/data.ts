@@ -551,6 +551,13 @@ export const catalogServices: CatalogService[] = [
   },
 ];
 
+/** Seed vote totals so % mutates honestly (score ≈ yes / (yes+no)) */
+function seedVotes(score: number, total = 50): { helpfulYes: number; helpfulNo: number } {
+  const helpfulYes = Math.round((score / 100) * total);
+  const helpfulNo = Math.max(0, total - helpfulYes);
+  return { helpfulYes, helpfulNo };
+}
+
 export const knowledgeArticles: KnowledgeArticle[] = [
   {
     id: 'kb-vpn',
@@ -559,10 +566,12 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     tagKey: 'knowledge.articles.vpn.tag',
     readMinutes: 4,
     helpfulScore: 98,
+    ...seedVotes(98),
     verified: true,
     icon: 'key',
     topicId: 'topic-access',
     updatedAt: '2026-07-20T10:00:00Z',
+    status: 'published',
   },
   {
     id: 'kb-data',
@@ -571,10 +580,12 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     tagKey: 'knowledge.articles.data.tag',
     readMinutes: 7,
     helpfulScore: 96,
+    ...seedVotes(96),
     verified: true,
     icon: 'shield',
     topicId: 'topic-access',
     updatedAt: '2026-07-18T10:00:00Z',
+    status: 'published',
   },
   {
     id: 'kb-laptop',
@@ -583,10 +594,12 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     tagKey: 'knowledge.articles.laptop.tag',
     readMinutes: 6,
     helpfulScore: 94,
+    ...seedVotes(94),
     verified: true,
     icon: 'laptop',
     topicId: 'topic-workplace',
     updatedAt: '2026-07-15T10:00:00Z',
+    status: 'published',
   },
   {
     id: 'kb-mfa',
@@ -595,10 +608,12 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     tagKey: 'knowledge.articles.mfa.tag',
     readMinutes: 3,
     helpfulScore: 91,
+    ...seedVotes(91),
     verified: true,
     icon: 'shield',
     topicId: 'topic-access',
     updatedAt: '2026-07-22T09:00:00Z',
+    status: 'published',
   },
   {
     id: 'kb-outlook',
@@ -607,10 +622,12 @@ export const knowledgeArticles: KnowledgeArticle[] = [
     tagKey: 'knowledge.articles.outlook.tag',
     readMinutes: 5,
     helpfulScore: 88,
+    ...seedVotes(88),
     verified: false,
     icon: 'book',
     topicId: 'topic-apps',
     updatedAt: '2026-07-25T14:30:00Z',
+    status: 'published',
   },
 ];
 
@@ -899,6 +916,22 @@ export const changes: Change[] = [
     backoutPlan: 'Promote previous primary from backup snapshot if replica lag > 30s.',
     service: 'Data platform',
     cabApproved: false,
+    cabRejected: false,
+    cabNotes: '',
+    cabVotes: [
+      {
+        memberId: people.maria.id,
+        memberName: people.maria.name,
+        initials: people.maria.initials,
+        role: people.maria.role,
+      },
+      {
+        memberId: people.dmitry.id,
+        memberName: people.dmitry.name,
+        initials: people.dmitry.initials,
+        role: people.dmitry.role,
+      },
+    ],
     relatedCiIds: ['ci-pg-cluster'],
   },
   {
@@ -918,6 +951,26 @@ export const changes: Change[] = [
     backoutPlan: 'Rollback to previous cert package via Ansible tag.',
     service: 'Workplace and network',
     cabApproved: true,
+    cabRejected: false,
+    cabNotes: 'Emergency path — post-facto CAB review recorded.',
+    cabVotes: [
+      {
+        memberId: people.maria.id,
+        memberName: people.maria.name,
+        initials: people.maria.initials,
+        role: people.maria.role,
+        decision: 'approve',
+        at: '2026-07-30T07:15:00Z',
+      },
+      {
+        memberId: people.dmitry.id,
+        memberName: people.dmitry.name,
+        initials: people.dmitry.initials,
+        role: people.dmitry.role,
+        decision: 'approve',
+        at: '2026-07-30T07:20:00Z',
+      },
+    ],
     relatedCiIds: ['ci-vpn-gw'],
     relatedWorkItemIds: ['wi-1842'],
   },
@@ -938,6 +991,7 @@ export const changes: Change[] = [
     backoutPlan: 'Revert pipeline deploy to v2 tag.',
     service: 'Northstar Portal',
     cabApproved: true,
+    cabRejected: false,
     relatedCiIds: ['ci-portal'],
   },
 ];

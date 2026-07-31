@@ -5,14 +5,18 @@
 import type {
   Asset,
   AssetStatus,
+  CabVote,
+  CabVoteDecision,
   Change,
   ChangeStatus,
   CiStatus,
   ConfigurationItem,
   CreateAssetPayload,
   CreateChangePayload,
+  CreateKnowledgeArticlePayload,
   CreateProblemPayload,
   ImpactLevel,
+  KnowledgeArticle,
   ModuleActivity,
   Person,
   Priority,
@@ -31,12 +35,35 @@ import {
   assets as seedAssets,
   problems as seedProblems,
   changes as seedChanges,
+  knowledgeArticles as seedKnowledgeArticles,
   currentUser,
   people,
   TEAMS,
 } from './data';
 
 type Listener = () => void;
+
+/** localStorage key for durable mock demo state */
+export const MOCK_STORE_KEY = 'vox-itsm-store-v1';
+const SAVE_DEBOUNCE_MS = 350;
+const SLA_TICK_MS = 30_000;
+const STORE_VERSION = 1 as const;
+
+interface PersistedMockStore {
+  version: typeof STORE_VERSION;
+  items: WorkItem[];
+  activities: Record<string, WorkItemActivity[]>;
+  comments: Record<string, WorkItemComment[]>;
+  cis: ConfigurationItem[];
+  assets: Asset[];
+  problems: Problem[];
+  changes: Change[];
+  moduleActivities: Record<string, ModuleActivity[]>;
+  knowledgeArticles: KnowledgeArticle[];
+  knowledgeVotes: Record<string, 'yes' | 'no'>;
+  problemSeq: number;
+  changeSeq: number;
+}
 
 function cloneItem(w: WorkItem): WorkItem {
   return {
@@ -54,30 +81,57 @@ function cloneItem(w: WorkItem): WorkItem {
   };
 }
 
-let items: WorkItem[] = seedItems.map(cloneItem);
+function cloneKnowledge(a: KnowledgeArticle): KnowledgeArticle {
+  return { ...a };
+}
 
-const activities: Record<string, WorkItemActivity[]> = Object.fromEntries(
-  Object.entries(seedActivities).map(([k, list]) => [
-    k,
-    list.map((a) => ({ ...a, actor: { ...a.actor } })),
-  ]),
-);
+function seedWorkItems(): WorkItem[] {
+  return seedItems.map(cloneItem);
+}
 
-const commentsStore: Record<string, WorkItemComment[]> = Object.fromEntries(
-  Object.entries(seedComments).map(([k, list]) => [
-    k,
-    list.map((c) => ({ ...c, author: { ...c.author } })),
-  ]),
-);
+function seedActivitiesMap(): Record<string, WorkItemActivity[]> {
+  return Object.fromEntries(
+    Object.entries(seedActivities).map(([k, list]) => [
+      k,
+      list.map((a) => ({ ...a, actor: { ...a.actor } })),
+    ]),
+  );
+}
+
+function seedCommentsMap(): Record<string, WorkItemComment[]> {
+  return Object.fromEntries(
+    Object.entries(seedComments).map(([k, list]) => [
+      k,
+      list.map((c) => ({ ...c, author: { ...c.author } })),
+    ]),
+  );
+}
+
+let items: WorkItem[] = seedWorkItems();
+let activities: Record<string, WorkItemActivity[]> = seedActivitiesMap();
+let commentsStore: Record<string, WorkItemComment[]> = seedCommentsMap();
 
 const listeners = new Set<Listener>();
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let slaTickerStarted = false;
 
 function nowIso() {
   return new Date().toISOString();
 }
 
+function schedulePersist() {
+  if (typeof window === 'undefined') return;
+  if (saveTimer != null) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    persistToStorage();
+  }, SAVE_DEBOUNCE_MS);
+}
+
 function notify() {
   listeners.forEach((fn) => fn());
+  schedulePersist();
 }
 
 function actorFromCurrent(): Person {
@@ -414,6 +468,7 @@ const ciListeners = new Set<Listener>();
 
 function notifyCis() {
   ciListeners.forEach((fn) => fn());
+  schedulePersist();
 }
 
 export function subscribeConfigurationItems(listener: Listener): () => void {
@@ -498,7 +553,31 @@ function cloneChange(c: Change): Change {
       ? [...c.relatedWorkItemIds]
       : undefined,
     relatedCiIds: c.relatedCiIds ? [...c.relatedCiIds] : undefined,
+    cabVotes: c.cabVotes?.map((v) => ({ ...v })),
   };
+}
+
+function defaultCabVotes(): CabVote[] {
+  return [
+    {
+      memberId: people.maria.id,
+      memberName: people.maria.name,
+      initials: people.maria.initials,
+      role: people.maria.role,
+    },
+    {
+      memberId: people.dmitry.id,
+      memberName: people.dmitry.name,
+      initials: people.dmitry.initials,
+      role: people.dmitry.role,
+    },
+  ];
+}
+
+function recomputeHelpfulScore(yes: number, no: number): number {
+  const total = yes + no;
+  if (total <= 0) return 0;
+  return Math.round((yes / total) * 100);
 }
 
 function seedModuleActivities(): Record<string, ModuleActivity[]> {
@@ -660,12 +739,22 @@ function seedModuleActivities(): Record<string, ModuleActivity[]> {
 let assetItems: Asset[] = seedAssets.map(cloneAsset);
 let problemItems: Problem[] = seedProblems.map(cloneProblem);
 let changeItems: Change[] = seedChanges.map(cloneChange);
-const moduleActivities: Record<string, ModuleActivity[]> = seedModuleActivities();
+let moduleActivities: Record<string, ModuleActivity[]> = seedModuleActivities();
+
+let knowledgeItems: KnowledgeArticle[] = seedKnowledgeArticles.map(cloneKnowledge);
+let knowledgeVotes: Record<string, 'yes' | 'no'> = {};
+const knowledgeListeners = new Set<Listener>();
 
 const secondaryListeners = new Set<Listener>();
 
 function notifySecondary() {
   secondaryListeners.forEach((fn) => fn());
+  schedulePersist();
+}
+
+function notifyKnowledge() {
+  knowledgeListeners.forEach((fn) => fn());
+  schedulePersist();
 }
 
 export function subscribeSecondaryModules(listener: Listener): () => void {
@@ -960,6 +1049,9 @@ export function addChange(payload: CreateChangePayload): Change {
     implementationPlan: payload.implementationPlan?.trim() || undefined,
     backoutPlan: payload.backoutPlan?.trim() || undefined,
     cabApproved: false,
+    cabRejected: false,
+    cabNotes: '',
+    cabVotes: defaultCabVotes(),
   };
   changeItems = [next, ...changeItems];
   pushModuleActivity(id, 'system', 'module.activity.created');
@@ -991,8 +1083,13 @@ export function transitionChange(
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
   }
 
-  // Standard may skip CAB: draft → scheduled. Normal/emergency must pass CAB.
-  if (next === 'scheduled' && current.type !== 'standard' && current.status === 'draft') {
+  // Normal cannot draft → schedule (must pass CAB). Emergency may skip with warning.
+  // Standard may skip CAB entirely.
+  if (
+    next === 'scheduled' &&
+    current.type === 'normal' &&
+    current.status === 'draft'
+  ) {
     return { ok: false, errorKey: 'changes.validation.cabRequired' };
   }
   if (next === 'scheduled') {
@@ -1002,6 +1099,13 @@ export function transitionChange(
     if (!current.backoutPlan?.trim()) {
       return { ok: false, errorKey: 'changes.validation.backoutRequired' };
     }
+    if (current.cabRejected) {
+      return { ok: false, errorKey: 'changes.validation.cabRejected' };
+    }
+    // Explicit CAB approve required for NORMAL — no silent flip on schedule
+    if (current.type === 'normal' && !current.cabApproved) {
+      return { ok: false, errorKey: 'changes.validation.cabApprovalRequired' };
+    }
   }
   if (next === 'cab_review' && !current.implementationPlan?.trim()) {
     return { ok: false, errorKey: 'changes.validation.planRequired' };
@@ -1009,12 +1113,17 @@ export function transitionChange(
 
   changeItems = changeItems.map((c) => {
     if (c.id !== current.id) return c;
+    const votes =
+      next === 'cab_review' && (!c.cabVotes || c.cabVotes.length === 0)
+        ? defaultCabVotes()
+        : c.cabVotes;
     return {
       ...c,
       status: next,
+      cabVotes: votes,
+      // Standard policy pre-approval only
       cabApproved:
-        next === 'scheduled' &&
-        (current.status === 'cab_review' || current.type === 'standard')
+        next === 'scheduled' && current.type === 'standard'
           ? true
           : c.cabApproved,
       updatedAt: nowIso(),
@@ -1024,7 +1133,9 @@ export function transitionChange(
     next === 'cab_review'
       ? 'module.activity.submitted_cab'
       : next === 'scheduled'
-        ? 'module.activity.scheduled'
+        ? current.type === 'emergency' && !current.cabApproved
+          ? 'module.activity.scheduled_emergency'
+          : 'module.activity.scheduled'
         : next === 'completed'
           ? 'module.activity.completed'
           : next === 'cancelled'
@@ -1046,6 +1157,7 @@ export function updateChangeFields(
       | 'risk'
       | 'plannedStart'
       | 'plannedEnd'
+      | 'cabNotes'
     >
   >,
 ): { ok: true; change: Change } | { ok: false; errorKey: string } {
@@ -1055,9 +1167,420 @@ export function updateChangeFields(
     if (c.id !== current.id) return c;
     return { ...c, ...patch, updatedAt: nowIso() };
   });
-  pushModuleActivity(current.id, 'field', 'module.activity.fields_updated');
+  if (patch.risk !== undefined && patch.risk !== current.risk) {
+    pushModuleActivity(
+      current.id,
+      'field',
+      'module.activity.risk_updated',
+      patch.risk,
+    );
+  } else if (patch.cabNotes !== undefined) {
+    pushModuleActivity(current.id, 'field', 'module.activity.cab_notes_updated');
+  } else {
+    pushModuleActivity(current.id, 'field', 'module.activity.fields_updated');
+  }
   notifySecondary();
   return { ok: true, change: getChange(current.id)! };
+}
+
+/** Explicit CAB chair approve / reject (not silent on schedule). */
+export function setChangeCabDecision(
+  id: string,
+  decision: 'approve' | 'reject',
+  notes?: string,
+): { ok: true; change: Change } | { ok: false; errorKey: string } {
+  const current = changeItems.find((x) => x.id === id || x.number === id);
+  if (!current) return { ok: false, errorKey: 'module.errors.notFound' };
+  if (current.status === 'completed' || current.status === 'cancelled') {
+    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
+  changeItems = changeItems.map((c) => {
+    if (c.id !== current.id) return c;
+    return {
+      ...c,
+      cabApproved: decision === 'approve',
+      cabRejected: decision === 'reject',
+      cabNotes: notes !== undefined ? notes.trim() : c.cabNotes,
+      cabVotes: c.cabVotes?.length ? c.cabVotes : defaultCabVotes(),
+      updatedAt: nowIso(),
+    };
+  });
+  pushModuleActivity(
+    current.id,
+    'status',
+    decision === 'approve'
+      ? 'module.activity.cab_approved'
+      : 'module.activity.cab_rejected',
+    notes?.trim() || undefined,
+  );
+  notifySecondary();
+  return { ok: true, change: getChange(current.id)! };
+}
+
+/** Member vote simulation (2-seat CAB mock). */
+export function castCabMemberVote(
+  id: string,
+  memberId: string,
+  decision: CabVoteDecision,
+): { ok: true; change: Change } | { ok: false; errorKey: string } {
+  const current = changeItems.find((x) => x.id === id || x.number === id);
+  if (!current) return { ok: false, errorKey: 'module.errors.notFound' };
+  const base = current.cabVotes?.length
+    ? current.cabVotes
+    : defaultCabVotes();
+  if (!base.some((v) => v.memberId === memberId)) {
+    return { ok: false, errorKey: 'module.errors.notFound' };
+  }
+  const votes = base.map((v) =>
+    v.memberId === memberId
+      ? { ...v, decision, at: nowIso() }
+      : { ...v },
+  );
+  changeItems = changeItems.map((c) => {
+    if (c.id !== current.id) return c;
+    return { ...c, cabVotes: votes, updatedAt: nowIso() };
+  });
+  const member = votes.find((v) => v.memberId === memberId);
+  pushModuleActivity(
+    current.id,
+    'field',
+    decision === 'approve'
+      ? 'module.activity.cab_vote_approve'
+      : decision === 'reject'
+        ? 'module.activity.cab_vote_reject'
+        : 'module.activity.cab_vote_abstain',
+    member?.memberName,
+  );
+  notifySecondary();
+  return { ok: true, change: getChange(current.id)! };
+}
+
+// ── Knowledge articles + votes (session / durable mock) ──────────────
+
+export function subscribeKnowledge(listener: Listener): () => void {
+  knowledgeListeners.add(listener);
+  return () => {
+    knowledgeListeners.delete(listener);
+  };
+}
+
+export function listKnowledgeArticles(): KnowledgeArticle[] {
+  return knowledgeItems.map(cloneKnowledge);
+}
+
+export function getKnowledgeArticle(id: string): KnowledgeArticle | null {
+  const a = knowledgeItems.find((x) => x.id === id);
+  return a ? cloneKnowledge(a) : null;
+}
+
+export function getKnowledgeVote(id: string): 'yes' | 'no' | null {
+  return knowledgeVotes[id] ?? knowledgeItems.find((a) => a.id === id)?.userVote ?? null;
+}
+
+export function voteKnowledgeArticle(
+  id: string,
+  vote: 'yes' | 'no',
+): KnowledgeArticle | null {
+  if (knowledgeVotes[id]) {
+    return getKnowledgeArticle(id);
+  }
+  const current = knowledgeItems.find((x) => x.id === id);
+  if (!current) return null;
+  let yes = current.helpfulYes ?? 0;
+  let no = current.helpfulNo ?? 0;
+  if (yes === 0 && no === 0 && current.helpfulScore > 0) {
+    yes = Math.round((current.helpfulScore / 100) * 50);
+    no = Math.max(0, 50 - yes);
+  }
+  if (vote === 'yes') yes += 1;
+  else no += 1;
+  const helpfulScore = recomputeHelpfulScore(yes, no);
+  knowledgeVotes = { ...knowledgeVotes, [id]: vote };
+  knowledgeItems = knowledgeItems.map((a) => {
+    if (a.id !== id) return a;
+    return {
+      ...a,
+      helpfulYes: yes,
+      helpfulNo: no,
+      helpfulScore,
+      userVote: vote,
+      updatedAt: nowIso(),
+    };
+  });
+  notifyKnowledge();
+  return getKnowledgeArticle(id);
+}
+
+export function addKnowledgeArticle(
+  payload: CreateKnowledgeArticlePayload,
+): KnowledgeArticle {
+  const id = `kb-${Date.now().toString(36)}`;
+  const title = payload.title.trim();
+  const body = payload.body.trim();
+  const summary =
+    body.length > 140 ? `${body.slice(0, 137).trimEnd()}…` : body;
+  const words = body.split(/\s+/).filter(Boolean).length;
+  const readMinutes = Math.max(1, Math.min(20, Math.ceil(words / 180)));
+  const next: KnowledgeArticle = {
+    id,
+    titleKey: 'knowledge.articles.contributed.title',
+    summaryKey: 'knowledge.articles.contributed.summary',
+    tagKey: 'knowledge.articles.contributed.tag',
+    title,
+    summary,
+    body,
+    readMinutes,
+    helpfulScore: 0,
+    helpfulYes: 0,
+    helpfulNo: 0,
+    verified: false,
+    icon: 'book',
+    topicId: payload.topicId ?? 'topic-start',
+    updatedAt: nowIso(),
+    status: payload.status ?? 'pending',
+  };
+  knowledgeItems = [next, ...knowledgeItems];
+  notifyKnowledge();
+  return cloneKnowledge(next);
+}
+
+// ── Persistence / reset / SLA live clock ─────────────────────────────
+
+function snapshotStore(): PersistedMockStore {
+  return {
+    version: STORE_VERSION,
+    items: items.map(cloneItem),
+    activities: Object.fromEntries(
+      Object.entries(activities).map(([k, list]) => [
+        k,
+        list.map((a) => ({ ...a, actor: { ...a.actor } })),
+      ]),
+    ),
+    comments: Object.fromEntries(
+      Object.entries(commentsStore).map(([k, list]) => [
+        k,
+        list.map((c) => ({ ...c, author: { ...c.author } })),
+      ]),
+    ),
+    cis: cis.map(cloneCi),
+    assets: assetItems.map(cloneAsset),
+    problems: problemItems.map(cloneProblem),
+    changes: changeItems.map(cloneChange),
+    moduleActivities: Object.fromEntries(
+      Object.entries(moduleActivities).map(([k, list]) => [
+        k,
+        list.map((a) => ({ ...a, actor: { ...a.actor } })),
+      ]),
+    ),
+    knowledgeArticles: knowledgeItems.map(cloneKnowledge),
+    knowledgeVotes: { ...knowledgeVotes },
+    problemSeq,
+    changeSeq,
+  };
+}
+
+function applySnapshot(data: PersistedMockStore): void {
+  items = (data.items ?? []).map(cloneItem);
+  activities = Object.fromEntries(
+    Object.entries(data.activities ?? {}).map(([k, list]) => [
+      k,
+      list.map((a) => ({ ...a, actor: { ...a.actor } })),
+    ]),
+  );
+  commentsStore = Object.fromEntries(
+    Object.entries(data.comments ?? {}).map(([k, list]) => [
+      k,
+      list.map((c) => ({ ...c, author: { ...c.author } })),
+    ]),
+  );
+  cis = (data.cis ?? []).map(cloneCi);
+  assetItems = (data.assets ?? []).map(cloneAsset);
+  problemItems = (data.problems ?? []).map(cloneProblem);
+  changeItems = (data.changes ?? []).map(cloneChange);
+  moduleActivities = Object.fromEntries(
+    Object.entries(data.moduleActivities ?? {}).map(([k, list]) => [
+      k,
+      list.map((a) => ({ ...a, actor: { ...a.actor } })),
+    ]),
+  );
+  knowledgeItems = (data.knowledgeArticles ?? seedKnowledgeArticles).map(
+    cloneKnowledge,
+  );
+  knowledgeVotes = { ...(data.knowledgeVotes ?? {}) };
+  if (typeof data.problemSeq === 'number') problemSeq = data.problemSeq;
+  if (typeof data.changeSeq === 'number') changeSeq = data.changeSeq;
+}
+
+function reseedAll(): void {
+  items = seedWorkItems();
+  activities = seedActivitiesMap();
+  commentsStore = seedCommentsMap();
+  cis = seedCis.map(cloneCi);
+  assetItems = seedAssets.map(cloneAsset);
+  problemItems = seedProblems.map(cloneProblem);
+  changeItems = seedChanges.map(cloneChange);
+  moduleActivities = seedModuleActivities();
+  knowledgeItems = seedKnowledgeArticles.map(cloneKnowledge);
+  knowledgeVotes = {};
+  problemSeq = 100;
+  changeSeq = 430;
+}
+
+function persistToStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(MOCK_STORE_KEY, JSON.stringify(snapshotStore()));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function hydrateFromStorage(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem(MOCK_STORE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as PersistedMockStore;
+    if (!parsed || parsed.version !== STORE_VERSION || !Array.isArray(parsed.items)) {
+      return false;
+    }
+    applySnapshot(parsed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear durable demo state and re-seed from mock fixtures. */
+export function resetDemoData(): void {
+  if (saveTimer != null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  reseedAll();
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(MOCK_STORE_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+  persistToStorage();
+  listeners.forEach((fn) => fn());
+  ciListeners.forEach((fn) => fn());
+  secondaryListeners.forEach((fn) => fn());
+  knowledgeListeners.forEach((fn) => fn());
+}
+
+/** Parse mock countdown targets like `03:15` or `-00:18`. */
+function parseSlaCountdown(
+  target: string,
+): { signedMins: number } | null {
+  const m = target.match(/^(-)?(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const mins = Number(m[2]) * 60 + Number(m[3]);
+  if (Number.isNaN(mins)) return null;
+  return { signedMins: m[1] === '-' ? -mins : mins };
+}
+
+function formatSlaCountdown(signedMins: number): string {
+  const neg = signedMins < 0;
+  const abs = Math.abs(signedMins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  const body = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return neg ? `-${body}` : body;
+}
+
+/**
+ * Advance mock SLA clocks for open work items.
+ * Countdown-style targets decrement; states flip on_track→at_risk→breached.
+ */
+export function tickSlaClocks(): boolean {
+  let changed = false;
+  items = items.map((w) => {
+    if (
+      w.status === 'resolved' ||
+      w.status === 'closed' ||
+      w.status === 'cancelled' ||
+      w.slaState === 'met'
+    ) {
+      return w;
+    }
+    const parsed = parseSlaCountdown(w.slaTarget);
+    if (!parsed) return w;
+
+    const nextSigned = parsed.signedMins - 1;
+    const nextTarget = formatSlaCountdown(nextSigned);
+    let nextState = w.slaState;
+    if (nextSigned <= 0) {
+      nextState = 'breached';
+    } else if (nextSigned <= 60 && nextState === 'on_track') {
+      nextState = 'at_risk';
+    }
+
+    if (nextTarget === w.slaTarget && nextState === w.slaState) return w;
+    changed = true;
+    return {
+      ...w,
+      slaTarget: nextTarget,
+      slaState: nextState,
+      // Do not bump updatedAt every tick — avoids noise in "Updated" columns
+    };
+  });
+  if (changed) {
+    notify();
+  }
+  return changed;
+}
+
+/** Start 30s SLA urgency ticker (browser only, once). */
+export function startSlaTicker(): void {
+  if (typeof window === 'undefined' || slaTickerStarted) return;
+  slaTickerStarted = true;
+  window.setInterval(() => {
+    tickSlaClocks();
+  }, SLA_TICK_MS);
+}
+
+/** Queue stats for mock copilot briefings. */
+export function getQueueCopilotStats(): {
+  open: number;
+  breached: number;
+  atRisk: number;
+  unassigned: number;
+  critical: number;
+  topBreached: Array<{ number: string; title: string; slaTarget: string }>;
+} {
+  const openItems = items.filter(
+    (w) =>
+      w.status !== 'resolved' &&
+      w.status !== 'closed' &&
+      w.status !== 'cancelled',
+  );
+  const breached = openItems.filter((w) => w.slaState === 'breached');
+  return {
+    open: openItems.length,
+    breached: breached.length,
+    atRisk: openItems.filter((w) => w.slaState === 'at_risk').length,
+    unassigned: openItems.filter((w) => !w.assignee).length,
+    critical: openItems.filter((w) => w.priority === 'critical').length,
+    topBreached: breached.slice(0, 3).map((w) => ({
+      number: w.number,
+      title: w.title,
+      slaTarget: w.slaTarget,
+    })),
+  };
+}
+
+// Hydrate durable demo state once on module load; seed + persist if missing.
+if (typeof window !== 'undefined') {
+  const hydrated = hydrateFromStorage();
+  if (!hydrated) {
+    reseedAll();
+    persistToStorage();
+  }
+  startSlaTicker();
 }
 
 export type { ImpactLevel, UrgencyLevel };

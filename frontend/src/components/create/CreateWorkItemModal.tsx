@@ -9,14 +9,17 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { Modal, Button, Input, Textarea, Select } from '@/components/ui';
+import { Modal, Button } from '@/components/ui';
+import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
 import { useT } from '@/i18n';
 import {
   createWorkItem,
+  fetchFormDefinition,
   formatBytes,
   uploadAndLinkWorkItemAttachment,
+  type FormDefinition,
 } from '@/api';
-import type { CreateKind } from '@/types';
+import type { CreateKind, ImpactLevel, UrgencyLevel } from '@/types';
 
 interface Props {
   kind: CreateKind | null;
@@ -28,15 +31,28 @@ interface PendingFile {
   file: File;
 }
 
+/** Map service select keys to display labels stored on the work item. */
+function serviceToStored(value: string, t: (k: string) => string): string {
+  if (value === 'workplace') return t('create.serviceWorkplace');
+  if (value === 'access') return t('create.serviceAccess');
+  if (value === 'apps') return t('create.serviceApps');
+  return value;
+}
+
 export function CreateWorkItemModal({ kind, onClose }: Props) {
   const t = useT();
   const open = kind !== null;
   const incident = kind === 'incident';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [service, setService] = useState('');
+  const [formDef, setFormDef] = useState<FormDefinition | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({
+    title: '',
+    description: '',
+    service: '',
+    impact: 'medium',
+    urgency: incident ? 'high' : 'medium',
+  });
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -45,24 +61,60 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
 
   useEffect(() => {
     if (!open) {
-      setTitle('');
-      setDescription('');
-      setService('');
+      setValues({
+        title: '',
+        description: '',
+        service: '',
+        impact: 'medium',
+        urgency: 'medium',
+      });
       setFiles([]);
       setErrors({});
       setSubmitting(false);
       setSent(false);
       setUploadNote('');
+      return;
     }
+    setValues((v) => ({
+      ...v,
+      impact: 'medium',
+      urgency: kind === 'incident' ? 'high' : 'medium',
+    }));
+    let cancelled = false;
+    void fetchFormDefinition('work-item').then((def) => {
+      if (!cancelled) setFormDef(def);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open, kind]);
 
   if (!kind) return null;
 
+  const setField = (key: string, value: string) => {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((e) => {
+        const next = { ...e };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
   const validate = () => {
     const next: Record<string, string> = {};
-    if (!title.trim()) next.title = t('create.validationTitle');
-    if (!description.trim()) next.description = t('create.validationDetails');
-    if (!service) next.service = t('create.validationService');
+    const required = formDef
+      ? formRequiredKeys(formDef)
+      : ['title', 'description', 'service'];
+    for (const key of required) {
+      if (!(values[key] ?? '').trim()) {
+        if (key === 'title') next.title = t('create.validationTitle');
+        else if (key === 'description') next.description = t('create.validationDetails');
+        else if (key === 'service') next.service = t('create.validationService');
+        else next[key] = t('app.required');
+      }
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -91,14 +143,16 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
     setSubmitting(true);
     setUploadNote('');
     try {
+      const serviceLabel = serviceToStored(values.service, t);
       const created = await createWorkItem({
         kind,
-        title: title.trim(),
-        description: description.trim(),
-        service,
+        title: values.title.trim(),
+        description: values.description.trim(),
+        service: serviceLabel,
+        impact: (values.impact as ImpactLevel) || 'medium',
+        urgency: (values.urgency as UrgencyLevel) || 'medium',
       });
 
-      // Upload + persist link to work item (mock and live).
       if (files.length > 0) {
         let ok = 0;
         for (const { file } of files) {
@@ -187,46 +241,20 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
           </p>
 
           <form onSubmit={onSubmit} noValidate>
-            <Input
-              label={t('create.shortDescription')}
-              required
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={
-                incident
-                  ? t('create.shortPlaceholderIncident')
-                  : t('create.shortPlaceholderRequest')
-              }
-              error={errors.title}
-            />
-            <Textarea
-              label={t('create.details')}
-              required
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('create.detailsPlaceholder')}
-              error={errors.description}
-            />
-            <div className="form-row">
-              <Select
-                label={t('create.service')}
-                required
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-                placeholder={t('create.selectService')}
-                error={errors.service}
-                options={[
-                  {
-                    value: 'workplace',
-                    label: incident
-                      ? t('create.serviceWorkplace')
-                      : t('create.serviceAccess'),
-                  },
-                  { value: 'apps', label: t('create.serviceApps') },
-                ]}
+            {formDef ? (
+              <DynamicForm
+                definition={formDef}
+                values={values}
+                onChange={setField}
+                errors={errors}
+                layout="create"
+                autoFocusFirst
               />
+            ) : (
+              <p className="field__hint">{t('app.loading')}</p>
+            )}
+
+            <div className="form-row create-attachments-row">
               <label className="field">
                 <span className="field__label">{t('create.attachment')}</span>
                 <input
@@ -283,7 +311,7 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={submitting}
+                  disabled={submitting || !formDef}
                   iconRight={<ArrowRight size={15} />}
                 >
                   {t('create.submit')}

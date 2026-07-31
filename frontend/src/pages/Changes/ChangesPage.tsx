@@ -12,10 +12,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
 import {
+  castCabMemberVote,
   createChange,
   fetchChanges,
   getChangeTransitions,
   patchChange,
+  setChangeCabDecision,
   subscribeSecondaryModules,
   transitionChangeStatus,
 } from '@/api';
@@ -41,7 +43,13 @@ import {
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
 import { getModuleActivities } from '@/mock/store';
-import type { Change, ChangeStatus, ChangeType, Priority } from '@/types';
+import type {
+  CabVoteDecision,
+  Change,
+  ChangeStatus,
+  ChangeType,
+  Priority,
+} from '@/types';
 
 const CHANGE_ACTION_RANK: Record<string, number> = {
   cab_review: 0,
@@ -103,6 +111,8 @@ export function ChangesPage() {
   const [validation, setValidation] = useState<string | null>(null);
   const [planDraft, setPlanDraft] = useState('');
   const [backoutDraft, setBackoutDraft] = useState('');
+  const [cabNotesDraft, setCabNotesDraft] = useState('');
+  const [riskDraft, setRiskDraft] = useState<Priority>('medium');
   const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -148,8 +158,10 @@ export function ChangesPage() {
     if (selected) {
       setPlanDraft(selected.implementationPlan ?? '');
       setBackoutDraft(selected.backoutPlan ?? '');
+      setCabNotesDraft(selected.cabNotes ?? '');
+      setRiskDraft(selected.risk);
     }
-  }, [selected?.id]);
+  }, [selected?.id, selected?.cabNotes, selected?.risk, selected?.implementationPlan, selected?.backoutPlan]);
 
   const activities = useMemo(
     () => (selected ? getModuleActivities(selected.id) : []),
@@ -227,11 +239,68 @@ export function ChangesPage() {
     success(t('changes.plansSaved'));
   };
 
+  const saveCabFields = async () => {
+    if (!selected) return;
+    const result = await patchChange(selected.id, {
+      risk: riskDraft,
+      cabNotes: cabNotesDraft,
+    });
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      return;
+    }
+    success(t('changes.cab.fieldsSaved'));
+  };
+
+  const runCabDecision = async (decision: 'approve' | 'reject') => {
+    if (!selected) return;
+    setValidation(null);
+    if (
+      riskDraft !== selected.risk ||
+      cabNotesDraft !== (selected.cabNotes ?? '')
+    ) {
+      await patchChange(selected.id, {
+        risk: riskDraft,
+        cabNotes: cabNotesDraft,
+      });
+    }
+    const result = await setChangeCabDecision(
+      selected.id,
+      decision,
+      cabNotesDraft,
+    );
+    if (!result.ok) {
+      setValidation(t(result.errorKey));
+      toastError(t(result.errorKey));
+      return;
+    }
+    success(
+      decision === 'approve'
+        ? t('changes.cab.approvedToast')
+        : t('changes.cab.rejectedToast'),
+    );
+    setSelectedId(result.change.id);
+  };
+
+  const runCabVote = async (memberId: string, decision: CabVoteDecision) => {
+    if (!selected) return;
+    const result = await castCabMemberVote(selected.id, memberId, decision);
+    if (!result.ok) {
+      toastError(t(result.errorKey));
+      return;
+    }
+    success(t('changes.cab.voteRecorded'));
+    setSelectedId(result.change.id);
+  };
+
   const runTransition = async (next: ChangeStatus) => {
     if (!selected) return;
     setValidation(null);
     // Persist plans before transition so validation sees them
-    if (planDraft !== selected.implementationPlan || backoutDraft !== selected.backoutPlan) {
+    if (
+      planDraft !== selected.implementationPlan ||
+      backoutDraft !== selected.backoutPlan
+    ) {
       await patchChange(selected.id, {
         implementationPlan: planDraft,
         backoutPlan: backoutDraft,
@@ -245,6 +314,11 @@ export function ChangesPage() {
     }
     success(t('changes.transitionOk', { status: t(`status.${next}`) }));
     setSelectedId(result.change.id);
+  };
+
+  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
+    if (sortKey !== col) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
   };
 
   if (error && !loading && !data) {
@@ -273,13 +347,13 @@ export function ChangesPage() {
 
   const transitions = selected ? getChangeTransitions(selected.status) : [];
 
-  // Filter schedule action for non-standard from draft (store will reject; hide for UX)
+  // Hide schedule for NORMAL from draft (must go CAB). Emergency may schedule with warning.
   const visibleTransitions = transitions
     .filter((s) => {
       if (!selected) return false;
       if (
         s === 'scheduled' &&
-        selected.type !== 'standard' &&
+        selected.type === 'normal' &&
         selected.status === 'draft'
       ) {
         return false;
@@ -290,6 +364,22 @@ export function ChangesPage() {
       (a, b) =>
         (CHANGE_ACTION_RANK[a] ?? 9) - (CHANGE_ACTION_RANK[b] ?? 9),
     );
+
+  const showCabPanel =
+    !!selected &&
+    (selected.status === 'cab_review' ||
+      selected.type === 'normal' ||
+      selected.type === 'emergency' ||
+      !!selected.cabVotes?.length);
+
+  const emergencySkipWarning =
+    !!selected &&
+    selected.type === 'emergency' &&
+    !selected.cabApproved &&
+    !selected.cabRejected &&
+    (selected.status === 'draft' ||
+      selected.status === 'cab_review' ||
+      selected.status === 'scheduled');
 
   return (
     <section className="page">
@@ -381,32 +471,32 @@ export function ChangesPage() {
         >
           <thead>
             <tr>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('number')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
                   {t('changes.colNumber')}
                   <SortIcon col="number" />
                 </button>
               </th>
               <th scope="col">{t('changes.colTitle')}</th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('type')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('type')}>
                   {t('changes.colType')}
                   <SortIcon col="type" />
                 </button>
               </th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('status')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
                   {t('changes.colStatus')}
                   <SortIcon col="status" />
                 </button>
               </th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('risk')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('risk')}>
                   {t('changes.colRisk')}
                   <SortIcon col="risk" />
                 </button>
               </th>
-              <th scope="col">
+              <th scope="col" aria-sort={ariaSortFor('window')}>
                 <button type="button" className="th-sort" onClick={() => toggleSort('window')}>
                   {t('changes.colWindow')}
                   <SortIcon col="window" />
@@ -510,6 +600,9 @@ export function ChangesPage() {
               {selected.cabApproved && (
                 <span className="chip chip--ok">{t('changes.cabApproved')}</span>
               )}
+              {selected.cabRejected && (
+                <span className="chip chip--danger">{t('changes.cabRejected')}</span>
+              )}
             </>
           }
           validationMessage={validation}
@@ -525,6 +618,12 @@ export function ChangesPage() {
           }}
           overview={
             <>
+              {emergencySkipWarning && (
+                <div className="module-cab-banner" role="status">
+                  <strong>{t('changes.cab.emergencyTitle')}</strong>
+                  <p>{t('changes.cab.emergencyWarning')}</p>
+                </div>
+              )}
               <dl className="module-detail-dl">
                 <div>
                   <dt>{t('changes.colWindow')}</dt>
@@ -580,6 +679,122 @@ export function ChangesPage() {
                   </Button>
                 </div>
               </div>
+              {showCabPanel && (
+                <div className="module-cab" aria-labelledby="cab-panel-title">
+                  <div className="module-cab__head">
+                    <h3 id="cab-panel-title">{t('changes.cab.title')}</h3>
+                    <p className="muted">{t('changes.cab.subtitle')}</p>
+                  </div>
+                  <Select
+                    label={t('changes.cab.riskLevel')}
+                    value={riskDraft}
+                    onChange={(e) => setRiskDraft(e.target.value as Priority)}
+                    options={[
+                      { value: 'critical', label: t('priority.critical') },
+                      { value: 'high', label: t('priority.high') },
+                      { value: 'medium', label: t('priority.medium') },
+                      { value: 'low', label: t('priority.low') },
+                    ]}
+                  />
+                  <Textarea
+                    label={t('changes.cab.notes')}
+                    value={cabNotesDraft}
+                    onChange={(e) => setCabNotesDraft(e.target.value)}
+                    rows={2}
+                    hint={t('changes.cab.notesHint')}
+                  />
+                  <div className="module-cab__members">
+                    <h4>{t('changes.cab.members')}</h4>
+                    <ul className="module-cab__member-list">
+                      {(selected.cabVotes?.length
+                        ? selected.cabVotes
+                        : []
+                      ).map((v) => (
+                        <li key={v.memberId} className="module-cab__member">
+                          <span className="inline-person">
+                            <Avatar initials={v.initials} size="sm" />
+                            <span>
+                              <b>{v.memberName}</b>
+                              {v.role && (
+                                <small className="muted"> · {v.role}</small>
+                              )}
+                            </span>
+                          </span>
+                          <span className="module-cab__vote-actions">
+                            {v.decision ? (
+                              <span
+                                className={`chip ${
+                                  v.decision === 'approve'
+                                    ? 'chip--ok'
+                                    : v.decision === 'reject'
+                                      ? 'chip--danger'
+                                      : ''
+                                }`}
+                              >
+                                {t(`changes.cab.vote.${v.decision}`)}
+                              </span>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() =>
+                                    void runCabVote(v.memberId, 'approve')
+                                  }
+                                >
+                                  {t('changes.cab.vote.approve')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    void runCabVote(v.memberId, 'reject')
+                                  }
+                                >
+                                  {t('changes.cab.vote.reject')}
+                                </Button>
+                              </>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                      {(!selected.cabVotes || selected.cabVotes.length === 0) && (
+                        <li className="muted">{t('changes.cab.noMembers')}</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="module-cab__actions">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void saveCabFields()}
+                    >
+                      {t('changes.cab.saveFields')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={!!selected.cabApproved}
+                      onClick={() => void runCabDecision('approve')}
+                    >
+                      {t('changes.cab.approve')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={!!selected.cabRejected}
+                      onClick={() => void runCabDecision('reject')}
+                    >
+                      {t('changes.cab.reject')}
+                    </Button>
+                  </div>
+                  {selected.type === 'normal' && !selected.cabApproved && (
+                    <p className="module-cab__hint muted">
+                      {t('changes.cab.normalRequiresApprove')}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           }
           actions={

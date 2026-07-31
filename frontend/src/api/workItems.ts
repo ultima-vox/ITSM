@@ -187,8 +187,9 @@ export async function createWorkItem(
       createdAt: new Date().toISOString(),
       queue: payload.queue ?? 'Service Desk L1',
       teamId: payload.teamId ?? TEAMS.sd,
-      impact: 'medium',
-      urgency: payload.kind === 'incident' ? 'high' : 'medium',
+      impact: payload.impact ?? 'medium',
+      urgency:
+        payload.urgency ?? (payload.kind === 'incident' ? 'high' : 'medium'),
       watchers: [],
       childTasks: [],
     };
@@ -200,8 +201,10 @@ export async function createWorkItem(
     title: payload.title,
     description: payload.description,
     service: payload.service,
-    impact: payload.kind === 'incident' ? 'HIGH' : 'MEDIUM',
-    urgency: payload.kind === 'incident' ? 'HIGH' : 'MEDIUM',
+    impact: (payload.impact ?? (payload.kind === 'incident' ? 'high' : 'medium')).toUpperCase(),
+    urgency: (
+      payload.urgency ?? (payload.kind === 'incident' ? 'high' : 'medium')
+    ).toUpperCase(),
     teamId: payload.teamId,
   };
   const created = await apiRequest<BackendCreated>('/work-items', {
