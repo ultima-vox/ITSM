@@ -25,11 +25,13 @@ import {
   createKnowledgeArticle,
   fetchKnowledgeArticles,
   fetchKnowledgeTopics,
+  isLiveFeatureUnsupported,
   publishKnowledgeArticle,
   readKnowledgeVote,
   submitKnowledgeVote,
   subscribeKnowledge,
   updateKnowledgeArticle,
+  useMock,
 } from '@/api';
 import {
   Button,
@@ -93,6 +95,8 @@ export function KnowledgePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [active, setActive] = useState<KnowledgeArticle | null>(null);
   const [contributeOpen, setContributeOpen] = useState(false);
+  const mockMode = useMock();
+  const cmsWritable = mockMode;
   const articles = useAsync(() => fetchKnowledgeArticles(), []);
   const topics = useAsync(() => fetchKnowledgeTopics(), []);
 
@@ -249,6 +253,13 @@ export function KnowledgePage() {
           />
         </label>
       </div>
+
+      {!cmsWritable && (
+        <div className="honesty-banner" role="status">
+          <Shield size={16} aria-hidden />
+          <p>{t('knowledge.cmsLiveBanner')}</p>
+        </div>
+      )}
 
       <Tabs
         value={tab}
@@ -432,14 +443,22 @@ export function KnowledgePage() {
               );
             })}
           </div>
-          <div className="contribute-card">
-            <FileText size={19} />
-            <h3>{t('knowledge.contributeTitle')}</h3>
-            <p>{t('knowledge.contributeText')}</p>
-            <button type="button" onClick={() => setContributeOpen(true)}>
-              {t('knowledge.contributeAction')}
-            </button>
-          </div>
+          {cmsWritable ? (
+            <div className="contribute-card">
+              <FileText size={19} />
+              <h3>{t('knowledge.contributeTitle')}</h3>
+              <p>{t('knowledge.contributeText')}</p>
+              <button type="button" onClick={() => setContributeOpen(true)}>
+                {t('knowledge.contributeAction')}
+              </button>
+            </div>
+          ) : (
+            <div className="contribute-card contribute-card--readonly">
+              <FileText size={19} />
+              <h3>{t('knowledge.contributeTitle')}</h3>
+              <p>{t('knowledge.cmsLiveBanner')}</p>
+            </div>
+          )}
         </aside>
       </div>
 
@@ -447,6 +466,7 @@ export function KnowledgePage() {
         <ArticleReader
           article={active}
           all={articles.data ?? []}
+          cmsWritable={cmsWritable}
           onClose={() => {
             setActive(null);
             clearArticleParam();
@@ -459,16 +479,18 @@ export function KnowledgePage() {
         />
       )}
 
-      <ContributeModal
-        open={contributeOpen}
-        onClose={() => setContributeOpen(false)}
-        onCreated={(a) => {
-          setContributeOpen(false);
-          success(t('knowledge.contributeSuccess', { title: a.title ?? '' }));
-          articles.reload();
-          setActive(a);
-        }}
-      />
+      {cmsWritable && (
+        <ContributeModal
+          open={contributeOpen}
+          onClose={() => setContributeOpen(false)}
+          onCreated={(a) => {
+            setContributeOpen(false);
+            success(t('knowledge.contributeSuccess', { title: a.title ?? '' }));
+            articles.reload();
+            setActive(a);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -476,12 +498,14 @@ export function KnowledgePage() {
 function ArticleReader({
   article,
   all,
+  cmsWritable,
   onClose,
   onOpenRelated,
   onArticleUpdated,
 }: {
   article: KnowledgeArticle;
   all: KnowledgeArticle[];
+  cmsWritable: boolean;
   onClose: () => void;
   onOpenRelated: (a: KnowledgeArticle) => void;
   onArticleUpdated: (a: KnowledgeArticle) => void;
@@ -567,6 +591,12 @@ function ArticleReader({
       setEditing(false);
       onArticleUpdated(updated);
       success(t('knowledge.editSuccess'));
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('knowledge.cmsLiveUnsupported')
+          : t('knowledge.editFailed'),
+      );
     } finally {
       setSaving(false);
     }
@@ -582,6 +612,12 @@ function ArticleReader({
       }
       onArticleUpdated(updated);
       success(t('knowledge.publishSuccess', { title: articleTitle(updated, t) }));
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('knowledge.cmsLiveUnsupported')
+          : t('knowledge.publishFailed'),
+      );
     } finally {
       setPublishing(false);
     }
@@ -684,7 +720,7 @@ function ArticleReader({
             )}
           </div>
           <div className="article-reader__tools">
-            {!editing && (
+            {cmsWritable && !editing && (
               <button
                 type="button"
                 className="icon-btn"
@@ -833,7 +869,7 @@ function ArticleReader({
                 </span>
               </div>
               <div className="article-reader__foot-actions">
-                {article.status === 'pending' && (
+                {cmsWritable && article.status === 'pending' && (
                   <Button
                     variant="primary"
                     onClick={() => void onPublish()}
@@ -864,6 +900,7 @@ function ContributeModal({
   onCreated: (a: KnowledgeArticle) => void;
 }) {
   const t = useT();
+  const { error: toastError } = useToast();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tag, setTag] = useState('');
@@ -896,6 +933,12 @@ function ContributeModal({
         status: 'pending',
       });
       onCreated(created);
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('knowledge.cmsLiveUnsupported')
+          : t('knowledge.editFailed'),
+      );
     } finally {
       setSubmitting(false);
     }

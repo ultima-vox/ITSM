@@ -16,6 +16,7 @@ import {
   createAsset,
   fetchAssets,
   getAssetTransitions,
+  isLiveFeatureUnsupported,
   subscribeSecondaryModules,
   transitionAssetStatus,
 } from '@/api';
@@ -125,17 +126,33 @@ export function AssetsPage() {
   );
 
   const handleBulkAssign = async () => {
-    const ids = [...selectedIds];
-    const n = await bulkAssignAssets(ids);
-    success(t('module.bulk.assigned', { n }));
-    setSelectedIds(new Set());
+    try {
+      const ids = [...selectedIds];
+      const n = await bulkAssignAssets(ids);
+      success(t('module.bulk.assigned', { n }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   const handleBulkStatus = async (next: AssetStatus) => {
-    const ids = [...selectedIds];
-    const n = await bulkSetAssetStatus(ids, next);
-    success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
-    setSelectedIds(new Set());
+    try {
+      const ids = [...selectedIds];
+      const n = await bulkSetAssetStatus(ids, next);
+      success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
+      setSelectedIds(new Set());
+    } catch (err) {
+      toastError(
+        isLiveFeatureUnsupported(err)
+          ? t('module.errors.bulkLiveUnsupported')
+          : t('module.errors.bulkFailed'),
+      );
+    }
   };
 
   const activities = useMemo(

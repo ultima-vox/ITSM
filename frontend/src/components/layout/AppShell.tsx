@@ -32,6 +32,7 @@ const crumbMap: Record<string, string> = {
   '/admin/rbac': 'nav.rbac',
   '/admin/audit': 'nav.audit',
   '/search': 'nav.search',
+  '/notifications': 'nav.notifications',
 };
 
 export function AppShell() {

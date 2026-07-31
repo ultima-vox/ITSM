@@ -64,6 +64,11 @@ const WorkItemDetailPage = lazy(() =>
     default: m.WorkItemDetailPage,
   })),
 );
+const NotificationsPage = lazy(() =>
+  import('@/pages/Notifications/NotificationsPage').then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
 
 function LazyRoute({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
@@ -227,6 +232,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <WorkItemDetailPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'notifications',
+        element: (
+          <LazyRoute>
+            <NotificationsPage />
           </LazyRoute>
         ),
       },

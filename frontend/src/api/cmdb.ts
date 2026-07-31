@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
 import {
   mapAsset,
   mapConfigurationItem,
@@ -198,7 +198,8 @@ export async function bulkAssignAssets(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignAssets(ids);
   }
-  return ids.length;
+  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
+  refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }
 
 export async function bulkSetAssetStatus(
@@ -209,5 +210,6 @@ export async function bulkSetAssetStatus(
     await delay(80);
     return storeBulkSetAssetStatus(ids, status);
   }
-  return ids.length;
+  // No live asset status write — refuse (S23). Never fake ids.length.
+  refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }

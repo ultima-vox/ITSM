@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
 import {
   deriveKnowledgeTopics,
   mapKnowledgeArticle,
@@ -73,8 +73,8 @@ export async function createKnowledgeArticle(
     await delay(180);
     return storeAddArticle(payload);
   }
-  // Backend authoring not wired — mock-first contribute path
-  return storeAddArticle(payload);
+  // S25: no live write API — refuse split-brain ghost articles
+  refuseLiveFeature('knowledge.cmsLiveUnsupported');
 }
 
 export async function updateKnowledgeArticle(
@@ -85,8 +85,7 @@ export async function updateKnowledgeArticle(
     await delay(140);
     return storeUpdateArticle(id, payload);
   }
-  // Authoring CMS is mock-session only until backend write APIs exist
-  return storeUpdateArticle(id, payload);
+  refuseLiveFeature('knowledge.cmsLiveUnsupported');
 }
 
 export async function publishKnowledgeArticle(
@@ -96,7 +95,7 @@ export async function publishKnowledgeArticle(
     await delay(140);
     return storePublishArticle(id);
   }
-  return storePublishArticle(id);
+  refuseLiveFeature('knowledge.cmsLiveUnsupported');
 }
 
 export { subscribeKnowledge };

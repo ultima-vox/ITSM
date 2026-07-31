@@ -102,8 +102,10 @@
     "unread": "{n} neu",
     "markAllRead": "Alle gelesen",
     "viewAll": "Alle Benachrichtigungen",
+    "openCenter": "Benachrichtigungszentrum öffnen",
     "ago": "vor {n}",
     "empty": "Noch keine Benachrichtigungen",
+    "emptyHint": "SLA-Risiken, Zuweisungen und Erwähnungen erscheinen hier.",
     "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA gefährdet",
     "slaRiskBody": "INC-1842 · Remote-VPN — weniger als eine Stunde",
@@ -115,7 +117,14 @@
     "resolvedBody": "INC-1820 · SAP-SSO geschlossen",
     "breachTitle": "SLA verletzt",
     "liveTitle": "Benachrichtigung",
-    "liveBody": "{detail}"
+    "liveBody": "{detail}",
+    "centerTitle": "Benachrichtigungszentrum",
+    "centerSubtitle": "SLA-Risiken, Zuweisungen und Erwähnungen an Ihrem Arbeitsplatz.",
+    "filterLabel": "Benachrichtigungen filtern",
+    "filterAll": "Alle",
+    "filterUnread": "Ungelesen",
+    "loadFailed": "Benachrichtigungen konnten nicht geladen werden",
+    "loadFailedHint": "Live-Benachrichtigungsdienst nicht erreichbar. Erneut versuchen oder API prüfen — Mock-Seed wird nicht still als Fallback gezeigt."
   },
   "form": {
     "engineChip": "Formular v{v}",
@@ -155,6 +164,7 @@
     "rbac": "RBAC",
     "audit": "Audit",
     "search": "Suche",
+    "notifications": "Benachrichtigungen",
     "settings": "Einstellungen"
   },
   "header": {
@@ -449,6 +459,8 @@
     "contributeText": "Teilen Sie Ihre Erfahrung — sie hilft Kollegen.",
     "contributeAction": "Artikel vorschlagen",
     "contributeMock": "Artikelvorschlag ist in diesem Build nur Mock",
+    "cmsLiveBanner": "Authoring im Live-API-Modus ist schreibgeschützt. Beitragen, Bearbeiten und Veröffentlichen brauchen Mock-Sitzung oder künftige Write-API.",
+    "cmsLiveUnsupported": "Knowledge-CMS-Schreiben ist gegen die Live-API nicht verfügbar",
     "contributeModalTitle": "Wissensartikel vorschlagen",
     "contributeModalHint": "Entwurf wird in dieser Sitzung als ausstehend gespeichert und erscheint sofort in der Liste.",
     "contributeFieldTitle": "Titel",
@@ -689,7 +701,10 @@
     },
     "errors": {
       "notFound": "Datensatz nicht gefunden",
-      "invalidTransition": "Dieser Statusübergang ist ungültig"
+      "invalidTransition": "Dieser Statusübergang ist ungültig",
+      "bulkLiveUnsupported": "Massenaktion gegen die Live-API noch nicht verfügbar",
+      "bulkFailed": "Massenaktion fehlgeschlagen",
+      "bulkNoneSucceeded": "Kein ausgewählter Datensatz konnte aktualisiert werden"
     },
     "activity": {
       "created": "Erstellt",

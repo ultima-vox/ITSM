@@ -102,8 +102,10 @@
     "unread": "{n} новых",
     "markAllRead": "Прочитать все",
     "viewAll": "Все уведомления",
+    "openCenter": "Открыть центр уведомлений",
     "ago": "{n} назад",
     "empty": "Пока нет уведомлений",
+    "emptyHint": "Здесь появятся риски SLA, назначения и упоминания.",
     "eventBody": "{number} · {title}",
     "slaRiskTitle": "SLA под угрозой",
     "slaRiskBody": "INC-1842 · VPN для remote — осталось менее часа",
@@ -115,7 +117,14 @@
     "resolvedBody": "INC-1820 · SSO в SAP закрыт",
     "breachTitle": "SLA нарушен",
     "liveTitle": "Уведомление",
-    "liveBody": "{detail}"
+    "liveBody": "{detail}",
+    "centerTitle": "Центр уведомлений",
+    "centerSubtitle": "Риски SLA, назначения и упоминания на вашей смене.",
+    "filterLabel": "Фильтр уведомлений",
+    "filterAll": "Все",
+    "filterUnread": "Непрочитанные",
+    "loadFailed": "Не удалось загрузить уведомления",
+    "loadFailedHint": "Сервис уведомлений недоступен. Повторите запрос или проверьте API — mock-данные не подставляются."
   },
   "form": {
     "engineChip": "Форма v{v}",
@@ -155,6 +164,7 @@
     "rbac": "RBAC",
     "audit": "Аудит",
     "search": "Поиск",
+    "notifications": "Уведомления",
     "settings": "Настройки"
   },
   "header": {
@@ -449,6 +459,8 @@
     "contributeText": "Поделитесь опытом — он поможет коллегам.",
     "contributeAction": "Предложить статью",
     "contributeMock": "Предложение статьи доступно только в mock-режиме",
+    "cmsLiveBanner": "В live API режим authoring только для чтения. Создать, править и публиковать — mock-сессия или будущий write API.",
+    "cmsLiveUnsupported": "Запись в CMS базы знаний недоступна в live API",
     "contributeModalTitle": "Предложить статью в базу знаний",
     "contributeModalHint": "Черновик сохраняется как «на проверке» в этой сессии и сразу появляется в списке.",
     "contributeFieldTitle": "Заголовок",
@@ -689,7 +701,10 @@
     },
     "errors": {
       "notFound": "Объект не найден",
-      "invalidTransition": "Этот переход статуса недопустим"
+      "invalidTransition": "Этот переход статуса недопустим",
+      "bulkLiveUnsupported": "Массовое действие пока недоступно для live API",
+      "bulkFailed": "Массовое действие не выполнено",
+      "bulkNoneSucceeded": "Ни одна выбранная запись не обновлена"
     },
     "activity": {
       "created": "Создано",

@@ -63,6 +63,24 @@ export function useMock(): boolean {
   return import.meta.env.VITE_USE_MOCK !== 'false';
 }
 
+/** Live bulk / CMS feature not wired to server — never fake success. */
+export const LIVE_FEATURE_UNSUPPORTED = 'LIVE_FEATURE_UNSUPPORTED';
+
+/**
+ * Throw when a write path is mock-only (bulk assign, KB CMS, etc.).
+ * Callers toast `errorKey` (i18n) — never report fake success counts.
+ */
+export function refuseLiveFeature(errorKey: string): never {
+  throw new ApiError(501, errorKey, {
+    message: errorKey,
+    code: LIVE_FEATURE_UNSUPPORTED,
+  });
+}
+
+export function isLiveFeatureUnsupported(err: unknown): boolean {
+  return err instanceof ApiError && err.body?.code === LIVE_FEATURE_UNSUPPORTED;
+}
+
 export function getApiToken(): string | null {
   const fromEnv = (import.meta.env.VITE_API_TOKEN as string | undefined)?.trim();
   if (fromEnv) return fromEnv;

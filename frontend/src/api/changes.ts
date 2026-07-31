@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
 import { mapChange, type BackendChange } from './mappers/changes';
 import {
   addChange as storeAddChange,
@@ -149,7 +149,8 @@ export async function bulkAssignChanges(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignChanges(ids);
   }
-  return ids.length;
+  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
+  refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }
 
 export async function bulkSetChangeStatus(
@@ -160,5 +161,9 @@ export async function bulkSetChangeStatus(
     await delay(80);
     return storeBulkSetChangeStatus(ids, status);
   }
-  return ids.length;
+  // Live: per-item transitions (honest count of successes).
+  const results = await Promise.all(
+    ids.map((id) => transitionChangeStatus(id, status)),
+  );
+  return results.filter((r) => r.ok).length;
 }

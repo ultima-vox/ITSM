@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
 import { mapProblem, type BackendProblemSummary } from './mappers/problems';
 import {
   addProblem as storeAddProblem,
@@ -106,7 +106,8 @@ export async function bulkAssignProblems(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignProblems(ids);
   }
-  return ids.length;
+  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
+  refuseLiveFeature('module.errors.bulkLiveUnsupported');
 }
 
 export async function bulkSetProblemStatus(
@@ -117,5 +118,9 @@ export async function bulkSetProblemStatus(
     await delay(80);
     return storeBulkSetProblemStatus(ids, status);
   }
-  return ids.length;
+  // Live: per-item transitions (honest count of successes).
+  const results = await Promise.all(
+    ids.map((id) => transitionProblemStatus(id, status)),
+  );
+  return results.filter((r) => r.ok).length;
 }
