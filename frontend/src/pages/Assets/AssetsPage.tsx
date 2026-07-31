@@ -2,11 +2,9 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { ArrowDown, ArrowUp, ChevronUp, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useDensity } from '@/hooks/useDensity';
@@ -22,12 +20,10 @@ import {
 } from '@/api';
 import {
   Button,
-  EmptyState,
   ErrorState,
   Input,
   Modal,
   Select,
-  SkeletonRows,
   Textarea,
 } from '@/components/ui';
 import { StatusChip } from '@/components/data-display';
@@ -36,9 +32,10 @@ import {
   type ModuleRelatedItem,
 } from '@/components/modules/ModuleDetailDrawer';
 import {
-  ModuleBulkBar,
-  ModuleKbdHint,
-} from '@/components/modules/ModuleBulkBar';
+  ModuleGrid,
+  type ModuleGridColumn,
+  type ModuleGridSortDir,
+} from '@/components/modules/ModuleGrid';
 import { formatDate } from '@/lib/format';
 import {
   resolveRelatedHref,
@@ -48,7 +45,6 @@ import { getModuleActivities } from '@/mock/store';
 import type { Asset, AssetStatus } from '@/types';
 
 type SortKey = 'tag' | 'name' | 'status' | 'location' | 'purchased';
-type SortDir = 'asc' | 'desc';
 
 const STATUS_RANK: Record<string, number> = {
   repair: 0,
@@ -68,12 +64,10 @@ export function AssetsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('tag');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [focusIndex, setFocusIndex] = useState(-1);
+  const [sortDir, setSortDir] = useState<ModuleGridSortDir>('asc');
   const [validation, setValidation] = useState<string | null>(null);
   const [assignName, setAssignName] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
@@ -105,40 +99,10 @@ export function AssetsPage() {
     return filtered;
   }, [data, query, status, sortKey, sortDir]);
 
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      const ids = new Set(list.map((a) => a.id));
-      const next = new Set([...prev].filter((id) => ids.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [list]);
-
   const selected = useMemo(
     () => (selectedId ? (data ?? []).find((a) => a.id === selectedId) ?? null : null),
     [data, selectedId],
   );
-
-  const allSelected = list.length > 0 && selectedIds.size === list.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
-
-  const toggleAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(list.map((a) => a.id)));
-  };
-
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
-    if (sortKey !== col) return 'none';
-    return sortDir === 'asc' ? 'ascending' : 'descending';
-  };
 
   const handleBulkAssign = async () => {
     const ids = [...selectedIds];
@@ -169,10 +133,11 @@ export function AssetsPage() {
     }));
   }, [selected, t]);
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+  const toggleSort = (key: string) => {
+    const k = key as SortKey;
+    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
-      setSortKey(key);
+      setSortKey(k);
       setSortDir('asc');
     }
   };
@@ -182,38 +147,6 @@ export function AssetsPage() {
     setValidation(null);
     setAssignName(a.assignedTo ?? '');
   }, []);
-
-  const onListKeyDown = (e: ReactKeyboardEvent) => {
-    if (list.length === 0) return;
-    const key = e.key.toLowerCase();
-    if (e.key === 'ArrowDown' || key === 'j') {
-      e.preventDefault();
-      setFocusIndex((i) => Math.min(i < 0 ? 0 : i + 1, list.length - 1));
-    } else if (e.key === 'ArrowUp' || key === 'k') {
-      e.preventDefault();
-      setFocusIndex((i) => Math.max(i < 0 ? 0 : i - 1, 0));
-    } else if (e.key === 'Enter' && focusIndex >= 0) {
-      e.preventDefault();
-      openRow(list[focusIndex]);
-    } else if (e.key === ' ' && focusIndex >= 0) {
-      e.preventDefault();
-      toggleOne(list[focusIndex].id);
-    } else if ((e.metaKey || e.ctrlKey) && key === 'a') {
-      e.preventDefault();
-      toggleAll();
-    } else if (e.key === 'Escape') {
-      setFocusIndex(-1);
-      setSelectedIds(new Set());
-    }
-  };
-
-  useEffect(() => {
-    if (focusIndex < 0) return;
-    const el = listRef.current?.querySelector<HTMLElement>(
-      `[data-row-index="${focusIndex}"]`,
-    );
-    el?.scrollIntoView({ block: 'nearest' });
-  }, [focusIndex]);
 
   const runTransition = async (next: AssetStatus) => {
     if (!selected) return;
@@ -230,6 +163,57 @@ export function AssetsPage() {
     setSelectedId(result.asset.id);
   };
 
+  const columns = useMemo<ModuleGridColumn<Asset>[]>(
+    () => [
+      {
+        id: 'tag',
+        header: t('assets.colTag'),
+        sortKey: 'tag',
+        width: 'minmax(100px, 0.9fr)',
+        render: (a) => <b className="mono">{a.tag}</b>,
+      },
+      {
+        id: 'name',
+        header: t('assets.colName'),
+        sortKey: 'name',
+        width: 'minmax(160px, 1.6fr)',
+        render: (a) => (
+          <>
+            {a.name}
+            <small className="cell-sub">{formatDate(a.purchasedAt, locale)}</small>
+          </>
+        ),
+      },
+      {
+        id: 'status',
+        header: t('assets.colStatus'),
+        sortKey: 'status',
+        width: 'minmax(100px, 0.9fr)',
+        render: (a) => <StatusChip status={a.status} />,
+      },
+      {
+        id: 'location',
+        header: t('assets.colLocation'),
+        sortKey: 'location',
+        width: 'minmax(110px, 1fr)',
+        render: (a) => a.location,
+      },
+      {
+        id: 'type',
+        header: t('assets.colType'),
+        width: 'minmax(100px, 0.9fr)',
+        render: (a) => t(a.typeKey),
+      },
+      {
+        id: 'assignee',
+        header: t('assets.colAssignee'),
+        width: 'minmax(110px, 1fr)',
+        render: (a) => a.assignedTo ?? t('assets.unassigned'),
+      },
+    ],
+    [t, locale],
+  );
+
   if (error && !loading && !data) {
     return (
       <section className="page">
@@ -243,16 +227,6 @@ export function AssetsPage() {
       </section>
     );
   }
-
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col)
-      return <ChevronUp size={12} className="sort-icon sort-icon--idle" />;
-    return sortDir === 'asc' ? (
-      <ArrowUp size={12} className="sort-icon" />
-    ) : (
-      <ArrowDown size={12} className="sort-icon" />
-    );
-  };
 
   const transitions = selected ? getAssetTransitions(selected.status) : [];
 
@@ -309,151 +283,41 @@ export function AssetsPage() {
         />
       </div>
 
-      {!loading && list.length > 0 && <ModuleKbdHint />}
-
-      <ModuleBulkBar
-        selectedCount={selectedIds.size}
-        onAssign={() => void handleBulkAssign()}
-        onClear={() => setSelectedIds(new Set())}
-      >
-        {(['in_use', 'stock', 'repair', 'retired'] as AssetStatus[]).map((s) => (
-          <button
-            key={s}
-            type="button"
-            className="chip chip--toggle"
-            onClick={() => void handleBulkStatus(s)}
-          >
-            {t(`status.${s}`)}
-          </button>
-        ))}
-      </ModuleBulkBar>
-
-      <div
-        className={`panel panel--flush data-table-wrap module-table${
-          isCompact ? ' is-compact' : ''
-        }`}
-      >
-        <table
-          className="data-table data-table--clickable data-table--sortable"
-          aria-label={t('assets.title')}
-        >
-          <thead>
-            <tr>
-              <th scope="col" className="grid-check">
-                <label onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={toggleAll}
-                    aria-label={t('grid.selectAll')}
-                  />
-                </label>
-              </th>
-              {(
-                [
-                  ['tag', 'assets.colTag'],
-                  ['name', 'assets.colName'],
-                  ['status', 'assets.colStatus'],
-                  ['location', 'assets.colLocation'],
-                ] as [SortKey, string][]
-              ).map(([key, labelKey]) => (
-                <th key={key} scope="col" aria-sort={ariaSortFor(key)}>
-                  <button
-                    type="button"
-                    className="th-sort"
-                    onClick={() => toggleSort(key)}
-                  >
-                    {t(labelKey)}
-                    <SortIcon col={key} />
-                  </button>
-                </th>
-              ))}
-              <th scope="col">{t('assets.colType')}</th>
-              <th scope="col">{t('assets.colAssignee')}</th>
-            </tr>
-          </thead>
-          <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
-            {loading ? (
-              <tr>
-                <td colSpan={7}>
-                  <SkeletonRows rows={4} />
-                </td>
-              </tr>
-            ) : list.length === 0 ? (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    title={t('assets.emptyTitle')}
-                    description={t('assets.emptyHint')}
-                    actionLabel={t('app.reset')}
-                    onAction={() => {
-                      setQuery('');
-                      setStatus('');
-                    }}
-                  />
-                </td>
-              </tr>
-            ) : (
-              list.map((a, index) => {
-                const isChecked = selectedIds.has(a.id);
-                return (
-                  <tr
-                    key={a.id}
-                    tabIndex={focusIndex === index ? 0 : -1}
-                    data-row-index={index}
-                    aria-selected={isChecked}
-                    className={[
-                      focusIndex === index ? 'is-focused' : '',
-                      selectedId === a.id || isChecked ? 'is-selected' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ') || undefined}
-                    onClick={() => openRow(a)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        openRow(a);
-                      }
-                    }}
-                  >
-                    <td className="grid-check">
-                      <label
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleOne(a.id)}
-                          aria-label={t('grid.selectRow', { n: a.tag })}
-                        />
-                      </label>
-                    </td>
-                    <td>
-                      <b className="mono">{a.tag}</b>
-                    </td>
-                    <td>
-                      {a.name}
-                      <small className="cell-sub">
-                        {formatDate(a.purchasedAt, locale)}
-                      </small>
-                    </td>
-                    <td>
-                      <StatusChip status={a.status} />
-                    </td>
-                    <td>{a.location}</td>
-                    <td>{t(a.typeKey)}</td>
-                    <td>{a.assignedTo ?? t('assets.unassigned')}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ModuleGrid
+        rows={list}
+        columns={columns}
+        getRowId={(a) => a.id}
+        getRowLabel={(a) => a.tag}
+        ariaLabel={t('assets.title')}
+        loading={loading}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={toggleSort}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onRowOpen={openRow}
+        activeRowId={selectedId}
+        emptyTitle={t('assets.emptyTitle')}
+        emptyHint={t('assets.emptyHint')}
+        emptyActionLabel={t('app.reset')}
+        onEmptyAction={() => {
+          setQuery('');
+          setStatus('');
+        }}
+        onBulkAssign={() => void handleBulkAssign()}
+        bulkActions={(['in_use', 'stock', 'repair', 'retired'] as AssetStatus[]).map(
+          (s) => (
+            <button
+              key={s}
+              type="button"
+              className="chip chip--toggle"
+              onClick={() => void handleBulkStatus(s)}
+            >
+              {t(`status.${s}`)}
+            </button>
+          ),
+        )}
+      />
 
       {selected && (
         <ModuleDetailDrawer

@@ -2,17 +2,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import {
-  ArrowDown,
-  ArrowUp,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Plus,
   Search,
   ShieldAlert,
@@ -37,12 +32,10 @@ import {
 import {
   Avatar,
   Button,
-  EmptyState,
   ErrorState,
   Input,
   Modal,
   Select,
-  SkeletonRows,
   Textarea,
 } from '@/components/ui';
 import { PriorityBadge, StatusChip } from '@/components/data-display';
@@ -51,9 +44,10 @@ import {
   type ModuleRelatedItem,
 } from '@/components/modules/ModuleDetailDrawer';
 import {
-  ModuleBulkBar,
-  ModuleKbdHint,
-} from '@/components/modules/ModuleBulkBar';
+  ModuleGrid,
+  type ModuleGridColumn,
+  type ModuleGridSortDir,
+} from '@/components/modules/ModuleGrid';
 import { formatDate, formatDateTime } from '@/lib/format';
 import {
   resolveRelatedHref,
@@ -168,7 +162,6 @@ function changeActionVariant(
 }
 
 type SortKey = 'number' | 'type' | 'status' | 'risk' | 'window';
-type SortDir = 'asc' | 'desc';
 
 const RISK_RANK: Record<Priority, number> = {
   critical: 0,
@@ -198,8 +191,7 @@ export function ChangesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('window');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [focusIndex, setFocusIndex] = useState(-1);
+  const [sortDir, setSortDir] = useState<ModuleGridSortDir>('asc');
   const [validation, setValidation] = useState<string | null>(null);
   const [planDraft, setPlanDraft] = useState('');
   const [backoutDraft, setBackoutDraft] = useState('');
@@ -209,7 +201,6 @@ export function ChangesPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [cabBusyId, setCabBusyId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const listRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
@@ -242,14 +233,6 @@ export function ChangesPage() {
     return filtered;
   }, [data, query, type, status, sortKey, sortDir]);
 
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      const ids = new Set(list.map((c) => c.id));
-      const next = new Set([...prev].filter((id) => ids.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [list]);
-
   const selected = useMemo(
     () =>
       selectedId
@@ -257,23 +240,6 @@ export function ChangesPage() {
         : null,
     [data, selectedId],
   );
-
-  const allSelected = list.length > 0 && selectedIds.size === list.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
-
-  const toggleAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(list.map((c) => c.id)));
-  };
-
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const handleBulkAssign = async () => {
     const n = await bulkAssignChanges([...selectedIds]);
@@ -395,10 +361,11 @@ export function ChangesPage() {
     }
   };
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+  const toggleSort = (key: string) => {
+    const k = key as SortKey;
+    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
-      setSortKey(key);
+      setSortKey(k);
       setSortDir('asc');
     }
   };
@@ -407,38 +374,6 @@ export function ChangesPage() {
     setSelectedId(c.id);
     setValidation(null);
   }, []);
-
-  const onListKeyDown = (e: ReactKeyboardEvent) => {
-    if (list.length === 0) return;
-    const key = e.key.toLowerCase();
-    if (e.key === 'ArrowDown' || key === 'j') {
-      e.preventDefault();
-      setFocusIndex((i) => Math.min(i < 0 ? 0 : i + 1, list.length - 1));
-    } else if (e.key === 'ArrowUp' || key === 'k') {
-      e.preventDefault();
-      setFocusIndex((i) => Math.max(i < 0 ? 0 : i - 1, 0));
-    } else if (e.key === 'Enter' && focusIndex >= 0) {
-      e.preventDefault();
-      openRow(list[focusIndex]);
-    } else if (e.key === ' ' && focusIndex >= 0) {
-      e.preventDefault();
-      toggleOne(list[focusIndex].id);
-    } else if ((e.metaKey || e.ctrlKey) && key === 'a') {
-      e.preventDefault();
-      toggleAll();
-    } else if (e.key === 'Escape') {
-      setFocusIndex(-1);
-      setSelectedIds(new Set());
-    }
-  };
-
-  useEffect(() => {
-    if (focusIndex < 0) return;
-    const el = listRef.current?.querySelector<HTMLElement>(
-      `[data-row-index="${focusIndex}"]`,
-    );
-    el?.scrollIntoView({ block: 'nearest' });
-  }, [focusIndex]);
 
   const savePlans = async () => {
     if (!selected) return;
@@ -530,11 +465,6 @@ export function ChangesPage() {
     setSelectedId(result.change.id);
   };
 
-  const ariaSortFor = (col: SortKey): 'ascending' | 'descending' | 'none' => {
-    if (sortKey !== col) return 'none';
-    return sortDir === 'asc' ? 'ascending' : 'descending';
-  };
-
   if (error && !loading && !data) {
     return (
       <section className="page">
@@ -549,15 +479,75 @@ export function ChangesPage() {
     );
   }
 
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col)
-      return <ChevronUp size={12} className="sort-icon sort-icon--idle" />;
-    return sortDir === 'asc' ? (
-      <ArrowUp size={12} className="sort-icon" />
-    ) : (
-      <ArrowDown size={12} className="sort-icon" />
-    );
-  };
+  const columns = useMemo<ModuleGridColumn<Change>[]>(
+    () => [
+      {
+        id: 'number',
+        header: t('changes.colNumber'),
+        sortKey: 'number',
+        width: 'minmax(90px, 0.8fr)',
+        render: (c) => <b className="mono accent">{c.number}</b>,
+      },
+      {
+        id: 'title',
+        header: t('changes.colTitle'),
+        width: 'minmax(150px, 1.6fr)',
+        render: (c) => c.title,
+      },
+      {
+        id: 'type',
+        header: t('changes.colType'),
+        sortKey: 'type',
+        width: 'minmax(90px, 0.85fr)',
+        render: (c) => (
+          <span className="type-pill">{t(`changeType.${c.type}`)}</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: t('changes.colStatus'),
+        sortKey: 'status',
+        width: 'minmax(100px, 0.95fr)',
+        render: (c) => <StatusChip status={c.status} />,
+      },
+      {
+        id: 'risk',
+        header: t('changes.colRisk'),
+        sortKey: 'risk',
+        width: 'minmax(90px, 0.85fr)',
+        render: (c) => <PriorityBadge priority={c.risk} />,
+      },
+      {
+        id: 'window',
+        header: t('changes.colWindow'),
+        sortKey: 'window',
+        width: 'minmax(180px, 1.4fr)',
+        className: 'window-cell',
+        render: (c) => (
+          <>
+            {formatDateTime(c.plannedStart, locale)}
+            <span className="muted"> {t('changes.windowTo')} </span>
+            {formatDateTime(c.plannedEnd, locale)}
+          </>
+        ),
+      },
+      {
+        id: 'assignee',
+        header: t('changes.colAssignee'),
+        width: 'minmax(110px, 1fr)',
+        render: (c) =>
+          c.assignee ? (
+            <span className="inline-person">
+              <Avatar initials={c.assignee.initials} size="sm" />
+              {c.assignee.name}
+            </span>
+          ) : (
+            <span className="muted">{t('overview.unassigned')}</span>
+          ),
+      },
+    ],
+    [t, locale],
+  );
 
   const transitions = selected ? getChangeTransitions(selected.status) : [];
 
@@ -832,14 +822,30 @@ export function ChangesPage() {
         </section>
       </div>
 
-      {!loading && list.length > 0 && <ModuleKbdHint />}
-
-      <ModuleBulkBar
-        selectedCount={selectedIds.size}
-        onAssign={() => void handleBulkAssign()}
-        onClear={() => setSelectedIds(new Set())}
-      >
-        {(
+      <ModuleGrid
+        rows={list}
+        columns={columns}
+        getRowId={(c) => c.id}
+        getRowLabel={(c) => c.number}
+        ariaLabel={t('changes.title')}
+        loading={loading}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={toggleSort}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onRowOpen={openRow}
+        activeRowId={selectedId}
+        emptyTitle={t('changes.emptyTitle')}
+        emptyHint={t('changes.emptyHint')}
+        emptyActionLabel={t('app.reset')}
+        onEmptyAction={() => {
+          setQuery('');
+          setType('');
+          setStatus('');
+        }}
+        onBulkAssign={() => void handleBulkAssign()}
+        bulkActions={(
           [
             'cab_review',
             'scheduled',
@@ -857,159 +863,7 @@ export function ChangesPage() {
             {t(`status.${s}`)}
           </button>
         ))}
-      </ModuleBulkBar>
-
-      <div
-        className={`panel panel--flush data-table-wrap module-table${
-          isCompact ? ' is-compact' : ''
-        }`}
-      >
-        <table
-          className="data-table data-table--clickable data-table--sortable"
-          aria-label={t('changes.title')}
-        >
-          <thead>
-            <tr>
-              <th scope="col" className="grid-check">
-                <label onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={toggleAll}
-                    aria-label={t('grid.selectAll')}
-                  />
-                </label>
-              </th>
-              <th scope="col" aria-sort={ariaSortFor('number')}>
-                <button type="button" className="th-sort" onClick={() => toggleSort('number')}>
-                  {t('changes.colNumber')}
-                  <SortIcon col="number" />
-                </button>
-              </th>
-              <th scope="col">{t('changes.colTitle')}</th>
-              <th scope="col" aria-sort={ariaSortFor('type')}>
-                <button type="button" className="th-sort" onClick={() => toggleSort('type')}>
-                  {t('changes.colType')}
-                  <SortIcon col="type" />
-                </button>
-              </th>
-              <th scope="col" aria-sort={ariaSortFor('status')}>
-                <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
-                  {t('changes.colStatus')}
-                  <SortIcon col="status" />
-                </button>
-              </th>
-              <th scope="col" aria-sort={ariaSortFor('risk')}>
-                <button type="button" className="th-sort" onClick={() => toggleSort('risk')}>
-                  {t('changes.colRisk')}
-                  <SortIcon col="risk" />
-                </button>
-              </th>
-              <th scope="col" aria-sort={ariaSortFor('window')}>
-                <button type="button" className="th-sort" onClick={() => toggleSort('window')}>
-                  {t('changes.colWindow')}
-                  <SortIcon col="window" />
-                </button>
-              </th>
-              <th scope="col">{t('changes.colAssignee')}</th>
-            </tr>
-          </thead>
-          <tbody ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
-            {loading ? (
-              <tr>
-                <td colSpan={8}>
-                  <SkeletonRows rows={3} />
-                </td>
-              </tr>
-            ) : list.length === 0 ? (
-              <tr>
-                <td colSpan={8}>
-                  <EmptyState
-                    title={t('changes.emptyTitle')}
-                    description={t('changes.emptyHint')}
-                    actionLabel={t('app.reset')}
-                    onAction={() => {
-                      setQuery('');
-                      setType('');
-                      setStatus('');
-                    }}
-                  />
-                </td>
-              </tr>
-            ) : (
-              list.map((c, index) => {
-                const isChecked = selectedIds.has(c.id);
-                return (
-                  <tr
-                    key={c.id}
-                    tabIndex={focusIndex === index ? 0 : -1}
-                    data-row-index={index}
-                    aria-selected={isChecked}
-                    className={[
-                      focusIndex === index ? 'is-focused' : '',
-                      selectedId === c.id || isChecked ? 'is-selected' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ') || undefined}
-                    onClick={() => openRow(c)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        openRow(c);
-                      }
-                    }}
-                  >
-                    <td className="grid-check">
-                      <label
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleOne(c.id)}
-                          aria-label={t('grid.selectRow', { n: c.number })}
-                        />
-                      </label>
-                    </td>
-                    <td>
-                      <b className="mono accent">{c.number}</b>
-                    </td>
-                    <td>{c.title}</td>
-                    <td>
-                      <span className="type-pill">{t(`changeType.${c.type}`)}</span>
-                    </td>
-                    <td>
-                      <StatusChip status={c.status} />
-                    </td>
-                    <td>
-                      <PriorityBadge priority={c.risk} />
-                    </td>
-                    <td className="window-cell">
-                      {formatDateTime(c.plannedStart, locale)}
-                      <span className="muted"> {t('changes.windowTo')} </span>
-                      {formatDateTime(c.plannedEnd, locale)}
-                    </td>
-                    <td>
-                      {c.assignee ? (
-                        <span className="inline-person">
-                          <Avatar initials={c.assignee.initials} size="sm" />
-                          {c.assignee.name}
-                        </span>
-                      ) : (
-                        <span className="muted">{t('overview.unassigned')}</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      />
 
       {selected && (
         <ModuleDetailDrawer

@@ -12,7 +12,7 @@ import {
   X,
   CheckCircle2,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useShell } from '@/hooks/useShell';
@@ -22,9 +22,17 @@ import {
   createWorkItem,
   fetchCatalogCategories,
   fetchCatalogServices,
+  fetchFormDefinition,
+  type FormDefinition,
 } from '@/api';
+import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
 import { Button, EmptyState, ErrorState, Skeleton } from '@/components/ui';
-import type { CatalogService } from '@/types';
+import type {
+  CatalogService,
+  ImpactLevel,
+  UrgencyLevel,
+  WorkItem,
+} from '@/types';
 
 const iconMap = {
   key: KeyRound,
@@ -35,9 +43,26 @@ const iconMap = {
   server: MonitorCog,
 } as const;
 
+/** Catalog requests: impact is optional; service prefilled as free text. */
+function catalogFormDefinition(base: FormDefinition | null): FormDefinition | null {
+  if (!base) return null;
+  return {
+    ...base,
+    sections: base.sections.map((section) => ({
+      ...section,
+      fields: section.fields.map((field) =>
+        field.attributeKey === 'impact'
+          ? { ...field, required: false }
+          : field.attributeKey === 'service'
+            ? { ...field, required: false }
+            : field,
+      ),
+    })),
+  };
+}
+
 export function CatalogPage() {
   const t = useT();
-  const navigate = useNavigate();
   const { openCommand } = useShell();
   const { success } = useToast();
   const [query, setQuery] = useState('');
@@ -91,6 +116,12 @@ export function CatalogPage() {
       byId('svc-hardware') ?? allServices[2],
     ].filter(Boolean) as CatalogService[];
   }, [allServices]);
+
+  const hasActiveFilters = Boolean(query.trim() || categoryId);
+  const clearFilters = () => {
+    setQuery('');
+    setCategoryId(null);
+  };
 
   if (loadError && !categories.loading && !services.loading && !categories.data && !services.data) {
     return (
@@ -180,15 +211,29 @@ export function CatalogPage() {
               ))}
             </div>
           ) : filteredServices.length === 0 ? (
-            <EmptyState
-              title={t('catalog.emptyTitle')}
-              description={t('catalog.emptyHint')}
-              actionLabel={t('app.clearSearch')}
-              onAction={() => {
-                setQuery('');
-                setCategoryId(null);
-              }}
-            />
+            <div className="catalog-empty-results">
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? t('catalog.emptyFilteredTitle')
+                    : t('catalog.emptyTitle')
+                }
+                description={
+                  hasActiveFilters
+                    ? t('catalog.emptyFilteredHint')
+                    : t('catalog.emptyHint')
+                }
+                actionLabel={
+                  hasActiveFilters ? t('catalog.clearFilters') : t('app.clearSearch')
+                }
+                onAction={clearFilters}
+              />
+              {hasActiveFilters && allServices.length > 0 && (
+                <p className="catalog-empty-results__hint">
+                  {t('catalog.emptyTryBrowse', { n: allServices.length })}
+                </p>
+              )}
+            </div>
           ) : (
             <div className="service-grid">
               {(popular.length > 0 ? popular : filteredServices).map((svc) => {
@@ -229,15 +274,14 @@ export function CatalogPage() {
               ))}
             </div>
           ) : filteredCategories.length === 0 ? (
-            <EmptyState
-              title={t('catalog.emptyTitle')}
-              description={t('catalog.emptyHint')}
-              actionLabel={t('app.clearSearch')}
-              onAction={() => {
-                setQuery('');
-                setCategoryId(null);
-              }}
-            />
+            <div className="catalog-empty-results">
+              <EmptyState
+                title={t('catalog.emptyCategoriesTitle')}
+                description={t('catalog.emptyCategoriesHint')}
+                actionLabel={t('catalog.clearFilters')}
+                onAction={clearFilters}
+              />
+            </div>
           ) : (
             <div className="category-grid">
               {filteredCategories.map((cat) => {
@@ -274,10 +318,7 @@ export function CatalogPage() {
             </span>
             <h3>{t('catalog.helpTitle')}</h3>
             <p>{t('catalog.helpText')}</p>
-            <button
-              type="button"
-              onClick={() => setAssistantOpen(true)}
-            >
+            <button type="button" onClick={() => setAssistantOpen(true)}>
               {t('catalog.askAssistant')} <ArrowRight size={15} />
             </button>
           </div>
@@ -296,10 +337,12 @@ export function CatalogPage() {
         <ServiceDrawer
           service={drawerService}
           onClose={() => setDrawerService(null)}
-          onCreated={(number) => {
+          onCreated={(item) => {
             setDrawerService(null);
-            success(t('catalog.requestCreated', { n: number }));
-            navigate('/queues?tab=unassigned');
+            success(t('catalog.requestCreated', { n: item.number }), {
+              label: t('catalog.openWorkItem', { n: item.number }),
+              href: `/work-items/${item.id}`,
+            });
           }}
         />
       )}
@@ -329,7 +372,7 @@ function ServiceDrawer({
 }: {
   service: CatalogService;
   onClose: () => void;
-  onCreated: (number: string) => void;
+  onCreated: (item: WorkItem) => void;
 }) {
   const t = useT();
   const ref = useRef<HTMLElement>(null);
@@ -337,6 +380,39 @@ function ServiceDrawer({
   const Icon = iconMap[service.icon] ?? KeyRound;
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [baseForm, setBaseForm] = useState<FormDefinition | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({
+    title: t(service.titleKey),
+    description: '',
+    service: t(service.titleKey),
+    impact: '',
+    urgency: service.id === 'svc-incident' ? 'high' : 'medium',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const formDef = useMemo(() => catalogFormDefinition(baseForm), [baseForm]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFormDefinition('work-item').then((def) => {
+      if (!cancelled) setBaseForm(def);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setValues({
+      title: t(service.titleKey),
+      description: '',
+      service: t(service.titleKey),
+      impact: '',
+      urgency: service.id === 'svc-incident' ? 'high' : 'medium',
+    });
+    setErrors({});
+    setDone(false);
+  }, [service, t]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -350,20 +426,61 @@ function ServiceDrawer({
     };
   }, [onClose]);
 
+  const setField = (key: string, value: string) => {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((e) => {
+        const next = { ...e };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
+  const validate = () => {
+    const next: Record<string, string> = {};
+    const required = formDef
+      ? formRequiredKeys(formDef).filter((k) => k !== 'service' && k !== 'impact')
+      : ['title', 'description'];
+    // Always require title + description for catalog; impact optional
+    for (const key of required) {
+      if (!(values[key] ?? '').trim()) {
+        if (key === 'title') next.title = t('create.validationTitle');
+        else if (key === 'description') next.description = t('create.validationDetails');
+        else if (key === 'urgency') next.urgency = t('app.required');
+        else next[key] = t('app.required');
+      }
+    }
+    if (!(values.title ?? '').trim()) next.title = t('create.validationTitle');
+    if (!(values.description ?? '').trim()) {
+      next.description = t('create.validationDetails');
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleRequest = async () => {
+    if (!validate()) return;
     setSubmitting(true);
     try {
       const kind = service.id === 'svc-incident' ? 'incident' : 'request';
+      const impactRaw = (values.impact ?? '').trim();
       const item = await createWorkItem({
         kind,
-        title: t(service.titleKey),
-        description: t(service.descriptionKey),
-        service: t(service.titleKey),
+        title: values.title.trim(),
+        description: values.description.trim(),
+        service: (values.service || t(service.titleKey)).trim(),
         priority: kind === 'incident' ? 'high' : 'medium',
         queue: 'Service Desk L1',
+        impact: impactRaw
+          ? (impactRaw as ImpactLevel)
+          : kind === 'incident'
+            ? 'high'
+            : 'medium',
+        urgency: (values.urgency as UrgencyLevel) || (kind === 'incident' ? 'high' : 'medium'),
       });
       setDone(true);
-      onCreated(item.number);
+      onCreated(item);
     } finally {
       setSubmitting(false);
     }
@@ -379,7 +496,7 @@ function ServiceDrawer({
     >
       <aside
         ref={ref}
-        className="service-drawer"
+        className="service-drawer service-drawer--form"
         role="dialog"
         aria-modal="true"
         aria-labelledby="svc-drawer-title"
@@ -422,11 +539,46 @@ function ServiceDrawer({
                 </dd>
               </div>
             </dl>
+
+            <div className="service-drawer__form">
+              <p className="service-drawer__form-label">{t('catalog.requestDetails')}</p>
+              {formDef ? (
+                <DynamicForm
+                  definition={formDef}
+                  values={values}
+                  onChange={setField}
+                  errors={errors}
+                  layout="create"
+                  autoFocusFirst
+                  optionLists={{
+                    service: [
+                      {
+                        value: t(service.titleKey),
+                        label: t(service.titleKey),
+                      },
+                    ],
+                    impact: [
+                      { value: '', label: t('catalog.impactOptional') },
+                      { value: 'high', label: t('workItem.impactHigh') },
+                      { value: 'medium', label: t('workItem.impactMedium') },
+                      { value: 'low', label: t('workItem.impactLow') },
+                    ],
+                  }}
+                />
+              ) : (
+                <div className="service-drawer__form-skeleton" aria-busy="true">
+                  <Skeleton height={40} radius={8} />
+                  <Skeleton height={80} radius={8} />
+                  <Skeleton height={40} radius={8} />
+                </div>
+              )}
+            </div>
+
             <div className="service-drawer__actions">
               <Button
                 variant="primary"
                 fullWidth
-                disabled={submitting}
+                disabled={submitting || !formDef}
                 onClick={() => void handleRequest()}
               >
                 {submitting ? t('app.loading') : t('catalog.requestService')}

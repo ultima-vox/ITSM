@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   TicketCheck,
   AlertOctagon,
+  Zap,
 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -39,9 +40,10 @@ const primaryNav = [
   { to: '/changes', key: 'changes', icon: GitBranch },
 ] as const;
 
-/** Management section — Metadata always shown for demo configurability. */
+/** Management section — Metadata + Automation for demo configurability. */
 const secondaryNav = [
   { to: '/admin/metadata', key: 'metadata', icon: Database },
+  { to: '/admin/automation', key: 'automation', icon: Zap },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;
 

@@ -88,12 +88,16 @@ test.describe('smoke', () => {
       page.getByRole('heading', { name: /Настройки|Settings/i }),
     ).toBeVisible();
 
+    // Settings is sectioned; open Language tab before asserting radios
+    await page.getByRole('tab', { name: /Язык|Language/i }).click();
+
     const langGroup = page.getByRole('radiogroup', {
       name: /Язык|Language/i,
     });
-    await expect(langGroup).toBeVisible();
+    await expect(langGroup).toBeVisible({ timeout: 10_000 });
     await expect(langGroup.getByRole('radio', { name: /Русский/i })).toBeVisible();
     await expect(langGroup.getByRole('radio', { name: /English/i })).toBeVisible();
     await expect(langGroup.getByRole('radio', { name: /Deutsch/i })).toBeVisible();
   });
 });
+
