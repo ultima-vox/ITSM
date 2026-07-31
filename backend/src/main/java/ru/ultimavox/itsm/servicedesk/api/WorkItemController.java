@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -40,7 +41,9 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.State;
@@ -64,6 +67,7 @@ class WorkItemController {
   private final WorkItemStatsQuery statsQuery;
   private final WorkItemAttachmentService workItemAttachments;
   private final WorkItemWatcherService watchers;
+  private final WorkItemLinkService links;
   private final AccessControl access;
 
   WorkItemController(
@@ -79,6 +83,7 @@ class WorkItemController {
       WorkItemStatsQuery statsQuery,
       WorkItemAttachmentService workItemAttachments,
       WorkItemWatcherService watchers,
+      WorkItemLinkService links,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -93,6 +98,7 @@ class WorkItemController {
     this.statsQuery = statsQuery;
     this.workItemAttachments = workItemAttachments;
     this.watchers = watchers;
+    this.links = links;
     this.access = access;
   }
 
@@ -302,6 +308,45 @@ class WorkItemController {
     return watchers.unwatch(id, actor);
   }
 
+  @GetMapping("/{id}/links")
+  @Operation(summary = "List related work item links")
+  List<LinkResponse> listLinks(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return links.listFor(id).stream().map(LinkResponse::from).toList();
+  }
+
+  @PostMapping("/{id}/links")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Create a related / duplicate / caused-by link")
+  LinkResponse createLink(
+      @PathVariable UUID id,
+      @Valid @RequestBody CreateLinkRequest request,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    try {
+      return LinkResponse.from(links.link(id, request.targetId(), request.linkType(), actor));
+    } catch (IllegalArgumentException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping("/{id}/links/{linkId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Remove a work item link")
+  void deleteLink(
+      @PathVariable UUID id,
+      @PathVariable UUID linkId,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    links.unlink(id, linkId, actor);
+  }
+
   record CreateRequest(
       @NotNull Type type,
       @NotBlank @Size(max = 240) String title,
@@ -337,4 +382,29 @@ class WorkItemController {
   record CommentRequest(
       @NotBlank @Size(max = 12000) String body
   ) {}
+
+  record CreateLinkRequest(
+      @NotNull UUID targetId,
+      @NotNull WorkItemLink.Type linkType
+  ) {}
+
+  record LinkResponse(
+      UUID id,
+      UUID sourceId,
+      UUID targetId,
+      String linkType,
+      String createdBy,
+      Instant createdAt
+  ) {
+    static LinkResponse from(WorkItemLink link) {
+      return new LinkResponse(
+          link.id(),
+          link.sourceId(),
+          link.targetId(),
+          link.linkType().name(),
+          link.createdBy(),
+          link.createdAt()
+      );
+    }
+  }
 }
