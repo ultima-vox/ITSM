@@ -245,6 +245,7 @@ export interface Problem {
   description?: string;
   rootCause?: string;
   workaround?: string;
+  resolution?: string;
   service?: string;
   relatedWorkItemIds?: string[];
   relatedCiIds?: string[];
@@ -326,6 +327,7 @@ export interface CreateProblemPayload {
   knownError?: boolean;
   rootCause?: string;
   workaround?: string;
+  resolution?: string;
 }
 
 export interface CreateChangePayload {

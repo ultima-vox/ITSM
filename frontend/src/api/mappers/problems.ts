@@ -7,6 +7,7 @@ export interface BackendProblemSummary {
   status: string;
   rootCause?: string | null;
   workaround?: string | null;
+  resolution?: string | null;
   createdAt?: string;
   updatedAt?: string;
   linkedWorkItems?: string[];
@@ -48,5 +49,6 @@ export function mapProblem(dto: BackendProblemSummary): Problem {
     description: dto.title,
     rootCause: dto.rootCause ?? undefined,
     workaround: dto.workaround ?? undefined,
+    resolution: dto.resolution ?? undefined,
   };
 }

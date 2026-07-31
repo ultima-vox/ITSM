@@ -818,6 +818,8 @@
     "rootCause": "Корневая причина",
     "rootCauseHint": "Обязательна для перевода в «Решён» и known error",
     "workaround": "Workaround",
+    "resolution": "Решение",
+    "resolutionHint": "Обязательно постоянное решение перед статусом «Решён»",
     "saveRca": "Сохранить RCA",
     "rcaSaved": "Корневая причина сохранена",
     "markKnownError": "Отметить known error",

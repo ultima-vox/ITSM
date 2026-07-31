@@ -818,6 +818,8 @@
     "rootCause": "Root cause",
     "rootCauseHint": "Required to resolve and for known error",
     "workaround": "Workaround",
+    "resolution": "Resolution",
+    "resolutionHint": "Required permanent fix notes before RESOLVED",
     "saveRca": "Save RCA",
     "rcaSaved": "Root cause saved",
     "markKnownError": "Mark known error",

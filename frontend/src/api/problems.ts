@@ -64,7 +64,12 @@ export async function createProblem(
 export async function transitionProblemStatus(
   id: string,
   next: WorkItemStatus,
-  opts?: { rootCause?: string; workaround?: string; knownError?: boolean },
+  opts?: {
+    rootCause?: string;
+    workaround?: string;
+    resolution?: string;
+    knownError?: boolean;
+  },
 ): Promise<{ ok: true; problem: Problem } | { ok: false; errorKey: string }> {
   if (useMock()) {
     await delay(120);
@@ -79,6 +84,7 @@ export async function transitionProblemStatus(
           target: toBackendProblemTarget(next),
           rootCause: opts?.rootCause,
           workaround: opts?.workaround,
+          resolution: opts?.resolution,
         },
       },
     );

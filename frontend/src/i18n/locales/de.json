@@ -818,6 +818,8 @@
     "rootCause": "Ursache",
     "rootCauseHint": "Erforderlich zum Lösen und für Known Error",
     "workaround": "Workaround",
+    "resolution": "Lösung",
+    "resolutionHint": "Dauerhafte Lösungsnotiz vor RESOLVED erforderlich",
     "saveRca": "RCA speichern",
     "rcaSaved": "Ursache gespeichert",
     "markKnownError": "Known Error setzen",
