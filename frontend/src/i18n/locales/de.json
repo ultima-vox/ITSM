@@ -1260,6 +1260,8 @@
     "disabledToast": "Richtlinie inaktiv — Work-Item-SLA nutzt Fallback-Ziele",
     "save": "Ziele speichern",
     "savedToast": "SLA-Ziele gespeichert (Sitzung)",
+    "savedReseedToast": "SLA-Ziele gespeichert — offene Countdowns neu gesetzt",
+    "reseedToast": "Offene Work-Item-SLA-Countdown aus Richtlinien neu gesetzt",
     "unsavedHint": "Es gibt ungespeicherte Zieländerungen.",
     "calendar": "Arbeitskalender",
     "zone": "Zeitzone",

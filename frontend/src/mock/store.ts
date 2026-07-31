@@ -45,6 +45,7 @@ import {
   TEAMS,
 } from './data';
 import { resetAutomationRules } from './automation';
+import { getWorkItemSlaRuntime } from '@/lib/slaRuntime';
 
 type Listener = () => void;
 
@@ -1871,8 +1872,48 @@ function formatSlaCountdown(signedMins: number): string {
 }
 
 /**
+ * S35: re-seed open work-item countdown targets from active SLA admin policies.
+ * Resolution targetHours → remaining HH:MM; warningBeforeHours → at_risk band.
+ * Paused statuses (policy pauseStates) keep clock string but mark on_track.
+ */
+export function reseedOpenWorkItemSlaFromPolicies(): boolean {
+  let changed = false;
+  items = items.map((w) => {
+    if (
+      w.status === 'resolved' ||
+      w.status === 'closed' ||
+      w.status === 'cancelled' ||
+      w.slaState === 'met'
+    ) {
+      return w;
+    }
+    const rt = getWorkItemSlaRuntime(w.priority, w.status);
+    const totalMins = Math.max(1, rt.resolution.targetMinutes);
+    const nextTarget = formatSlaCountdown(totalMins);
+    let nextState = w.slaState;
+    if (rt.paused) {
+      nextState = w.slaState === 'breached' ? 'breached' : 'on_track';
+    } else if (w.slaState === 'breached') {
+      // keep breached until human resolves — only refresh target label
+      nextState = 'breached';
+    } else {
+      const warnMins = Math.max(
+        1,
+        Math.round(rt.resolution.warningBeforeHours * 60),
+      );
+      nextState = totalMins <= warnMins ? 'at_risk' : 'on_track';
+    }
+    if (nextTarget === w.slaTarget && nextState === w.slaState) return w;
+    changed = true;
+    return { ...w, slaTarget: nextTarget, slaState: nextState };
+  });
+  if (changed) notify();
+  return changed;
+}
+
+/**
  * Advance mock SLA clocks for open work items.
- * Countdown-style targets decrement; states flip on_track→at_risk→breached.
+ * Countdown-style targets decrement; at_risk uses policy warning band when available.
  */
 export function tickSlaClocks(): boolean {
   let changed = false;
@@ -1888,12 +1929,19 @@ export function tickSlaClocks(): boolean {
     const parsed = parseSlaCountdown(w.slaTarget);
     if (!parsed) return w;
 
+    const rt = getWorkItemSlaRuntime(w.priority, w.status);
+    if (rt.paused) return w;
+
     const nextSigned = parsed.signedMins - 1;
     const nextTarget = formatSlaCountdown(nextSigned);
     let nextState = w.slaState;
+    const warnMins = Math.max(
+      1,
+      Math.round(rt.resolution.warningBeforeHours * 60) || 60,
+    );
     if (nextSigned <= 0) {
       nextState = 'breached';
-    } else if (nextSigned <= 60 && nextState === 'on_track') {
+    } else if (nextSigned <= warnMins && nextState !== 'breached') {
       nextState = 'at_risk';
     }
 
