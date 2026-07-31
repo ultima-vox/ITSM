@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Menu, Search } from 'lucide-react';
+import { ChevronDown, Contrast, Menu, Moon, Search, Sun } from 'lucide-react';
 import { useI18n, useT } from '@/i18n';
+import { useTheme } from '@/hooks/useTheme';
 import type { LocaleCode } from '@/types';
 import { NotificationMenu } from './NotificationMenu';
 import { ProfileMenu } from './ProfileMenu';
@@ -20,9 +21,19 @@ interface HeaderProps {
 export function Header({ onMenu, crumbs, onOpenCommand }: HeaderProps) {
   const t = useT();
   const { locale, setLocale, locales } = useI18n();
+  const { theme, cycleTheme } = useTheme();
   const [langOpen, setLangOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  const ThemeIcon =
+    theme === 'dark' ? Moon : theme === 'high-contrast' ? Contrast : Sun;
+  const themeLabel =
+    theme === 'dark'
+      ? t('settings.theme_dark')
+      : theme === 'high-contrast'
+        ? t('settings.theme_highContrast')
+        : t('settings.theme_light');
 
   useEffect(() => {
     setLangOpen(false);
@@ -94,6 +105,16 @@ export function Header({ onMenu, crumbs, onOpenCommand }: HeaderProps) {
         </button>
 
         <NotificationMenu />
+
+        <button
+          type="button"
+          className="icon-btn theme-toggle"
+          onClick={cycleTheme}
+          aria-label={`${t('settings.theme')}: ${themeLabel}`}
+          title={`${t('settings.theme')}: ${themeLabel}`}
+        >
+          <ThemeIcon size={18} aria-hidden />
+        </button>
 
         <div className="language" ref={menuRef}>
           <button

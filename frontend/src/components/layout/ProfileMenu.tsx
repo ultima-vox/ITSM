@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
+  Contrast,
   LogIn,
   LogOut,
   Moon,
+  Rows3,
   Settings,
+  Sun,
   User,
 } from 'lucide-react';
 import { useAuth } from '@/auth';
 import { useT } from '@/i18n';
 import { useDensity } from '@/hooks/useDensity';
+import { useTheme } from '@/hooks/useTheme';
 import { Avatar } from '@/components/ui';
 import { currentUser } from '@/mock/data';
 
@@ -23,7 +27,16 @@ export function ProfileMenu({ compact, onDark }: ProfileMenuProps) {
   const t = useT();
   const navigate = useNavigate();
   const { density, toggleDensity } = useDensity();
+  const { theme, cycleTheme } = useTheme();
   const { oidcEnabled, isAuthenticated, user, login, logout } = useAuth();
+  const ThemeIcon =
+    theme === 'dark' ? Moon : theme === 'high-contrast' ? Contrast : Sun;
+  const themeLabel =
+    theme === 'dark'
+      ? t('settings.theme_dark')
+      : theme === 'high-contrast'
+        ? t('settings.theme_highContrast')
+        : t('settings.theme_light');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -124,10 +137,20 @@ export function ProfileMenu({ compact, onDark }: ProfileMenuProps) {
             type="button"
             role="menuitem"
             onClick={() => {
+              cycleTheme();
+            }}
+          >
+            <ThemeIcon size={15} aria-hidden />
+            {t('settings.theme')}: {themeLabel}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
               toggleDensity();
             }}
           >
-            <Moon size={15} aria-hidden />
+            <Rows3 size={15} aria-hidden />
             {density === 'compact'
               ? t('app.densityComfortable')
               : t('app.densityCompact')}
