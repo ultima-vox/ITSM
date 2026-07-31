@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.knowledgebase.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -61,8 +62,8 @@ public class KnowledgeCommands {
         actor,
         null,
         slug,
-        now,
-        now
+        Timestamp.from(now),
+        Timestamp.from(now)
     );
     jdbc.update(
         """
@@ -77,7 +78,7 @@ public class KnowledgeCommands {
         summary,
         command.body().trim(),
         actor,
-        now
+        Timestamp.from(now)
     );
 
     Map<String, Object> after = Map.of(
@@ -124,7 +125,7 @@ public class KnowledgeCommands {
           INSERT INTO knowledge_article_revision (id, article_id, version, locale, title, summary, body, author_subject, created_at)
           VALUES (?,?,?,?,?,?,?,?,?)
           """,
-          UUID.randomUUID(), id, nextVersion, locale, title, summary, body, actor, now
+          UUID.randomUUID(), id, nextVersion, locale, title, summary, body, actor, Timestamp.from(now)
       );
       jdbc.update(
           """
@@ -132,7 +133,7 @@ public class KnowledgeCommands {
           SET status = 'DRAFT', version = ?, updated_at = ?
           WHERE id = ?
           """,
-          nextVersion, now, id
+          nextVersion, Timestamp.from(now), id
       );
     } else {
       // Edit current draft / in-review revision in place
@@ -158,10 +159,10 @@ public class KnowledgeCommands {
             INSERT INTO knowledge_article_revision (id, article_id, version, locale, title, summary, body, author_subject, created_at)
             VALUES (?,?,?,?,?,?,?,?,?)
             """,
-            UUID.randomUUID(), id, current.version(), locale, title, summary, body, actor, now
+            UUID.randomUUID(), id, current.version(), locale, title, summary, body, actor, Timestamp.from(now)
         );
       }
-      jdbc.update("UPDATE knowledge_article SET updated_at = ? WHERE id = ?", now, id);
+      jdbc.update("UPDATE knowledge_article SET updated_at = ? WHERE id = ?", Timestamp.from(now), id);
     }
 
     Map<String, Object> after = Map.of(
@@ -201,8 +202,8 @@ public class KnowledgeCommands {
         SET status = 'PUBLISHED', next_review_at = ?, updated_at = ?
         WHERE id = ?
         """,
-        java.sql.Timestamp.from(reviewAt),
-        now,
+        Timestamp.from(reviewAt),
+        Timestamp.from(now),
         id
     );
 

@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.assetmanagement.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -60,7 +61,7 @@ public class AssetCommands {
         updated.status().name(),
         updated.ownerSubject(),
         updated.configurationItemId(),
-        now,
+        Timestamp.from(now),
         updated.id()
     );
     jdbc.update(
@@ -69,7 +70,7 @@ public class AssetCommands {
         VALUES (?,?,?,?,?,?,?::jsonb)
         """,
         updated.id(),
-        now,
+        Timestamp.from(now),
         actor,
         before.status().name(),
         updated.status().name(),

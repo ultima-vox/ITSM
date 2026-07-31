@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.problemmanagement.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +44,8 @@ public class ProblemCommands {
             INSERT INTO problem (id, number, title, status, root_cause, workaround, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?)
             """,
-        id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(), now, now
+        id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
+        Timestamp.from(now), Timestamp.from(now)
     );
 
     Map<String, Object> state = Map.of(
@@ -83,7 +85,7 @@ public class ProblemCommands {
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
-        now,
+        Timestamp.from(now),
         id
     );
     Map<String, Object> after = Map.of(
@@ -127,7 +129,7 @@ public class ProblemCommands {
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
-        now,
+        Timestamp.from(now),
         id
     );
 
@@ -171,7 +173,7 @@ public class ProblemCommands {
             VALUES (?,?,?,?)
             ON CONFLICT DO NOTHING
             """,
-        problemId, workItemId, now, actor
+        problemId, workItemId, Timestamp.from(now), actor
     );
 
     Map<String, Object> after = Map.of(

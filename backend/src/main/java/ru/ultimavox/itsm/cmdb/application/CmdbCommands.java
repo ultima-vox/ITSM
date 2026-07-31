@@ -2,6 +2,7 @@ package ru.ultimavox.itsm.cmdb.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -71,8 +72,8 @@ public class CmdbCommands {
         classKey,
         status.name(),
         attrsJson,
-        now,
-        now
+        Timestamp.from(now),
+        Timestamp.from(now)
     );
     Map<String, Object> after = Map.of(
         "name", command.name().trim(),

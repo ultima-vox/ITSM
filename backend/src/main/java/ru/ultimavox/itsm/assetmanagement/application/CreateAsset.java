@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.assetmanagement.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
@@ -54,8 +55,8 @@ public class CreateAsset {
         command.configurationItemId(),
         command.acquiredOn() == null ? null : java.sql.Date.valueOf(command.acquiredOn()),
         command.warrantyUntil() == null ? null : java.sql.Date.valueOf(command.warrantyUntil()),
-        now,
-        now
+        Timestamp.from(now),
+        Timestamp.from(now)
     );
     Map<String, Object> after = Map.of(
         "assetTag", command.assetTag().trim(),

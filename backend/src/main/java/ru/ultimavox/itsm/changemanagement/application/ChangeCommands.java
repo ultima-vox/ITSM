@@ -60,7 +60,8 @@ public class ChangeCommands {
         id, number, change.type().name(), change.risk().name(), change.status().name(), change.title(),
         change.plannedStart() == null ? null : java.sql.Timestamp.from(change.plannedStart()),
         change.plannedEnd() == null ? null : java.sql.Timestamp.from(change.plannedEnd()),
-        change.implementationPlan(), change.rollbackPlan(), actor, now, now,
+        change.implementationPlan(), change.rollbackPlan(), actor,
+        java.sql.Timestamp.from(now), java.sql.Timestamp.from(now),
         change.businessJustification(), change.cabNotes(),
         change.cabRiskLevel() == null ? null : change.cabRiskLevel().name()
     );
@@ -105,7 +106,7 @@ public class ChangeCommands {
         updated.status().name(),
         updated.cabNotes(),
         updated.cabRiskLevel() == null ? null : updated.cabRiskLevel().name(),
-        now,
+        java.sql.Timestamp.from(now),
         id
     );
 
@@ -115,7 +116,7 @@ public class ChangeCommands {
               INSERT INTO change_approval (change_id, approver_id, decision, decided_at, comment)
               VALUES (?,?,?,?,?)
               """,
-          id, actor, target.name(), now, cabNotes
+          id, actor, target.name(), java.sql.Timestamp.from(now), cabNotes
       );
     }
 
