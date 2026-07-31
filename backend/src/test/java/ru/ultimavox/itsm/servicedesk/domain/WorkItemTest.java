@@ -96,12 +96,16 @@ class WorkItemTest {
   }
 
   @Test
-  void closed_is_terminal() {
+  void cancelled_is_terminal_but_closed_can_reopen() {
     WorkItem closed = sample(State.NEW)
         .transition(State.IN_PROGRESS, null, null, now)
         .transition(State.RESOLVED, "FIXED", "done", now)
         .transition(State.CLOSED, "FIXED", "done", now);
-    assertThatThrownBy(() -> closed.transition(State.IN_PROGRESS, null, null, now))
+    assertThat(closed.transition(State.IN_PROGRESS, null, null, now).state())
+        .isEqualTo(State.IN_PROGRESS);
+
+    WorkItem cancelled = sample(State.NEW).transition(State.CANCELLED, "DUP", null, now);
+    assertThatThrownBy(() -> cancelled.transition(State.IN_PROGRESS, null, null, now))
         .isInstanceOf(IllegalStateException.class);
   }
 
