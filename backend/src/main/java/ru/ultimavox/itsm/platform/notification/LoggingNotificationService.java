@@ -1,13 +1,15 @@
 package ru.ultimavox.itsm.platform.notification;
 
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
  * Default notification adapter: logs structured delivery intent and persists
  * via {@link NotificationStore} (PostgreSQL in production).
- * Replace or compose with SMTP / push / webhook adapters without changing callers.
+ * Optionally fans out to {@link WebhookNotificationAdapter} when configured.
  */
 @Service
 public class LoggingNotificationService implements NotificationService {
@@ -15,9 +17,19 @@ public class LoggingNotificationService implements NotificationService {
   private static final Logger log = LoggerFactory.getLogger(LoggingNotificationService.class);
 
   private final NotificationStore store;
+  private final ObjectProvider<WebhookNotificationAdapter> webhook;
 
-  public LoggingNotificationService(NotificationStore store) {
+  public LoggingNotificationService(
+      NotificationStore store,
+      ObjectProvider<WebhookNotificationAdapter> webhook
+  ) {
     this.store = store;
+    this.webhook = webhook;
+  }
+
+  /** Test constructor without webhook. */
+  public LoggingNotificationService(NotificationStore store) {
+    this(store, Optional::empty);
   }
 
   @Override
@@ -31,6 +43,10 @@ public class LoggingNotificationService implements NotificationService {
         request.correlationId(),
         request.variables().keySet()
     );
-    store.save(StoredNotification.from(request));
+    StoredNotification stored = store.save(StoredNotification.from(request));
+    WebhookNotificationAdapter adapter = webhook.getIfAvailable();
+    if (adapter != null && request.channel() != NotificationRequest.Channel.IN_APP) {
+      adapter.deliver(request, stored);
+    }
   }
 }

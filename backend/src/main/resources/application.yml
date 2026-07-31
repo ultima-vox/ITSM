@@ -53,6 +53,13 @@ itsm:
     # Purge rows older than N days (0 = retention job no-op)
     retention-days: ${ITSM_NOTIFICATION_RETENTION_DAYS:90}
     retention-cron: ${ITSM_NOTIFICATION_RETENTION_CRON:0 30 3 * * *}
+    webhook:
+      # Optional outbound webhook for EMAIL/WEBHOOK channels (blank = disabled)
+      url: ${ITSM_NOTIFICATION_WEBHOOK_URL:}
+      timeout: ${ITSM_NOTIFICATION_WEBHOOK_TIMEOUT:PT3S}
+  security:
+    # Must stay false outside profile dev; ProductionSafetyGuard enforces
+    permit-unauthenticated: ${ITSM_PERMIT_UNAUTHENTICATED:false}
   storage:
     # local = metadata-only NoOp for dev; s3 = MinIO/AWS S3-compatible
     type: ${ITSM_STORAGE_TYPE:local}

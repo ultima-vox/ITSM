@@ -23,7 +23,14 @@ Table `notification` (Flyway `V18__notifications.sql`):
 ## Delivery
 
 `LoggingNotificationService` logs delivery intent and persists via `JdbcNotificationStore`.
-EMAIL / WEBHOOK channels are recorded the same way; SMTP and webhook adapters can compose on the same port without changing Service Desk callers.
+EMAIL / WEBHOOK channels are recorded the same way; optional HTTP fan-out:
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `itsm.notifications.webhook.url` | _(empty)_ | When set, EMAIL/WEBHOOK channels POST JSON to this URL |
+| `itsm.notifications.webhook.timeout` | `PT3S` | HTTP client timeout |
+
+IN_APP stays in PostgreSQL only (no webhook by default).
 
 ## Retention
 
