@@ -1029,6 +1029,7 @@
     "subtitle": "Operational snapshot from the live queue — updates when you assign or resolve work.",
     "eyebrow": "Operations",
     "liveChip": "Live data",
+    "derivedChip": "Derived from store",
     "active": "Active items",
     "activeDetail": "of {n} total in store",
     "resolved": "Resolved",

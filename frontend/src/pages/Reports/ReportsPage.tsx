@@ -365,11 +365,7 @@ export function ReportsPage() {
         </div>
         <div className="page-head__meta">
           <span className="chip">
-            {liveMode
-              ? workload.data?.source === 'postgresql'
-                ? t('reports.liveChip')
-                : t('reports.liveChip')
-              : t('reports.mockChip')}
+            {liveMode ? t('reports.liveChip') : t('reports.derivedChip')}
           </span>
           <Button
             variant="secondary"

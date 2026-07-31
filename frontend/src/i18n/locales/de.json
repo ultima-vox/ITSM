@@ -1029,6 +1029,7 @@
     "subtitle": "Operativer Snapshot der Live-Warteschlange — aktualisiert bei Zuweisung und Lösung.",
     "eyebrow": "Betrieb",
     "liveChip": "Live-Daten",
+    "derivedChip": "Aus Store abgeleitet",
     "active": "Aktive Tickets",
     "activeDetail": "von {n} gesamt im Store",
     "resolved": "Gelöst",
