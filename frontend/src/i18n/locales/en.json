@@ -124,7 +124,8 @@
     "filterAll": "All",
     "filterUnread": "Unread",
     "loadFailed": "Could not load notifications",
-    "loadFailedHint": "Live notification service is unavailable. Retry or check API connectivity — mock seed is not shown as a fallback."
+    "loadFailedHint": "Live notification service is unavailable. Retry or check API connectivity — mock seed is not shown as a fallback.",
+    "filteredEmpty": "No notifications match your Settings filters. Enable SLA, assignment or mention alerts in Settings."
   },
   "form": {
     "engineChip": "Form v{v}",
@@ -461,6 +462,14 @@
     "contributeMock": "Article suggestion is mock-only in this build",
     "cmsLiveBanner": "Authoring is read-only in live API mode. Contribute, edit and publish require mock session or a future KB write API.",
     "cmsLiveUnsupported": "Knowledge CMS writes are not available against the live API",
+    "useInTicket": "Use in ticket",
+    "useInTicketHint": "Create an incident linked to this article",
+    "useInTicketTitle": "Follow-up: {title}",
+    "useInTicketBody": "Operator opened this ticket from knowledge article «{title}».\n\n{summary}\n\nArticle id: {articleId}",
+    "useInTicketService": "Knowledge / Service Desk",
+    "useInTicketSuccess": "Incident {number} created from knowledge",
+    "useInTicketOpen": "Open ticket",
+    "useInTicketFailed": "Could not create a ticket from this article",
     "contributeModalTitle": "Suggest a knowledge article",
     "contributeModalHint": "Draft is saved as pending in this session and appears in the list immediately.",
     "contributeFieldTitle": "Title",

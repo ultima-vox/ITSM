@@ -13,6 +13,11 @@ import {
   type AppNotification,
   type NotificationKind,
 } from '@/api';
+import {
+  filterNotificationsByPrefs,
+  loadNotificationPrefs,
+  subscribeNotificationPrefs,
+} from '@/lib/notificationPrefs';
 
 const kindIcon: Record<NotificationKind, typeof Bell> = {
   sla: ShieldAlert,
@@ -51,11 +56,16 @@ export function NotificationMenu() {
   const ref = useRef<HTMLDivElement>(null);
 
   const liveMode = !useMock();
-  const items = liveMode
+  const [prefsTick, setPrefsTick] = useState(0);
+  useEffect(() => subscribeNotificationPrefs(() => setPrefsTick((n) => n + 1)), []);
+
+  const rawItems = liveMode
     ? liveLoaded && !liveError
       ? (liveItems ?? [])
       : []
     : mockItems;
+  const prefs = prefsTick >= 0 ? loadNotificationPrefs() : loadNotificationPrefs();
+  const items = filterNotificationsByPrefs(rawItems, prefs);
   const unread = items.filter((n) => n.unread).length;
 
   useEffect(() => {

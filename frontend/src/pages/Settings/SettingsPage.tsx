@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Contrast,
@@ -28,49 +28,11 @@ import { currentUser } from '@/mock/data';
 import { resetDemoData } from '@/mock/store';
 import { Button, Tabs, Toggle, SkeletonRows, ErrorState } from '@/components/ui';
 import type { LocaleCode, NotificationPrefs } from '@/types';
-
-const NOTIF_PREFS_KEY = 'vox-notification-prefs';
-
-const DEFAULT_PREFS: NotificationPrefs = {
-  email: true,
-  desktop: false,
-  slaAlerts: true,
-  assignment: true,
-  mentions: true,
-};
-
-function loadNotificationPrefs(): NotificationPrefs {
-  try {
-    const raw = localStorage.getItem(NOTIF_PREFS_KEY);
-    if (!raw) return { ...DEFAULT_PREFS };
-    const parsed = JSON.parse(raw) as Partial<NotificationPrefs>;
-    return {
-      email: typeof parsed.email === 'boolean' ? parsed.email : DEFAULT_PREFS.email,
-      desktop:
-        typeof parsed.desktop === 'boolean' ? parsed.desktop : DEFAULT_PREFS.desktop,
-      slaAlerts:
-        typeof parsed.slaAlerts === 'boolean'
-          ? parsed.slaAlerts
-          : DEFAULT_PREFS.slaAlerts,
-      assignment:
-        typeof parsed.assignment === 'boolean'
-          ? parsed.assignment
-          : DEFAULT_PREFS.assignment,
-      mentions:
-        typeof parsed.mentions === 'boolean' ? parsed.mentions : DEFAULT_PREFS.mentions,
-    };
-  } catch {
-    return { ...DEFAULT_PREFS };
-  }
-}
-
-function persistNotificationPrefs(prefs: NotificationPrefs) {
-  try {
-    localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
+import {
+  loadNotificationPrefs,
+  saveNotificationPrefs,
+  setNotificationPref,
+} from '@/lib/notificationPrefs';
 
 function healthTone(status?: string): 'live' | 'mock' | 'warn' {
   const s = (status ?? '').toUpperCase();
@@ -120,19 +82,15 @@ export function SettingsPage() {
     reload: reloadIntegrations,
   } = useAsync(() => fetchPlatformIntegrations(), []);
 
-  useEffect(() => {
-    persistNotificationPrefs(prefs);
-  }, [prefs]);
-
   const setPref = useCallback(
     <K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => {
-      setPrefs((p) => ({ ...p, [key]: value }));
+      setPrefs(setNotificationPref(key, value));
     },
     [],
   );
 
   const save = () => {
-    persistNotificationPrefs(prefs);
+    saveNotificationPrefs(prefs);
     success(t('settings.saved'));
   };
 

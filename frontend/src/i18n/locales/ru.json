@@ -124,7 +124,8 @@
     "filterAll": "Все",
     "filterUnread": "Непрочитанные",
     "loadFailed": "Не удалось загрузить уведомления",
-    "loadFailedHint": "Сервис уведомлений недоступен. Повторите запрос или проверьте API — mock-данные не подставляются."
+    "loadFailedHint": "Сервис уведомлений недоступен. Повторите запрос или проверьте API — mock-данные не подставляются.",
+    "filteredEmpty": "Нет уведомлений по фильтрам настроек. Включите SLA, назначения или упоминания в Настройках."
   },
   "form": {
     "engineChip": "Форма v{v}",
@@ -461,6 +462,14 @@
     "contributeMock": "Предложение статьи доступно только в mock-режиме",
     "cmsLiveBanner": "В live API режим authoring только для чтения. Создать, править и публиковать — mock-сессия или будущий write API.",
     "cmsLiveUnsupported": "Запись в CMS базы знаний недоступна в live API",
+    "useInTicket": "В тикет",
+    "useInTicketHint": "Создать инцидент со ссылкой на эту статью",
+    "useInTicketTitle": "По статье: {title}",
+    "useInTicketBody": "Оператор открыл тикет из статьи базы знаний «{title}».\n\n{summary}\n\nId статьи: {articleId}",
+    "useInTicketService": "Knowledge / Service Desk",
+    "useInTicketSuccess": "Инцидент {number} создан из базы знаний",
+    "useInTicketOpen": "Открыть тикет",
+    "useInTicketFailed": "Не удалось создать тикет из статьи",
     "contributeModalTitle": "Предложить статью в базу знаний",
     "contributeModalHint": "Черновик сохраняется как «на проверке» в этой сессии и сразу появляется в списке.",
     "contributeFieldTitle": "Заголовок",
