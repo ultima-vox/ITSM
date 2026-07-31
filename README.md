@@ -470,14 +470,93 @@ Build for production from the beginning.
 
 ## Implemented foundation
 
-This repository now contains the first production-oriented vertical foundation:
+This repository now contains a production-oriented modular-monolith foundation:
 
-- **`frontend/`** — Vite + React + TypeScript operator workspace, responsive design-system tokens, Russian-default / English per-user language chooser, accessible controls, search filtering, creation menu and explicit empty state.
-- **`backend/`** — Java 25 / Spring Boot modular-monolith foundation, OIDC resource server configuration, OpenAPI, health probes, Service Desk public read boundary, PostgreSQL migration with immutable-oriented audit and transactional outbox tables.
-- **`docker-compose.yml`** — local PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO and Keycloak dependencies.
-- **`docs/`** — module boundaries, first ADR, quality gates and vertical-slice acceptance criteria.
+- **`frontend/`** — Vite + React + TypeScript operator workspace (AAA UI shell): design-system tokens, Russian-default / English locale switcher, queues, work-item surfaces, accessible controls.
+- **`backend/`** — Java 25 / Spring Boot modular monolith (`ru.ultimavox.itsm`): platform engines (metadata, workflow, forms, automation, RBAC, SLA, audit, outbox, search, AI gateway), Service Desk operator API, Change / Problem / CMDB / Asset / Knowledge / Catalog modules, Flyway migrations **V1–V15**, OpenAPI groups, OIDC JWT security (Keycloak), optional **dev** + **compose** profiles.
+- **`docker-compose.yml`** — PostgreSQL, Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ bucket init), Keycloak realm import.
+- **`docs/`** — architecture, ADRs, product notes, security, UX quality gates, [compose integrations](docs/ops/compose-integrations.md).
 
-### Run the workspace
+### Current maturity
+
+| Layer | Status |
+| --- | --- |
+| Platform engines (Object / Workflow / Form / Automation / RBAC / SLA / Audit / Outbox / Search / AI gateway) | Implemented (V10+ seed + services) |
+| Service Desk (work items, assign, transition, comments, activity, stats) | Implemented (V11 operator model + API) |
+| Business modules (Change, Problem, CMDB, Asset, Knowledge, Catalog) | Implemented (V12 extensions + seed demo data) |
+| Frontend operator shell | AAA UI shell; mock default + live `/api/v1` wiring |
+| Redis distributed cache | Wired via `compose` profile (`CachePort` + fallback); locale prefs cached |
+| OpenSearch full-text | Wired via `compose` profile; index bootstrap; work-item projections; JDBC fallback when URL empty |
+| Attachments / MinIO | S3 port + compose MinIO bucket; local metadata mode by default |
+
+### How to run — infrastructure (docker-compose)
+
+```bash
+# From repository root
+docker compose up -d
+```
+
+Services (defaults):
+
+| Service | Port(s) | Notes |
+| --- | --- | --- |
+| PostgreSQL | `5432` | DB/user/password: `itsm` / `itsm` / `itsm` |
+| Redis | `6379` | AOF persistence; enable in app with profile `compose` |
+| RabbitMQ | `5672`, UI `15672` | Outbox relay publishes to `itsm.events` |
+| OpenSearch | `9200` | Security plugin disabled; enable with `OPENSEARCH_URL` / profile `compose` |
+| MinIO | `9000`, console `9001` | Bucket `itsm-attachments` via `minio-init`; `minioadmin` / `minioadmin` |
+| Keycloak | `8081` → container `8080` | Admin `admin` / `admin`; realm **`itsm`** imported from `infra/keycloak/`; issuer `http://localhost:8081/realms/itsm` |
+
+Realm demo users, clients, and token curl examples: [`infra/keycloak/README.md`](infra/keycloak/README.md).
+
+Stop: `docker compose down` (add `-v` to wipe volumes).
+
+### How to run — backend
+
+Requirements: **Java 25**, **Maven 3.9+**, Postgres (and optionally full compose stack).
+
+```bash
+cd backend
+
+# Production-like local run (JWT required; Keycloak must be up for issuer metadata)
+mvn spring-boot:run
+
+# Local demo when OIDC is down — NEVER use in production
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Full stack: Redis + OpenSearch + MinIO (after docker compose up -d)
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+# See backend/.env.compose and docs/ops/compose-integrations.md
+```
+
+Useful URLs:
+
+- Health: `http://localhost:8080/actuator/health` (redisCache / opensearch when compose on)
+- Integrations: `GET /api/v1/platform/integrations`
+- Search: `GET /api/v1/search?q=…`
+- OpenAPI UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI groups: Service Desk, Change & Problem, CMDB & Assets, Knowledge & Catalog, Platform
+
+Environment overrides (optional):
+
+| Variable | Default |
+| --- | --- |
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/itsm` |
+| `DATABASE_USER` / `DATABASE_PASSWORD` | `itsm` / `itsm` |
+| `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` |
+| `RABBITMQ_HOST` / `PORT` / `USER` / `PASSWORD` | `localhost` / `5672` / `guest` / `guest` |
+| `ITSM_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` |
+| `ITSM_REDIS_ENABLED` | `false` (true under profile `compose`) |
+| `OPENSEARCH_URL` | empty → JDBC search (`http://localhost:9200` under `compose`) |
+| `ITSM_STORAGE_TYPE` | `local` (`s3` under `compose`) |
+
+**CORS:** backend allows the Vite origin `http://localhost:5173` (and `127.0.0.1`) so the SPA can call APIs with credentials/JWT.
+
+**Security (default / non-dev):** all `/api/**` routes require a valid OIDC JWT. Public: `/actuator/health`, `/v3/api-docs/**`, `/swagger-ui/**`. Fine-grained permissions are enforced via `AccessControl` + RBAC seeds.
+
+**Security (profile `dev` only):** JWT resource-server auto-config is disabled; a synthetic principal `dev-local` is injected. Clear console warning is logged. Do not enable in production.
+
+### How to run — frontend
 
 ```bash
 cd frontend
@@ -485,14 +564,39 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The interface starts in Russian; use **RU** in the header to switch to English. The choice is stored per browser user profile.
+Open `http://localhost:5173`. Default UI language is **Russian**; use the header language control for **English** (stored per browser profile). Point the SPA at the backend via the frontend API client base URL (see `frontend/src/api/`).
 
-### Run infrastructure and backend
+### Module map and API base paths
+
+| Module | Package | API base path |
+| --- | --- | --- |
+| Service Desk | `servicedesk` | `/api/v1/work-items` |
+| Change Management | `changemanagement` | `/api/v1/changes` |
+| Problem Management | `problemmanagement` | `/api/v1/problems` |
+| CMDB | `cmdb` | `/api/v1/cmdb` |
+| Asset Management | `assetmanagement` | `/api/v1/assets` |
+| Knowledge Base | `knowledgebase` | `/api/v1/knowledge` |
+| Service Catalog | `servicecatalog` | `/api/v1/catalog` |
+| Object / Form metadata | `platform.metadata` / `platform.forms` | `/api/v1/metadata/objects`, `/api/v1/metadata/forms` |
+| Locale preference | `platform.localization` | `/api/v1/me/locale` |
+| AI Copilot | `platform.ai` | `/api/v1/ai/copilot` |
+
+Platform engines live under `ru.ultimavox.itsm.platform.*` (workflow, SLA, automation, authorization, audit, outbox, search, cache port).
+
+Flyway migrations: `backend/src/main/resources/db/migration/V1__…` through `V12__…`.
+
+### Locale management
+
+- **Product default:** Russian (`ru`); English (`en`) fully supported; German (`de`) listed as supported interface locale in the backend preference service.
+- **Backend:** `GET/PUT /api/v1/me/locale` — per-subject preference (in-memory store in current foundation; DB table `user_locale_preference` exists for a durable adapter).
+- **Metadata i18n:** `translation` table + labels embedded in object/form/workflow seed JSON (RU/EN).
+- **Frontend:** `frontend/src/i18n` message catalogs; header switcher persists user choice locally.
+
+### Run tests (backend)
 
 ```bash
-docker compose up -d
 cd backend
-mvn spring-boot:run
+mvn test
 ```
 
-The backend requires Java 25 and Maven. It exposes health at `/actuator/health` and OpenAPI UI at `/swagger-ui.html`; protected business endpoints require a valid OIDC JWT.
+Unit tests cover domain aggregates, workflow engine, service-desk use cases (including WorkflowEngine ObjectProvider integration), cache fallback, JWT authority mapping, and related platform services. Full Spring context / DB integration tests are optional and require Postgres.

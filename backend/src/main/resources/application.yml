@@ -8,8 +8,54 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
-management: { endpoints: { web: { exposure: { include: health,info,metrics } } }, endpoint: { health: { probes: { enabled: true } } } }
-springdoc: { swagger-ui: { path: /swagger-ui.html } }
+  # Redis is optional; CacheConfiguration creates the client only when itsm.redis.enabled=true.
+  # Exclude Boot auto-config so disabled environments never open a Redis connection.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+management:
+  endpoints: { web: { exposure: { include: health,info,metrics } } }
+  endpoint: { health: { probes: { enabled: true }, show-details: when_authorized } }
+  health:
+    # Custom redisCache / opensearch indicators register only when integrations are on.
+    defaults: { enabled: true }
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
 itsm:
   outbox:
     poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
+  cors:
+    # Vite default dev server; override for additional frontends.
+    allowed-origins: ${ITSM_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  # --- Optional integrations (safe defaults: no live Redis/OpenSearch/MinIO required) ---
+  redis:
+    enabled: ${ITSM_REDIS_ENABLED:false}
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    key-prefix: ${ITSM_REDIS_KEY_PREFIX:itsm:cache:}
+    timeout: ${ITSM_REDIS_TIMEOUT:PT2S}
+  opensearch:
+    # When set (e.g. http://localhost:9200), SearchIndexService uses OpenSearch HTTP; else JDBC.
+    url: ${OPENSEARCH_URL:}
+    index: ${OPENSEARCH_INDEX:itsm}
+    connect-timeout: ${OPENSEARCH_CONNECT_TIMEOUT:PT2S}
+    read-timeout: ${OPENSEARCH_READ_TIMEOUT:PT5S}
+  storage:
+    # local = metadata-only NoOp for dev; s3 = MinIO/AWS S3-compatible
+    type: ${ITSM_STORAGE_TYPE:local}
+    s3:
+      endpoint: ${S3_ENDPOINT:http://localhost:9000}
+      bucket: ${S3_BUCKET:itsm-attachments}
+      access-key: ${S3_ACCESS_KEY:minioadmin}
+      secret-key: ${S3_SECRET_KEY:minioadmin}
+      region: ${S3_REGION:us-east-1}
+      path-style-access: ${S3_PATH_STYLE:true}

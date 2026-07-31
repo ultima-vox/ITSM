@@ -1,4 +1,5 @@
 .grok/
+.tools/
 node_modules/
 dist/
 .idea/
@@ -11,3 +12,6 @@ target/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+playwright-report/
+test-results/
+

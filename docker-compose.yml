@@ -1,24 +1,141 @@
+# Local ITSM infrastructure stack — full integrations for Redis + OpenSearch + MinIO
+#
+# Ports (host → service):
+#   5432  PostgreSQL          (itsm / itsm / itsm)
+#   6379  Redis               (AOF persistence)
+#   5672  RabbitMQ AMQP
+#   15672 RabbitMQ management UI  (guest / guest)
+#   9200  OpenSearch              (security plugin disabled)
+#   9000  MinIO S3 API            (minioadmin / minioadmin)
+#   9001  MinIO console
+#   8081  Keycloak                (admin / admin; realm "itsm" auto-imported)
+#
+# Backend with full stack:
+#   docker compose up -d
+#   cd backend
+#   mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+#
+# Env file (optional): backend/.env.compose or export vars from docs/ops/compose-integrations.md
+#
+# Issuer URI used by the backend resource server:
+#   http://localhost:8081/realms/itsm
+#
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Wipe:   docker compose down -v
+
 services:
   postgres:
     image: postgres:17-alpine
-    environment: { POSTGRES_DB: itsm, POSTGRES_USER: itsm, POSTGRES_PASSWORD: itsm }
+    environment:
+      POSTGRES_DB: itsm
+      POSTGRES_USER: itsm
+      POSTGRES_PASSWORD: itsm
     ports: ["5432:5432"]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U itsm -d itsm"], interval: 5s, timeout: 3s, retries: 10 }
-  redis: { image: redis:7-alpine, ports: ["6379:6379"] }
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itsm -d itsm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    ports: ["6379:6379"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:4-management-alpine
     ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   opensearch:
     image: opensearchproject/opensearch:2.19.1
-    environment: { discovery.type: single-node, DISABLE_SECURITY_PLUGIN: "true", OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m" }
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     ports: ["9200:9200"]
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ':9001'
-    environment: { MINIO_ROOT_USER: minioadmin, MINIO_ROOT_PASSWORD: minioadmin }
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports: ["9000:9000", "9001:9001"]
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Creates itsm-attachments bucket once MinIO is healthy (idempotent).
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/itsm-attachments &&
+      mc anonymous set download local/itsm-attachments || true &&
+      echo 'MinIO bucket itsm-attachments ready'
+      "
+    restart: "no"
+
+  # Dev mode with embedded store. Realm JSON is imported when the realm is missing
+  # (re-create the container to re-import after editing infra/keycloak/*.json).
   keycloak:
     image: quay.io/keycloak/keycloak:26.2
-    command: start-dev
-    environment: { KC_BOOTSTRAP_ADMIN_USERNAME: admin, KC_BOOTSTRAP_ADMIN_PASSWORD: admin }
+    command: ["start-dev", "--import-realm", "--hostname-strict=false"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8081
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
     ports: ["8081:8080"]
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+
+volumes:
+  postgres_data:
+  redis_data:
+  opensearch_data:
+  minio_data:

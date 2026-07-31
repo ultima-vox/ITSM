@@ -1,0 +1,38 @@
+# =============================================================================
+# COMPOSE PROFILE — use with docker-compose stack fully wired:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=dev,compose
+#   SPRING_PROFILES_ACTIVE=dev,compose
+#
+# Enables Redis cache, OpenSearch search index, and S3-compatible MinIO storage.
+# Safe to combine with `dev` (JWT relaxed). Without `dev`, Keycloak JWT still required.
+# =============================================================================
+
+itsm:
+  redis:
+    enabled: true
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    key-prefix: ${ITSM_REDIS_KEY_PREFIX:itsm:cache:}
+    timeout: ${ITSM_REDIS_TIMEOUT:PT2S}
+  opensearch:
+    url: ${OPENSEARCH_URL:http://localhost:9200}
+    index: ${OPENSEARCH_INDEX:itsm}
+    connect-timeout: ${OPENSEARCH_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${OPENSEARCH_READ_TIMEOUT:PT8S}
+  storage:
+    type: ${ITSM_STORAGE_TYPE:s3}
+    s3:
+      endpoint: ${S3_ENDPOINT:http://localhost:9000}
+      bucket: ${S3_BUCKET:itsm-attachments}
+      access-key: ${S3_ACCESS_KEY:minioadmin}
+      secret-key: ${S3_SECRET_KEY:minioadmin}
+      region: ${S3_REGION:us-east-1}
+      path-style-access: ${S3_PATH_STYLE:true}
+
+logging:
+  level:
+    ru.ultimavox.itsm.platform.cache: INFO
+    ru.ultimavox.itsm.platform.search: INFO
+    ru.ultimavox.itsm.platform.storage: INFO
