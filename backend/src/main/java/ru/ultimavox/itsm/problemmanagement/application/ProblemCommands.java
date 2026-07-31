@@ -61,27 +61,40 @@ public class ProblemCommands {
   }
 
   @Transactional
-  public Problem transition(UUID id, Problem.Status target, String rootCause, String workaround, String actor) {
+  public Problem transition(
+      UUID id,
+      Problem.Status target,
+      String rootCause,
+      String workaround,
+      String resolution,
+      String actor
+  ) {
     Problem current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
-    Problem updated = current.withInvestigationNotes(rootCause, workaround).transition(target);
+    Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution).transition(target);
     Instant now = Instant.now();
     UUID correlationId = UUID.randomUUID();
 
     jdbc.update(
         """
             UPDATE problem
-            SET status = ?, root_cause = ?, workaround = ?, updated_at = ?
+            SET status = ?, root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
             WHERE id = ?
             """,
-        updated.status().name(), updated.rootCause(), updated.workaround(), now, id
+        updated.status().name(),
+        updated.rootCause(),
+        updated.workaround(),
+        updated.resolution(),
+        now,
+        id
     );
 
     Map<String, Object> before = Map.of("status", current.status().name());
     Map<String, Object> after = Map.of(
         "status", updated.status().name(),
         "rootCause", String.valueOf(updated.rootCause()),
-        "workaround", String.valueOf(updated.workaround())
+        "workaround", String.valueOf(updated.workaround()),
+        "resolution", String.valueOf(updated.resolution())
     );
     audit.append(new AuditTrail.Entry(
         actor, "problem.transitioned", "problem", id.toString(), before, after, correlationId, now

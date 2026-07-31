@@ -22,7 +22,7 @@ public class ProblemQuery {
     String statusFilter = status == null || status.isBlank() ? null : status;
     return jdbc.query(
         """
-            SELECT id, number, title, status, root_cause, workaround, created_at, updated_at
+            SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at
             FROM problem
             WHERE (? IS NULL OR status = ?)
             ORDER BY updated_at DESC
@@ -34,6 +34,7 @@ public class ProblemQuery {
             rs.getString("status"),
             rs.getString("root_cause"),
             rs.getString("workaround"),
+            rs.getString("resolution"),
             rs.getTimestamp("created_at").toInstant(),
             rs.getTimestamp("updated_at").toInstant()
         ),
@@ -43,7 +44,7 @@ public class ProblemQuery {
 
   public Optional<Problem> findById(UUID id) {
     List<Problem> rows = jdbc.query(
-        "SELECT id, number, title, status, root_cause, workaround FROM problem WHERE id = ?",
+        "SELECT id, number, title, status, root_cause, workaround, resolution FROM problem WHERE id = ?",
         (rs, i) -> new Problem(
             (UUID) rs.getObject("id"),
             rs.getString("number"),
@@ -51,6 +52,7 @@ public class ProblemQuery {
             Problem.Status.valueOf(rs.getString("status")),
             rs.getString("root_cause"),
             rs.getString("workaround"),
+            rs.getString("resolution"),
             loadLinks((UUID) rs.getObject("id"))
         ),
         id
@@ -74,6 +76,7 @@ public class ProblemQuery {
       String status,
       String rootCause,
       String workaround,
+      String resolution,
       Instant createdAt,
       Instant updatedAt
   ) {}

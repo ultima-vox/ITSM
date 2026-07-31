@@ -77,7 +77,14 @@ class ProblemController {
   ) {
     access.require(authentication.getName(), "problem.write", "problem", id.toString());
     try {
-      return commands.transition(id, body.target(), body.rootCause(), body.workaround(), authentication.getName());
+      return commands.transition(
+          id,
+          body.target(),
+          body.rootCause(),
+          body.workaround(),
+          body.resolution(),
+          authentication.getName()
+      );
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
     } catch (IllegalStateException ex) {
@@ -109,7 +116,8 @@ class ProblemController {
   record TransitionRequest(
       @NotNull Problem.Status target,
       @Size(max = 12000) String rootCause,
-      @Size(max = 12000) String workaround
+      @Size(max = 12000) String workaround,
+      @Size(max = 12000) String resolution
   ) {}
 
   record LinkWorkItemRequest(@NotNull UUID workItemId) {}
