@@ -50,13 +50,18 @@ class LoggingNotificationServiceTest {
 
     List<StoredNotification> forAgent7 = store.listForRecipient("agent-7", 50);
     assertThat(forAgent7).hasSize(2);
-    // newest first
-    assertThat(forAgent7.get(0).templateKey()).isEqualTo("work-item.assigned");
-    assertThat(forAgent7.get(0).channel()).isEqualTo(NotificationRequest.Channel.EMAIL);
-    assertThat(forAgent7.get(1).correlationId()).isEqualTo(correlation);
-    assertThat(forAgent7.get(1).variables()).containsEntry("number", "INC-1");
-    assertThat(forAgent7.get(1).entityId()).isEqualTo("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    assertThat(forAgent7.get(1).dedupeKey()).isEqualTo(
+    assertThat(forAgent7).extracting(StoredNotification::channel)
+        .containsExactlyInAnyOrder(
+            NotificationRequest.Channel.IN_APP,
+            NotificationRequest.Channel.EMAIL
+        );
+    StoredNotification firstAssign = forAgent7.stream()
+        .filter(n -> correlation.equals(n.correlationId()))
+        .findFirst()
+        .orElseThrow();
+    assertThat(firstAssign.variables()).containsEntry("number", "INC-1");
+    assertThat(firstAssign.entityId()).isEqualTo("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    assertThat(firstAssign.dedupeKey()).isEqualTo(
         "work-item.assigned:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     );
 

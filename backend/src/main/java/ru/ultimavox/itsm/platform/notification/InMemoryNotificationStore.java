@@ -58,7 +58,11 @@ public class InMemoryNotificationStore implements NotificationStore {
       }
       matched.add(n);
     }
-    matched.sort(Comparator.comparing(StoredNotification::createdAt).reversed());
+    matched.sort(
+        Comparator.comparing(StoredNotification::createdAt)
+            .thenComparing(StoredNotification::id)
+            .reversed()
+    );
     if (off >= matched.size()) {
       return List.of();
     }

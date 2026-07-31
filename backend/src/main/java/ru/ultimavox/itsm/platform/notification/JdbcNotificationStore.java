@@ -83,7 +83,7 @@ public class JdbcNotificationStore implements NotificationStore {
         """
             + (unreadOnly ? " AND read_at IS NULL" : "")
             + """
-         ORDER BY created_at DESC
+         ORDER BY created_at DESC, id DESC
         LIMIT ? OFFSET ?
         """;
     return jdbc.query(sql, (rs, i) -> mapRow(rs), recipientSubject, cap, off);
