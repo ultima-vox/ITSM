@@ -635,11 +635,89 @@ textarea:focus-visible,
 
 .headline__actions {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.headline__widgets {
+  position: relative;
 }
 
 .headline h1 span {
   font-size: 20px;
   color: #8068ee;
+}
+
+/* Compact density: tighter overview hero (h1 retained for a11y / e2e) */
+.headline--compact {
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.headline--compact .eyebrow {
+  margin: 0 0 4px;
+  font-size: 9px;
+  letter-spacing: 0.9px;
+}
+
+.headline--compact h1 {
+  font-size: var(--text-xl, 1.25rem);
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+
+html[data-density='compact'] .page--overview .headline:not(.headline--compact) h1 {
+  font-size: var(--text-2xl, 1.5rem);
+}
+
+.widgets-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: var(--z-dropdown);
+  width: 260px;
+  background: var(--vox-surface, #fff);
+  border: 1px solid var(--vox-border-soft, #e6e8ef);
+  box-shadow: var(--shadow-lg);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  animation: pop-in var(--duration-normal) var(--ease-out);
+}
+
+.widgets-popover__title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--vox-ink-400, #8891a5);
+}
+
+.widgets-popover__row {
+  padding: 4px 0;
+}
+
+.widgets-popover__row + .widgets-popover__row {
+  border-top: 1px solid var(--vox-border-soft, #ebedf2);
+}
+
+.overview-queue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.overview-queue-filters .chip b {
+  font-size: var(--text-meta, 10px);
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+.dashboard-grid--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .page-head__meta {
@@ -9271,10 +9349,27 @@ html[data-density='compact'] .data-table td {
   margin-top: 8px;
   padding-top: 14px;
   border-top: 1px solid var(--vox-border-soft);
+  width: 100%;
+}
+
+.module-workflow__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+
+.module-workflow__meta {
+  font-size: var(--text-sm, 0.875rem);
 }
 
 .module-workflow__label {
-  margin: 0 0 8px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-meta);
   font-weight: 700;
   letter-spacing: 0.3px;

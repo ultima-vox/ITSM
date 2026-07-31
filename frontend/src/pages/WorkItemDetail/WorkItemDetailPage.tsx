@@ -66,14 +66,21 @@ import { PriorityBadge, StatusChip } from '@/components/data-display';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { slaConsumedPct } from '@/lib/sla';
 import {
+  findResolveTransition,
   getWorkItemRuntimeTransitions,
   workflowStateLabelKey,
+  WORK_ITEM_ACTION_PERMISSIONS,
   type WorkItemRuntimeTransition,
 } from '@/lib/workflowRuntime';
 import {
   getActiveWorkflowDefinition,
   subscribeWorkflowDefinitions,
 } from '@/mock/workflow';
+import {
+  getUserPermissions,
+  missingPermissionsFor,
+  subscribeRbac,
+} from '@/mock/rbac';
 import { currentUser } from '@/mock/data';
 import type {
   ImpactLevel,
@@ -223,6 +230,11 @@ function transitionDisabledReason(
   if (tr.unsupportedTarget) {
     return t('workItem.workflowUnsupportedState', { state: tr.to });
   }
+  if (tr.missingPermissions.length > 0) {
+    return t('workItem.workflowMissingPermissions', {
+      permissions: tr.missingPermissions.join(', '),
+    });
+  }
   // Match enablement: resolution_notes alone does not block resolve (modal supplies it)
   const blocking =
     tr.toStatus === 'resolved'
@@ -235,7 +247,24 @@ function transitionDisabledReason(
     const labels = blocking.map((f) => requiredFieldLabel(t, f));
     return t('workItem.workflowMissingFields', { fields: labels.join(', ') });
   }
+  if (tr.policyBlockKey) {
+    const labeled = t(tr.policyBlockKey);
+    return labeled === tr.policyBlockKey
+      ? t('workItem.workflowTransitionBlocked')
+      : labeled;
+  }
   return t('workItem.workflowTransitionBlocked');
+}
+
+/** Sticky / non-workflow action disabled because principal lacks grants. */
+function actionMissingPermissionReason(
+  t: TranslateFn,
+  missing: string[],
+): string | undefined {
+  if (!missing.length) return undefined;
+  return t('workItem.workflowMissingPermissions', {
+    permissions: missing.join(', '),
+  });
 }
 
 function transitionVariant(
@@ -267,6 +296,8 @@ export function WorkItemDetailPage() {
   const { success } = useToast();
   /** Bumps when admin toggles active workflow version (session store). */
   const [workflowTick, setWorkflowTick] = useState(0);
+  /** Bumps when RBAC role assignment changes (session store). */
+  const [rbacTick, setRbacTick] = useState(0);
 
   const item = useAsync(() => fetchWorkItem(id), [id]);
   const activity = useAsync(() => fetchWorkItemActivity(id), [id]);
@@ -285,6 +316,12 @@ export function WorkItemDetailPage() {
   useEffect(() => {
     return subscribeWorkflowDefinitions(() => {
       setWorkflowTick((n) => n + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribeRbac(() => {
+      setRbacTick((n) => n + 1);
     });
   }, []);
 
@@ -541,17 +578,48 @@ export function WorkItemDetailPage() {
   const resolved = wi.status === 'resolved' || wi.status === 'closed';
   const displayStatus: WorkItemStatus = wi.status;
 
+  // Principal grants from mock RBAC role (u-anna → SERVICE_DESK_AGENT by default).
+  // rbacTick re-reads after admin role reassignment.
+  const principalPermissions =
+    rbacTick >= 0 ? getUserPermissions(currentUser.id) : [];
+
   // Active workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.
   const wfRuntime = getWorkItemRuntimeTransitions(wi, {
     definition:
       workflowTick >= 0 ? getActiveWorkflowDefinition('work-item') : null,
+    permissions: principalPermissions,
   });
   const workflowStateLabel = (() => {
     const key = workflowStateLabelKey(wfRuntime.currentState);
     const labeled = t(key);
     return labeled === key ? wfRuntime.currentState : labeled;
   })();
+
+  // Sticky Resolve only when matrix has RESOLVED edge from current state (S28).
+  const resolveTransition = findResolveTransition(wfRuntime);
+  const resolveDisabledReason = resolveTransition
+    ? transitionDisabledReason(t, resolveTransition)
+    : undefined;
+
+  // Assign / Escalate: action-level permission stubs from RBAC catalog (S27).
+  const assignMissingPerms = missingPermissionsFor(
+    currentUser.id,
+    [...WORK_ITEM_ACTION_PERMISSIONS.assign],
+  );
+  const escalateMissingPerms = missingPermissionsFor(
+    currentUser.id,
+    [...WORK_ITEM_ACTION_PERMISSIONS.escalate],
+  );
+  const assignPermReason = actionMissingPermissionReason(t, assignMissingPerms);
+  const escalatePermReason = actionMissingPermissionReason(
+    t,
+    escalateMissingPerms,
+  );
+  const assignDisabled =
+    assigned || resolved || assignMissingPerms.length > 0;
+  const escalateDisabled =
+    resolved || !!wi.escalated || escalateMissingPerms.length > 0;
 
   const relatedWorkItems = (allItems.data ?? []).filter((w) =>
     wi.relatedIds?.includes(w.id),
@@ -638,33 +706,82 @@ export function WorkItemDetailPage() {
             >
               {t('workItem.macroMoreInfo')}
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<ShieldAlert size={15} />}
-              onClick={() => void handleEscalate()}
-              disabled={resolved || !!wi.escalated}
-            >
-              {t('workItem.escalate')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<UserPlus size={15} />}
-              onClick={() => void handleAssign()}
-              disabled={assigned || resolved}
-            >
-              {t('workItem.assignToMe')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<CheckCircle2 size={15} />}
-              onClick={openResolve}
-              disabled={resolved}
-            >
-              {t('workItem.resolve')}
-            </Button>
+            {escalatePermReason ? (
+              <span className="work-item-workflow__tip" title={escalatePermReason}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<ShieldAlert size={15} />}
+                  onClick={() => void handleEscalate()}
+                  disabled={escalateDisabled}
+                  aria-disabled={escalateDisabled}
+                >
+                  {t('workItem.escalate')}
+                </Button>
+              </span>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<ShieldAlert size={15} />}
+                onClick={() => void handleEscalate()}
+                disabled={escalateDisabled}
+              >
+                {t('workItem.escalate')}
+              </Button>
+            )}
+            {assignPermReason ? (
+              <span className="work-item-workflow__tip" title={assignPermReason}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<UserPlus size={15} />}
+                  onClick={() => void handleAssign()}
+                  disabled={assignDisabled}
+                  aria-disabled={assignDisabled}
+                >
+                  {t('workItem.assignToMe')}
+                </Button>
+              </span>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<UserPlus size={15} />}
+                onClick={() => void handleAssign()}
+                disabled={assignDisabled}
+              >
+                {t('workItem.assignToMe')}
+              </Button>
+            )}
+            {resolveTransition &&
+              (resolveDisabledReason ? (
+                <span
+                  className="work-item-workflow__tip"
+                  title={resolveDisabledReason}
+                >
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<CheckCircle2 size={15} />}
+                    onClick={openResolve}
+                    disabled={!resolveTransition.enabled}
+                    aria-disabled={!resolveTransition.enabled}
+                  >
+                    {t('workItem.resolve')}
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<CheckCircle2 size={15} />}
+                  onClick={openResolve}
+                  disabled={!resolveTransition.enabled}
+                >
+                  {t('workItem.resolve')}
+                </Button>
+              ))}
           </div>
         </div>
       </div>

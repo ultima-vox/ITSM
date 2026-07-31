@@ -4,7 +4,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { GitBranch, Plus, Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
@@ -15,7 +15,6 @@ import {
   bulkSetProblemStatus,
   createProblem,
   fetchProblems,
-  getProblemTransitions,
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
@@ -44,8 +43,22 @@ import {
   resolveRelatedHref,
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
+import {
+  getProblemRuntimeTransitions,
+  workflowStateLabelKey,
+  type ProblemRuntimeTransition,
+} from '@/lib/workflowRuntime';
+import {
+  getActiveWorkflowDefinition,
+  subscribeWorkflowDefinitions,
+} from '@/mock/workflow';
 import { getModuleActivities } from '@/mock/store';
 import type { Priority, Problem, WorkItemStatus } from '@/types';
+
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number>,
+) => string;
 
 /** Forward path first; cancel last. Primary vs secondary hierarchy. */
 const PROBLEM_ACTION_RANK: Record<string, number> = {
@@ -57,11 +70,66 @@ const PROBLEM_ACTION_RANK: Record<string, number> = {
 };
 
 function problemActionVariant(
-  status: WorkItemStatus,
+  status: WorkItemStatus | null,
 ): 'primary' | 'secondary' | 'danger' {
   if (status === 'cancelled') return 'danger';
   if (status === 'in_progress' || status === 'resolved') return 'primary';
   return 'secondary';
+}
+
+function problemRequiredFieldLabel(t: TranslateFn, field: string): string {
+  const normalized = field.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+  const aliases: Record<string, string> = {
+    assignee_id: 'assignee',
+    root_cause: 'rootCause',
+    rootcause: 'rootCause',
+  };
+  const logical = aliases[normalized] ?? normalized;
+  const fieldKey = `problems.fields.${logical}`;
+  const fromFields = t(fieldKey);
+  if (fromFields !== fieldKey) return fromFields;
+  const topKey = `problems.${logical}`;
+  const fromTop = t(topKey);
+  if (fromTop !== topKey) return fromTop;
+  if (logical === 'assignee') return t('problems.colAssignee');
+  return field;
+}
+
+function problemTransitionLabel(
+  t: TranslateFn,
+  tr: ProblemRuntimeTransition,
+): string {
+  const byKey = `problems.transition.${tr.key}`;
+  const translated = t(byKey);
+  if (translated !== byKey) return translated;
+  if (tr.toStatus) {
+    const byStatus = `problems.actions.to_${tr.toStatus}`;
+    const s = t(byStatus);
+    if (s !== byStatus) return s;
+    return t(`status.${tr.toStatus}`);
+  }
+  return tr.to;
+}
+
+function problemTransitionDisabledReason(
+  t: TranslateFn,
+  tr: ProblemRuntimeTransition,
+): string | undefined {
+  if (tr.enabled) return undefined;
+  if (tr.policyBlockKey) return t(tr.policyBlockKey);
+  if (tr.unsupportedTarget) {
+    return t('problems.workflowUnsupportedState', { state: tr.to });
+  }
+  if (tr.missingFields.length > 0) {
+    const labels = tr.missingFields.map((f) => problemRequiredFieldLabel(t, f));
+    return t('problems.workflowMissingFields', { fields: labels.join(', ') });
+  }
+  if (tr.missingPermissions?.length) {
+    return t('problems.workflowMissingPermissions', {
+      permissions: tr.missingPermissions.join(', '),
+    });
+  }
+  return t('problems.workflowTransitionBlocked');
 }
 
 type SortKey = 'number' | 'priority' | 'status' | 'updated' | 'incidents';
@@ -100,10 +168,18 @@ export function ProblemsPage() {
   const [rootCauseDraft, setRootCauseDraft] = useState('');
   const [workaroundDraft, setWorkaroundDraft] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  /** Bumps when admin toggles active workflow version (session store). */
+  const [workflowTick, setWorkflowTick] = useState(0);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
   }, [reload]);
+
+  useEffect(() => {
+    return subscribeWorkflowDefinitions(() => {
+      setWorkflowTick((n) => n + 1);
+    });
+  }, []);
 
   // Honor ?id= deep-link from search / related links
   useEffect(() => {
@@ -361,12 +437,42 @@ export function ProblemsPage() {
     [t],
   );
 
-  const transitions = selected
-    ? [...getProblemTransitions(selected.status)].sort(
+  // Active problem workflow (session) → next transitions; falls back when inactive.
+  // workflowTick invalidates after admin active-version toggle.
+  const wfRuntime = selected
+    ? getProblemRuntimeTransitions(selected, {
+        definition:
+          workflowTick >= 0
+            ? getActiveWorkflowDefinition('problem')
+            : null,
+        fieldOverrides: {
+          rootCause: rootCauseDraft,
+          workaround: workaroundDraft,
+        },
+      })
+    : null;
+
+  const runtimeTransitions = wfRuntime
+    ? [...wfRuntime.transitions].sort(
         (a, b) =>
-          (PROBLEM_ACTION_RANK[a] ?? 9) - (PROBLEM_ACTION_RANK[b] ?? 9),
+          (PROBLEM_ACTION_RANK[a.toStatus ?? ''] ?? 9) -
+          (PROBLEM_ACTION_RANK[b.toStatus ?? ''] ?? 9),
       )
     : [];
+
+  const workflowStateLabel = (() => {
+    if (!wfRuntime) return '';
+    const key = workflowStateLabelKey(wfRuntime.currentState, 'problems');
+    const labeled = t(key);
+    return labeled === key ? wfRuntime.currentState : labeled;
+  })();
+
+  const primaryTransitions = runtimeTransitions.filter(
+    (tr) => problemActionVariant(tr.toStatus) === 'primary',
+  );
+  const secondaryTransitions = runtimeTransitions.filter(
+    (tr) => problemActionVariant(tr.toStatus) !== 'primary',
+  );
 
   return (
     <section className="page">
@@ -484,6 +590,28 @@ export function ProblemsPage() {
           chips={
             <>
               <StatusChip status={selected.status} />
+              {wfRuntime && (
+                <span
+                  className="chip chip--workflow"
+                  title={
+                    wfRuntime.definition
+                      ? t('problems.workflowChipTitle', {
+                          name:
+                            wfRuntime.definition.name ??
+                            wfRuntime.definition.objectKey,
+                          version: wfRuntime.definition.version,
+                          state: wfRuntime.currentState,
+                        })
+                      : t('problems.workflowFallbackChipTitle')
+                  }
+                >
+                  <GitBranch size={12} aria-hidden />
+                  {workflowStateLabel}
+                  <span className="chip--workflow__key mono">
+                    {wfRuntime.currentState}
+                  </span>
+                </span>
+              )}
               <PriorityBadge priority={selected.priority} />
               {selected.knownError && (
                 <span className="chip chip--warn">{t('problems.knownErrorYes')}</span>
@@ -568,40 +696,96 @@ export function ProblemsPage() {
             </>
           }
           actions={
-            transitions.length > 0 ? (
-              <div className="module-workflow__stack">
-                <div className="module-workflow__primary">
-                  {transitions
-                    .filter((s) => problemActionVariant(s) === 'primary')
-                    .map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant="primary"
-                        onClick={() => void runTransition(s)}
-                      >
-                        {t(`problems.actions.to_${s}`)}
-                      </Button>
-                    ))}
-                </div>
-                <div className="module-workflow__secondary">
-                  {transitions
-                    .filter((s) => problemActionVariant(s) !== 'primary')
-                    .map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={problemActionVariant(s)}
-                        onClick={() => void runTransition(s)}
-                      >
-                        {t(`problems.actions.to_${s}`)}
-                      </Button>
-                    ))}
-                </div>
+            <div className="module-workflow" role="group" aria-label={t('problems.workflow')}>
+              <div className="module-workflow__head">
+                <p className="module-workflow__label">
+                  <GitBranch size={14} aria-hidden />
+                  {t('problems.workflow')}
+                </p>
+                <span className="module-workflow__meta muted">
+                  {wfRuntime?.source === 'workflow' && wfRuntime.definition
+                    ? t('problems.workflowSourceActive', {
+                        name:
+                          wfRuntime.definition.name ??
+                          wfRuntime.definition.objectKey,
+                        version: wfRuntime.definition.version,
+                      })
+                    : t('problems.workflowSourceFallback')}
+                </span>
               </div>
-            ) : (
-              <span className="muted">{t('module.noTransitions')}</span>
-            )
+              {runtimeTransitions.length > 0 ? (
+                <div className="module-workflow__stack">
+                  {primaryTransitions.length > 0 && (
+                    <div className="module-workflow__primary">
+                      {primaryTransitions.map((tr) => {
+                        const reason = problemTransitionDisabledReason(t, tr);
+                        const btn = (
+                          <Button
+                            size="sm"
+                            variant={problemActionVariant(tr.toStatus)}
+                            disabled={!tr.enabled || !tr.toStatus}
+                            aria-disabled={!tr.enabled}
+                            onClick={() => {
+                              if (tr.enabled && tr.toStatus) {
+                                void runTransition(tr.toStatus);
+                              }
+                            }}
+                          >
+                            {problemTransitionLabel(t, tr)}
+                          </Button>
+                        );
+                        return reason ? (
+                          <span
+                            key={tr.key}
+                            className="work-item-workflow__tip"
+                            title={reason}
+                          >
+                            {btn}
+                          </span>
+                        ) : (
+                          <span key={tr.key}>{btn}</span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {secondaryTransitions.length > 0 && (
+                    <div className="module-workflow__secondary">
+                      {secondaryTransitions.map((tr) => {
+                        const reason = problemTransitionDisabledReason(t, tr);
+                        const btn = (
+                          <Button
+                            size="sm"
+                            variant={problemActionVariant(tr.toStatus)}
+                            disabled={!tr.enabled || !tr.toStatus}
+                            aria-disabled={!tr.enabled}
+                            onClick={() => {
+                              if (tr.enabled && tr.toStatus) {
+                                void runTransition(tr.toStatus);
+                              }
+                            }}
+                          >
+                            {problemTransitionLabel(t, tr)}
+                          </Button>
+                        );
+                        return reason ? (
+                          <span
+                            key={tr.key}
+                            className="work-item-workflow__tip"
+                            title={reason}
+                          >
+                            {btn}
+                          </span>
+                        ) : (
+                          <span key={tr.key}>{btn}</span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="muted">{t('problems.workflowNoTransitions')}</span>
+              )}
+            </div>
           }
         />
       )}
