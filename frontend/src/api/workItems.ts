@@ -68,6 +68,88 @@ export async function fetchWorkItems(params?: {
   return (page.items ?? []).map(mapWorkItem);
 }
 
+export type WorkItemLinkType =
+  | 'RELATED'
+  | 'DUPLICATE_OF'
+  | 'CAUSED_BY'
+  | 'CHILD_OF';
+
+export interface WorkItemLinkDto {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  linkType: WorkItemLinkType | string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+function otherLinkedId(link: WorkItemLinkDto, selfId: string): string {
+  return link.sourceId === selfId ? link.targetId : link.sourceId;
+}
+
+export async function fetchWorkItemLinks(
+  id: string,
+): Promise<WorkItemLinkDto[]> {
+  if (useMock()) {
+    await delay(40);
+    const wi = getWorkItem(id);
+    return (wi?.relatedIds ?? []).map((rid, i) => ({
+      id: `mock-link-${id}-${i}`,
+      sourceId: id,
+      targetId: rid,
+      linkType: 'RELATED',
+    }));
+  }
+  const list = await apiRequest<WorkItemLinkDto[]>(`/work-items/${id}/links`);
+  return list ?? [];
+}
+
+export async function createWorkItemLink(
+  id: string,
+  targetId: string,
+  linkType: WorkItemLinkType = 'RELATED',
+): Promise<WorkItemLinkDto> {
+  if (useMock()) {
+    await delay(80);
+    const wi = getWorkItem(id);
+    if (!wi) throw new Error('not found');
+    const related = [...(wi.relatedIds ?? [])];
+    if (!related.includes(targetId)) related.push(targetId);
+    storeUpdate(id, { relatedIds: related });
+    return {
+      id: `mock-link-${id}-${targetId}`,
+      sourceId: id,
+      targetId,
+      linkType,
+    };
+  }
+  return apiRequest<WorkItemLinkDto>(`/work-items/${id}/links`, {
+    method: 'POST',
+    body: { targetId, linkType },
+  });
+}
+
+export async function deleteWorkItemLink(
+  id: string,
+  linkId: string,
+): Promise<void> {
+  if (useMock()) {
+    await delay(60);
+    const wi = getWorkItem(id);
+    if (!wi) return;
+    // mock link ids are mock-link-{id}-{index|target}
+    const target = linkId.replace(`mock-link-${id}-`, '');
+    const related = (wi.relatedIds ?? []).filter(
+      (rid, i) => rid !== target && String(i) !== target,
+    );
+    storeUpdate(id, { relatedIds: related });
+    return;
+  }
+  await apiRequest<void>(`/work-items/${id}/links/${encodeURIComponent(linkId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   if (useMock()) {
     await delay();
@@ -75,10 +157,10 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   }
   try {
     const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
-    const item = mapWorkItem(dto);
+    let item = mapWorkItem(dto);
     try {
       const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers`);
-      return {
+      item = {
         ...item,
         watchers: (subjects ?? []).map((sid) => ({
           id: sid,
@@ -87,8 +169,18 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
         })),
       };
     } catch {
-      return item;
+      /* watchers optional */
     }
+    try {
+      const links = await fetchWorkItemLinks(id);
+      const relatedIds = [
+        ...new Set(links.map((l) => otherLinkedId(l, id)).filter(Boolean)),
+      ];
+      item = { ...item, relatedIds };
+    } catch {
+      /* links optional */
+    }
+    return item;
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
       return null;
