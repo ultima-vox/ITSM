@@ -32,7 +32,6 @@ import {
   submitKnowledgeVote,
   subscribeKnowledge,
   updateKnowledgeArticle,
-  useMock,
 } from '@/api';
 import {
   Button,
@@ -96,8 +95,8 @@ export function KnowledgePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [active, setActive] = useState<KnowledgeArticle | null>(null);
   const [contributeOpen, setContributeOpen] = useState(false);
-  const mockMode = useMock();
-  const cmsWritable = mockMode;
+  // Backend CMS write path live (create/update/publish)
+  const cmsWritable = true;
   const articles = useAsync(() => fetchKnowledgeArticles(), []);
   const topics = useAsync(() => fetchKnowledgeTopics(), []);
 

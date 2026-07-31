@@ -317,6 +317,8 @@ export interface CreateAssetPayload {
   model?: string;
   vendor?: string;
   notes?: string;
+  /** ISO date (yyyy-MM-dd) when asset was acquired */
+  purchasedAt?: string;
 }
 
 export interface CreateProblemPayload {
