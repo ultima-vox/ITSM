@@ -42,6 +42,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
+    // Spring Modulith 1.4.0 pins ArchUnit 1.4.0, whose ASM cannot read Java 25 bytecode.
+    testImplementation("com.tngtech.archunit:archunit:1.5.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
