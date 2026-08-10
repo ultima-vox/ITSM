@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
@@ -44,10 +45,11 @@ public class CreateAsset {
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     jdbc.update(
         """
-        INSERT INTO asset (id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
+        INSERT INTO asset (id, org_id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
         """,
         id,
+        OrganizationContext.current(),
         command.assetTag().trim(),
         kind.name(),
         status.name(),

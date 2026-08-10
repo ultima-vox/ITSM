@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.cmdb.domain.CiRelationship;
 import ru.ultimavox.itsm.cmdb.domain.ConfigurationItem;
 import ru.ultimavox.itsm.cmdb.domain.ImpactGraph;
@@ -30,7 +31,8 @@ public class CmdbQuery {
         """
             SELECT id, name, class_key, status, attributes::text AS attributes
             FROM configuration_item
-            WHERE (?::text IS NULL OR class_key = ?)
+            WHERE org_id = ?
+              AND (?::text IS NULL OR class_key = ?)
               AND (?::text IS NULL OR status = ?)
               AND (?::text IS NULL OR name ILIKE '%' || ? || '%')
             ORDER BY name
@@ -42,13 +44,13 @@ public class CmdbQuery {
             rs.getString("status"),
             rs.getString("attributes")
         ),
-        classFilter, classFilter, statusFilter, statusFilter, q, q
+        OrganizationContext.current(), classFilter, classFilter, statusFilter, statusFilter, q, q
     );
   }
 
   public Optional<ConfigurationItem> findById(UUID id) {
     List<ConfigurationItem> rows = jdbc.query(
-        "SELECT id, name, class_key, status, attributes::text AS attributes FROM configuration_item WHERE id = ?",
+        "SELECT id, name, class_key, status, attributes::text AS attributes FROM configuration_item WHERE id = ? AND org_id = ?",
         (rs, i) -> mapCi(
             (UUID) rs.getObject("id"),
             rs.getString("name"),
@@ -56,7 +58,7 @@ public class CmdbQuery {
             rs.getString("status"),
             rs.getString("attributes")
         ),
-        id
+        id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
@@ -66,11 +68,11 @@ public class CmdbQuery {
         """
             SELECT id, source_ci_id, target_ci_id, relationship_type
             FROM ci_relationship
-            WHERE source_ci_id = ? OR target_ci_id = ?
+            WHERE org_id = ? AND (source_ci_id = ? OR target_ci_id = ?)
             ORDER BY relationship_type, id
             """,
         (rs, i) -> mapRelationship(rs),
-        ciId, ciId
+        OrganizationContext.current(), ciId, ciId
     );
   }
 
@@ -81,11 +83,12 @@ public class CmdbQuery {
         """
             SELECT id, source_ci_id, target_ci_id, relationship_type
             FROM ci_relationship
+            WHERE org_id = ?
             ORDER BY relationship_type, id
             LIMIT ?
             """,
         (rs, i) -> mapRelationship(rs),
-        cap
+        OrganizationContext.current(), cap
     );
   }
 
@@ -108,9 +111,9 @@ public class CmdbQuery {
         """
             SELECT ci.id, ci.name, ci.class_key, ci.status, ci.attributes::text AS attributes
             FROM configuration_item ci
-            WHERE NOT EXISTS (
+            WHERE ci.org_id = ? AND NOT EXISTS (
               SELECT 1 FROM ci_relationship r
-              WHERE r.source_ci_id = ci.id OR r.target_ci_id = ci.id
+              WHERE r.org_id = ci.org_id AND (r.source_ci_id = ci.id OR r.target_ci_id = ci.id)
             )
             ORDER BY ci.name
             LIMIT ?
@@ -122,7 +125,7 @@ public class CmdbQuery {
             rs.getString("status"),
             rs.getString("attributes")
         ),
-        cap
+        OrganizationContext.current(), cap
     );
   }
 
@@ -132,12 +135,13 @@ public class CmdbQuery {
     int maxHops = hops <= 0 ? 1 : Math.min(hops, ImpactGraph.MAX_SUPPORTED_HOPS);
 
     List<ImpactGraph.Edge> edges = jdbc.query(
-        "SELECT source_ci_id, target_ci_id, relationship_type FROM ci_relationship",
+        "SELECT source_ci_id, target_ci_id, relationship_type FROM ci_relationship WHERE org_id = ?",
         (rs, i) -> new ImpactGraph.Edge(
             (UUID) rs.getObject("source_ci_id"),
             (UUID) rs.getObject("target_ci_id"),
             rs.getString("relationship_type")
-        )
+        ),
+        OrganizationContext.current()
     );
 
     List<ImpactGraph.Node> nodes = ImpactGraph.traverse(ciId, maxHops, edges);

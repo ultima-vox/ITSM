@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
@@ -56,13 +57,14 @@ public class AssetCommands {
         """
         UPDATE asset
         SET status = ?, owner_subject = ?, configuration_item_id = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND org_id = ?
         """,
         updated.status().name(),
         updated.ownerSubject(),
         updated.configurationItemId(),
         Timestamp.from(now),
-        updated.id()
+        updated.id(),
+        OrganizationContext.current()
     );
     jdbc.update(
         """

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
 import ru.ultimavox.itsm.cmdb.CmdbReferenceQuery;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
@@ -48,8 +49,8 @@ public class LinkAssetToCi {
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
-        "UPDATE asset SET configuration_item_id = ?, updated_at = ? WHERE id = ?",
-        linked.configurationItemId(), java.sql.Timestamp.from(now), linked.id()
+        "UPDATE asset SET configuration_item_id = ?, updated_at = ? WHERE id = ? AND org_id = ?",
+        linked.configurationItemId(), java.sql.Timestamp.from(now), linked.id(), OrganizationContext.current()
     );
     jdbc.update(
         """

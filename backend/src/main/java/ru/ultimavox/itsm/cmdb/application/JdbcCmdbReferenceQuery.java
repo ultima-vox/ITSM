@@ -4,6 +4,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import ru.ultimavox.itsm.cmdb.CmdbReferenceQuery;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Service
 final class JdbcCmdbReferenceQuery implements CmdbReferenceQuery {
@@ -16,9 +17,10 @@ final class JdbcCmdbReferenceQuery implements CmdbReferenceQuery {
   @Override
   public boolean exists(UUID configurationItemId) {
     Integer count = jdbc.queryForObject(
-        "SELECT COUNT(*) FROM configuration_item WHERE id = ?",
+        "SELECT COUNT(*) FROM configuration_item WHERE id = ? AND org_id = ?",
         Integer.class,
-        configurationItemId);
+        configurationItemId,
+        OrganizationContext.current());
     return count != null && count > 0;
   }
 }

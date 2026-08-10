@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.cmdb.domain.CiRelationship;
 import ru.ultimavox.itsm.cmdb.domain.ConfigurationItem;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
@@ -64,10 +65,11 @@ public class CmdbCommands {
     }
     jdbc.update(
         """
-        INSERT INTO configuration_item (id, name, class_key, status, attributes, created_at, updated_at)
-        VALUES (?,?,?,?,?::jsonb,?,?)
+        INSERT INTO configuration_item (id, org_id, name, class_key, status, attributes, created_at, updated_at)
+        VALUES (?,?,?,?,?,?::jsonb,?,?)
         """,
         id,
+        OrganizationContext.current(),
         command.name().trim(),
         classKey,
         status.name(),
@@ -113,10 +115,10 @@ public class CmdbCommands {
     try {
       jdbc.update(
           """
-          INSERT INTO ci_relationship (id, source_ci_id, target_ci_id, relationship_type)
-          VALUES (?,?,?,?)
+          INSERT INTO ci_relationship (id, org_id, source_ci_id, target_ci_id, relationship_type)
+          VALUES (?,?,?,?,?)
           """,
-          id, sourceId, targetId, type.name()
+          id, OrganizationContext.current(), sourceId, targetId, type.name()
       );
     } catch (org.springframework.dao.DuplicateKeyException ex) {
       throw new IllegalStateException("Relationship already exists");
@@ -141,7 +143,10 @@ public class CmdbCommands {
   public void deleteRelationship(UUID relationshipId, String actor) {
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
-    int n = jdbc.update("DELETE FROM ci_relationship WHERE id = ?", relationshipId);
+    int n = jdbc.update(
+        "DELETE FROM ci_relationship WHERE id = ? AND org_id = ?",
+        relationshipId, OrganizationContext.current()
+    );
     if (n == 0) {
       throw new IllegalArgumentException("Relationship not found: " + relationshipId);
     }

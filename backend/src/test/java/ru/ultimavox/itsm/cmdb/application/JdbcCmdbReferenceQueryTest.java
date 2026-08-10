@@ -14,7 +14,7 @@ class JdbcCmdbReferenceQueryTest {
     JdbcTemplate jdbc = mock(JdbcTemplate.class);
     UUID id = UUID.randomUUID();
     when(jdbc.queryForObject(
-        "SELECT COUNT(*) FROM configuration_item WHERE id = ?", Integer.class, id))
+        "SELECT COUNT(*) FROM configuration_item WHERE id = ? AND org_id = ?", Integer.class, id, "default"))
         .thenReturn(1);
 
     assertThat(new JdbcCmdbReferenceQuery(jdbc).exists(id)).isTrue();

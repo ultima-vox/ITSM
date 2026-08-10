@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
 
 @Service
@@ -25,7 +26,8 @@ public class AssetQuery {
         """
             SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until
             FROM asset
-            WHERE (?::text IS NULL OR status = ?)
+            WHERE org_id = ?
+              AND (?::text IS NULL OR status = ?)
               AND (?::text IS NULL OR kind = ?)
               AND (?::text IS NULL OR owner_subject = ?)
             ORDER BY asset_tag
@@ -38,7 +40,7 @@ public class AssetQuery {
             rs.getObject("configuration_item_id", UUID.class),
             rs.getDate("acquired_on"),
             rs.getDate("warranty_until")),
-        statusFilter, statusFilter, kindFilter, kindFilter, ownerFilter, ownerFilter
+        OrganizationContext.current(), statusFilter, statusFilter, kindFilter, kindFilter, ownerFilter, ownerFilter
     );
   }
 
@@ -46,7 +48,7 @@ public class AssetQuery {
     List<Asset> rows = jdbc.query(
         """
             SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until
-            FROM asset WHERE id = ?
+            FROM asset WHERE id = ? AND org_id = ?
             """,
         (rs, i) -> map(rs.getObject("id", UUID.class),
             rs.getString("asset_tag"),
@@ -56,7 +58,7 @@ public class AssetQuery {
             rs.getObject("configuration_item_id", UUID.class),
             rs.getDate("acquired_on"),
             rs.getDate("warranty_until")),
-        id
+        id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
