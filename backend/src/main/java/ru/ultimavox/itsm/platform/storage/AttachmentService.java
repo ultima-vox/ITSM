@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Service
 public class AttachmentService {
@@ -44,7 +45,8 @@ public class AttachmentService {
     }
 
     UUID id = UUID.randomUUID();
-    String storageKey = "attachments/" + id + "/" + sanitizeFilename(filename);
+    String storageKey = "organizations/" + sanitizeOrganization(OrganizationContext.current())
+        + "/attachments/" + id + "/" + sanitizeFilename(filename);
     String type = contentType == null || contentType.isBlank()
         ? "application/octet-stream"
         : contentType;
@@ -113,6 +115,13 @@ public class AttachmentService {
       return "file";
     }
     return name.length() > 200 ? name.substring(0, 200) : name;
+  }
+
+  private static String sanitizeOrganization(String organizationId) {
+    String sanitized = organizationId == null
+        ? "default"
+        : organizationId.replaceAll("[^a-zA-Z0-9._-]", "_");
+    return sanitized.isBlank() ? "default" : sanitized;
   }
 
   /**

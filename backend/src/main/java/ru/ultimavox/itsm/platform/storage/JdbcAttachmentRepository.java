@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Repository
 public class JdbcAttachmentRepository implements AttachmentRepository {
@@ -22,12 +23,13 @@ public class JdbcAttachmentRepository implements AttachmentRepository {
     jdbc.update(
         """
         INSERT INTO attachment (
-          id, filename, content_type, size_bytes, storage_key, uploaded_by, created_at,
+          id, org_id, filename, content_type, size_bytes, storage_key, uploaded_by, created_at,
           scan_status, scan_engine, scan_detail, scanned_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         attachment.id(),
+        OrganizationContext.current(),
         attachment.filename(),
         attachment.contentType(),
         attachment.sizeBytes(),
@@ -49,10 +51,11 @@ public class JdbcAttachmentRepository implements AttachmentRepository {
         SELECT id, filename, content_type, size_bytes, storage_key, uploaded_by, created_at,
                scan_status, scan_engine, scan_detail, scanned_at
         FROM attachment
-        WHERE id = ?
+        WHERE id = ? AND org_id = ?
         """,
         (rs, i) -> mapRow(rs),
-        id
+        id,
+        OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }

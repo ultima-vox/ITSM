@@ -52,7 +52,7 @@ class AttachmentServiceTest {
     assertThat(saved.filename()).isEqualTo("report.pdf");
     assertThat(saved.contentType()).isEqualTo("application/pdf");
     assertThat(saved.sizeBytes()).isEqualTo(bytes.length);
-    assertThat(saved.storageKey()).startsWith("attachments/" + saved.id() + "/");
+    assertThat(saved.storageKey()).startsWith("organizations/default/attachments/" + saved.id() + "/");
     assertThat(saved.uploadedBy()).isEqualTo("agent-1");
     assertThat(saved.scanStatus()).isEqualTo(ScanStatus.CLEAN);
     assertThat(saved.scanEngine()).isEqualTo(ContentSignatureMalwareScan.ENGINE);
