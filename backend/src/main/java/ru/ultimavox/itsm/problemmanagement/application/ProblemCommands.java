@@ -14,6 +14,7 @@ import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
 import ru.ultimavox.itsm.problemmanagement.domain.Problem;
+import ru.ultimavox.itsm.servicedesk.WorkItemReferenceQuery;
 
 @Service
 public class ProblemCommands {
@@ -22,19 +23,22 @@ public class ProblemCommands {
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
   private final WorkflowPolicyGateway workflows;
+  private final WorkItemReferenceQuery workItems;
 
   public ProblemCommands(
       JdbcTemplate jdbc,
       ProblemQuery query,
       AuditTrail audit,
       IntegrationEventOutbox outbox,
-      WorkflowPolicyGateway workflows
+      WorkflowPolicyGateway workflows,
+      WorkItemReferenceQuery workItems
   ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
     this.workflows = workflows;
+    this.workItems = workItems;
   }
 
   @Transactional
@@ -173,12 +177,7 @@ public class ProblemCommands {
     Problem current = query.findById(problemId)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + problemId));
 
-    Integer exists = jdbc.queryForObject(
-        "SELECT COUNT(*) FROM work_item WHERE id = ?",
-        Integer.class,
-        workItemId
-    );
-    if (exists == null || exists == 0) {
+    if (!workItems.exists(workItemId)) {
       throw new IllegalArgumentException("Work item not found: " + workItemId);
     }
 
