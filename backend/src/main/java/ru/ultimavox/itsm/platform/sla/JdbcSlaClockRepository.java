@@ -2,6 +2,7 @@ package ru.ultimavox.itsm.platform.sla;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -22,10 +23,11 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public SlaClock insert(SlaClock clock) {
         jdbc.update(
                 """
-                INSERT INTO sla_clock (id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())
+                INSERT INTO sla_clock (id, org_id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                 """,
                 clock.id(),
+                OrganizationContext.current(),
                 clock.policyKey(),
                 clock.aggregateId(),
                 clock.metric(),
@@ -42,10 +44,10 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         List<SlaClock> rows = jdbc.query(
                 """
                 SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
-                FROM sla_clock WHERE id = ?
+                FROM sla_clock WHERE id = ? AND org_id = ?
                 """,
                 (rs, i) -> map(rs),
-                id
+                id, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -56,10 +58,10 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 """
                 SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
                 FROM sla_clock
-                WHERE aggregate_id = ? AND state IN ('RUNNING', 'PAUSED')
+                WHERE org_id = ? AND aggregate_id = ? AND state IN ('RUNNING', 'PAUSED')
                 """,
                 (rs, i) -> map(rs),
-                aggregateId
+                OrganizationContext.current(), aggregateId
         );
     }
 
@@ -69,13 +71,13 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 """
                 SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
                 FROM sla_clock
-                WHERE aggregate_id = ? AND policy_key = ? AND metric = ?
+                WHERE org_id = ? AND aggregate_id = ? AND policy_key = ? AND metric = ?
                   AND state IN ('RUNNING', 'PAUSED')
                 ORDER BY started_at DESC
                 LIMIT 1
                 """,
                 (rs, i) -> map(rs),
-                aggregateId, policyKey, metric
+                OrganizationContext.current(), aggregateId, policyKey, metric
         );
         return rows.stream().findFirst();
     }
@@ -86,12 +88,12 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 """
                 UPDATE sla_clock
                 SET due_at = ?, warning_at = ?, state = ?, updated_at = now()
-                WHERE id = ?
+                WHERE id = ? AND org_id = ?
                 """,
                 Timestamp.from(clock.dueAt()),
                 clock.warningAt() == null ? null : Timestamp.from(clock.warningAt()),
                 clock.state().name(),
-                clock.id()
+                clock.id(), OrganizationContext.current()
         );
         return clock;
     }
@@ -101,12 +103,12 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         jdbc.update(
                 """
                 INSERT INTO sla_clock_history (clock_id, action, actor_id, details)
-                VALUES (?, ?, ?, ?::jsonb)
+                SELECT id, ?, ?, ?::jsonb FROM sla_clock WHERE id = ? AND org_id = ?
                 """,
-                clockId,
                 action,
                 actorId,
-                detailsJson == null ? "{}" : detailsJson
+                detailsJson == null ? "{}" : detailsJson,
+                clockId, OrganizationContext.current()
         );
     }
 
@@ -116,12 +118,12 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 """
                 SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
                 FROM sla_clock
-                WHERE state = 'RUNNING' AND due_at <= now()
+                WHERE org_id = ? AND state = 'RUNNING' AND due_at <= now()
                 ORDER BY due_at
                 LIMIT ?
                 """,
                 (rs, i) -> map(rs),
-                limit
+                OrganizationContext.current(), limit
         );
     }
 

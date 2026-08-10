@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Repository
 public class JdbcNotificationStore implements NotificationStore {
@@ -34,11 +35,12 @@ public class JdbcNotificationStore implements NotificationStore {
       jdbc.update(
           """
           INSERT INTO notification (
-            id, created_at, correlation_id, template_key, recipient_subject, locale,
+            id, org_id, created_at, correlation_id, template_key, recipient_subject, locale,
             variables, channel, read_at, source, entity_type, entity_id, dedupe_key
-          ) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
           """,
           notification.id(),
+          OrganizationContext.current(),
           Timestamp.from(notification.createdAt()),
           notification.correlationId(),
           notification.templateKey(),
@@ -79,14 +81,14 @@ public class JdbcNotificationStore implements NotificationStore {
         SELECT id, created_at, correlation_id, template_key, recipient_subject, locale,
                variables, channel, read_at, source, entity_type, entity_id, dedupe_key
         FROM notification
-        WHERE recipient_subject = ?
+        WHERE org_id = ? AND recipient_subject = ?
         """
             + (unreadOnly ? " AND read_at IS NULL" : "")
             + """
          ORDER BY created_at DESC, id DESC
         LIMIT ? OFFSET ?
         """;
-    return jdbc.query(sql, (rs, i) -> mapRow(rs), recipientSubject, cap, off);
+    return jdbc.query(sql, (rs, i) -> mapRow(rs), OrganizationContext.current(), recipientSubject, cap, off);
   }
 
   @Override
@@ -96,10 +98,10 @@ public class JdbcNotificationStore implements NotificationStore {
         SELECT id, created_at, correlation_id, template_key, recipient_subject, locale,
                variables, channel, read_at, source, entity_type, entity_id, dedupe_key
         FROM notification
-        WHERE id = ?
+        WHERE id = ? AND org_id = ?
         """,
         (rs, i) -> mapRow(rs),
-        id
+        id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
@@ -111,11 +113,13 @@ public class JdbcNotificationStore implements NotificationStore {
         UPDATE notification
         SET read_at = ?
         WHERE id = ?
+          AND org_id = ?
           AND recipient_subject = ?
           AND read_at IS NULL
         """,
         Timestamp.from(readAt),
         id,
+        OrganizationContext.current(),
         recipientSubject
     );
     return updated > 0;
@@ -128,10 +132,12 @@ public class JdbcNotificationStore implements NotificationStore {
         UPDATE notification
         SET read_at = ?
         WHERE recipient_subject = ?
+          AND org_id = ?
           AND read_at IS NULL
         """,
         Timestamp.from(readAt),
-        recipientSubject
+        recipientSubject,
+        OrganizationContext.current()
     );
   }
 
@@ -140,10 +146,10 @@ public class JdbcNotificationStore implements NotificationStore {
     Long count = jdbc.queryForObject(
         """
         SELECT COUNT(*) FROM notification
-        WHERE recipient_subject = ? AND read_at IS NULL
+        WHERE org_id = ? AND recipient_subject = ? AND read_at IS NULL
         """,
         Long.class,
-        recipientSubject
+        OrganizationContext.current(), recipientSubject
     );
     return count == null ? 0L : count;
   }
@@ -151,8 +157,8 @@ public class JdbcNotificationStore implements NotificationStore {
   @Override
   public int deleteOlderThan(Instant cutoff) {
     return jdbc.update(
-        "DELETE FROM notification WHERE created_at < ?",
-        Timestamp.from(cutoff)
+        "DELETE FROM notification WHERE org_id = ? AND created_at < ?",
+        OrganizationContext.current(), Timestamp.from(cutoff)
     );
   }
 
@@ -162,10 +168,10 @@ public class JdbcNotificationStore implements NotificationStore {
         SELECT id, created_at, correlation_id, template_key, recipient_subject, locale,
                variables, channel, read_at, source, entity_type, entity_id, dedupe_key
         FROM notification
-        WHERE recipient_subject = ? AND dedupe_key = ?
+        WHERE org_id = ? AND recipient_subject = ? AND dedupe_key = ?
         """,
         (rs, i) -> mapRow(rs),
-        recipient,
+        OrganizationContext.current(), recipient,
         dedupeKey
     );
     return rows.stream().findFirst();

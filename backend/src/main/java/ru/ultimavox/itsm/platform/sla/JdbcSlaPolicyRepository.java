@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.sla.SlaPolicy.Target;
 
 import java.time.Duration;
@@ -31,14 +32,14 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                 """
                 SELECT id, policy_key, definition::text
                 FROM sla_policy
-                WHERE policy_key = ? AND enabled = true
+                WHERE org_id = ? AND policy_key = ? AND enabled = true
                 """,
                 (rs, i) -> map(
                         rs.getObject("id", UUID.class),
                         rs.getString("policy_key"),
                         rs.getString("definition")
                 ),
-                policyKey
+                OrganizationContext.current(), policyKey
         );
         return rows.stream().findFirst();
     }
@@ -49,6 +50,7 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                 """
                 SELECT id, policy_key, enabled, version, definition::text
                 FROM sla_policy
+                WHERE org_id = ?
                 ORDER BY policy_key
                 """,
                 (rs, i) -> new SlaPolicyView(
@@ -59,7 +61,7 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                         ),
                         rs.getBoolean("enabled"),
                         rs.getInt("version")
-                )
+                ), OrganizationContext.current()
         );
     }
 
