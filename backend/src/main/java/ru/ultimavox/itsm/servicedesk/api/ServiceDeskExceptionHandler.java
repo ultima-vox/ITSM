@@ -8,9 +8,17 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.ultimavox.itsm.platform.workflow.WorkflowTransitionException;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemNotFoundException;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemConcurrencyException;
 
 @RestControllerAdvice(basePackages = "ru.ultimavox.itsm.servicedesk")
 class ServiceDeskExceptionHandler {
+
+  @ExceptionHandler(WorkItemConcurrencyException.class)
+  ProblemDetail conflict(WorkItemConcurrencyException ex) {
+    ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    detail.setTitle("Concurrent work item update");
+    return detail;
+  }
 
   @ExceptionHandler(WorkItemNotFoundException.class)
   ProblemDetail notFound(WorkItemNotFoundException ex) {

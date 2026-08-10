@@ -29,7 +29,8 @@ public record WorkItem(
     boolean escalated,
     Instant createdAt,
     Instant updatedAt,
-    Instant closedAt
+    Instant closedAt,
+    long version
 ) {
 
   public WorkItem {
@@ -46,6 +47,20 @@ public record WorkItem(
     Objects.requireNonNull(requesterId, "requesterId");
     Objects.requireNonNull(createdAt, "createdAt");
     Objects.requireNonNull(updatedAt, "updatedAt");
+    if (version < 0) {
+      throw new IllegalArgumentException("version must not be negative");
+    }
+  }
+
+  public WorkItem(
+      UUID id, String number, Type type, String title, String description, String service,
+      State state, Priority priority, Impact impact, Urgency urgency, String assigneeId,
+      String requesterId, String teamId, String resolutionCode, String resolutionNotes,
+      boolean escalated, Instant createdAt, Instant updatedAt, Instant closedAt
+  ) {
+    this(id, number, type, title, description, service, state, priority, impact, urgency,
+        assigneeId, requesterId, teamId, resolutionCode, resolutionNotes, escalated,
+        createdAt, updatedAt, closedAt, 0L);
   }
 
   /** ITIL-style priority matrix: impact 1 + urgency 1 → CRITICAL. */
@@ -82,7 +97,7 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, newTitle, newDescription, newService, state, newPriority,
         newImpact, newUrgency, assigneeId, requesterId, teamId,
-        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt
+        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt, version
     );
   }
 
@@ -90,7 +105,7 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, title, description, service, state, priority,
         impact, urgency, newAssigneeId, requesterId, newTeamId,
-        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt
+        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt, version
     );
   }
 
@@ -106,7 +121,7 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, title, description, service, state, newPriority,
         Impact.HIGH, Urgency.HIGH, assigneeId, requesterId, teamId,
-        resolutionCode, resolutionNotes, true, createdAt, now, closedAt
+        resolutionCode, resolutionNotes, true, createdAt, now, closedAt, version
     );
   }
 
@@ -140,7 +155,7 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, title, description, service, target, priority,
         impact, urgency, assigneeId, requesterId, teamId,
-        code, notes, escalated, createdAt, now, newClosedAt
+        code, notes, escalated, createdAt, now, newClosedAt, version
     );
   }
 

@@ -34,8 +34,8 @@ class WorkItemStore {
         INSERT INTO work_item (
           id, number, type, title, description, service, state, priority,
           impact, urgency, assignee_id, requester_id, team_id,
-          resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         item.id(),
         item.number(),
@@ -55,7 +55,8 @@ class WorkItemStore {
         item.escalated(),
         Timestamp.from(item.createdAt()),
         Timestamp.from(item.updatedAt()),
-        item.closedAt() == null ? null : Timestamp.from(item.closedAt())
+        item.closedAt() == null ? null : Timestamp.from(item.closedAt()),
+        item.version()
     );
   }
 
@@ -66,8 +67,8 @@ class WorkItemStore {
           title = ?, description = ?, service = ?, state = ?, priority = ?,
           impact = ?, urgency = ?, assignee_id = ?, team_id = ?,
           resolution_code = ?, resolution_notes = ?, escalated = ?,
-          updated_at = ?, closed_at = ?
-        WHERE id = ?
+          updated_at = ?, closed_at = ?, version = version + 1
+        WHERE id = ? AND version = ?
         """,
         item.title(),
         item.description(),
@@ -83,10 +84,11 @@ class WorkItemStore {
         item.escalated(),
         Timestamp.from(item.updatedAt()),
         item.closedAt() == null ? null : Timestamp.from(item.closedAt()),
-        item.id()
+        item.id(),
+        item.version()
     );
     if (updated == 0) {
-      throw new WorkItemNotFoundException(item.id());
+      throw new WorkItemConcurrencyException(item.id(), item.version());
     }
   }
 
@@ -95,7 +97,7 @@ class WorkItemStore {
         """
         SELECT id, number, type, title, description, service, state, priority,
                impact, urgency, assignee_id, requester_id, team_id,
-               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
+               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
         FROM work_item WHERE id = ?
         """,
         (rs, rowNum) -> mapWorkItem(rs),
@@ -128,7 +130,7 @@ class WorkItemStore {
         """
         SELECT id, number, type, title, description, service, state, priority,
                impact, urgency, assignee_id, requester_id, team_id,
-               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
+               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
         FROM work_item
         """
             + built.sql()
@@ -311,7 +313,8 @@ class WorkItemStore {
         rs.getBoolean("escalated"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant(),
-        closedAt
+        closedAt,
+        rs.getLong("version")
     );
   }
 
