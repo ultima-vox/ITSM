@@ -8,6 +8,10 @@ docker compose up -d
 
 Starts PostgreSQL (`5432`), Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ `itsm-attachments` bucket via `minio-init`), and Keycloak (`8081`). Defaults match `application.yml` (`itsm` / `itsm` / `itsm` for Postgres).
 
+Host ports are overrideable with `ITSM_POSTGRES_PORT`, `ITSM_REDIS_PORT`,
+`ITSM_RABBITMQ_PORT`, `ITSM_RABBITMQ_UI_PORT`, `ITSM_OPENSEARCH_PORT`,
+`ITSM_MINIO_PORT`, `ITSM_MINIO_UI_PORT`, and `ITSM_KEYCLOAK_PORT`.
+
 **Full integrations (Redis cache + OpenSearch + MinIO)** — use profile `compose` (see [compose-integrations.md](./compose-integrations.md)):
 
 ```bash
