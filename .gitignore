@@ -11,6 +11,7 @@ dist/
 target/
 backend/.gradle/
 backend/build/
+build/
 .DS_Store
 *.tsbuildinfo
 vite.config.js
