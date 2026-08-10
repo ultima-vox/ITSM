@@ -15,7 +15,6 @@ import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.storage.Attachment;
 import ru.ultimavox.itsm.platform.storage.AttachmentService;
-import ru.ultimavox.itsm.platform.storage.JdbcAttachmentRepository;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
 
 /**
@@ -47,23 +46,25 @@ public class WorkItemAttachmentService {
 
   public List<LinkedAttachment> list(UUID workItemId) {
     store.requireById(workItemId);
-    return jdbc.query(
+    List<AttachmentLink> links = jdbc.query(
         """
-        SELECT a.id, a.filename, a.content_type, a.size_bytes, a.storage_key, a.uploaded_by, a.created_at,
-               a.scan_status, a.scan_engine, a.scan_detail, a.scanned_at,
-               l.linked_by, l.linked_at
-        FROM work_item_attachment l
-        JOIN attachment a ON a.id = l.attachment_id
-        WHERE l.work_item_id = ?
-        ORDER BY l.linked_at DESC
+        SELECT attachment_id, linked_by, linked_at
+        FROM work_item_attachment
+        WHERE work_item_id = ?
+        ORDER BY linked_at DESC
         """,
-        (rs, i) -> new LinkedAttachment(
-            JdbcAttachmentRepository.mapRow(rs),
+        (rs, i) -> new AttachmentLink(
+            rs.getObject("attachment_id", UUID.class),
             rs.getString("linked_by"),
             rs.getTimestamp("linked_at").toInstant()
         ),
         workItemId
     );
+    return links.stream()
+        .map(link -> attachments.findById(link.attachmentId())
+            .map(attachment -> new LinkedAttachment(attachment, link.linkedBy(), link.linkedAt())))
+        .flatMap(java.util.Optional::stream)
+        .toList();
   }
 
   @Transactional
@@ -161,4 +162,6 @@ public class WorkItemAttachmentService {
   }
 
   public record LinkedAttachment(Attachment attachment, String linkedBy, Instant linkedAt) {}
+
+  private record AttachmentLink(UUID attachmentId, String linkedBy, Instant linkedAt) {}
 }
