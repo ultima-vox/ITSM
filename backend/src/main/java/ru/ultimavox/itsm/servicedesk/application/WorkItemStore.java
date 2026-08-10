@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
@@ -32,12 +33,13 @@ class WorkItemStore {
     jdbc.update(
         """
         INSERT INTO work_item (
-          id, number, type, title, description, service, state, priority,
+          id, org_id, number, type, title, description, service, state, priority,
           impact, urgency, assignee_id, requester_id, team_id,
           resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         item.id(),
+        OrganizationContext.current(),
         item.number(),
         item.type().name(),
         item.title(),
@@ -68,7 +70,7 @@ class WorkItemStore {
           impact = ?, urgency = ?, assignee_id = ?, team_id = ?,
           resolution_code = ?, resolution_notes = ?, escalated = ?,
           updated_at = ?, closed_at = ?, version = version + 1
-        WHERE id = ? AND version = ?
+        WHERE id = ? AND org_id = ? AND version = ?
         """,
         item.title(),
         item.description(),
@@ -85,6 +87,7 @@ class WorkItemStore {
         Timestamp.from(item.updatedAt()),
         item.closedAt() == null ? null : Timestamp.from(item.closedAt()),
         item.id(),
+        OrganizationContext.current(),
         item.version()
     );
     if (updated == 0) {
@@ -98,10 +101,11 @@ class WorkItemStore {
         SELECT id, number, type, title, description, service, state, priority,
                impact, urgency, assignee_id, requester_id, team_id,
                resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
-        FROM work_item WHERE id = ?
+        FROM work_item WHERE id = ? AND org_id = ?
         """,
         (rs, rowNum) -> mapWorkItem(rs),
-        id
+        id,
+        OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
@@ -111,7 +115,7 @@ class WorkItemStore {
   }
 
   long count(WorkItemQuery.Filter filter) {
-    SqlAndArgs built = buildWhere(filter);
+    SqlAndArgs built = buildWhere(filter, OrganizationContext.current());
     Long total = jdbc.queryForObject(
         "SELECT count(*) FROM work_item" + built.sql(),
         Long.class,
@@ -121,7 +125,7 @@ class WorkItemStore {
   }
 
   List<WorkItem> search(WorkItemQuery.Filter filter, int page, int size) {
-    SqlAndArgs built = buildWhere(filter);
+    SqlAndArgs built = buildWhere(filter, OrganizationContext.current());
     int offset = Math.max(page, 0) * Math.max(size, 1);
     List<Object> args = new ArrayList<>(built.args());
     args.add(size);
@@ -224,9 +228,10 @@ class WorkItemStore {
     Long n = jdbc.queryForObject(
         """
         SELECT count(*) FROM work_item
-        WHERE state NOT IN ('CLOSED', 'CANCELLED')
+        WHERE org_id = ? AND state NOT IN ('CLOSED', 'CANCELLED')
         """,
-        Long.class
+        Long.class,
+        OrganizationContext.current()
     );
     return n == null ? 0L : n;
   }
@@ -240,9 +245,11 @@ class WorkItemStore {
           JOIN work_item wi ON wi.id = sc.aggregate_id
           WHERE sc.state = 'RUNNING'
             AND sc.due_at::date = CURRENT_DATE
+            AND wi.org_id = ?
             AND wi.state NOT IN ('CLOSED', 'CANCELLED')
           """,
-          Long.class
+          Long.class,
+          OrganizationContext.current()
       );
       return n == null ? 0L : n;
     } catch (Exception ignored) {
@@ -258,9 +265,11 @@ class WorkItemStore {
           FROM sla_clock sc
           JOIN work_item wi ON wi.id = sc.aggregate_id
           WHERE sc.state = 'BREACHED'
+            AND wi.org_id = ?
             AND wi.state NOT IN ('CLOSED', 'CANCELLED')
           """,
-          Long.class
+          Long.class,
+          OrganizationContext.current()
       );
       return n == null ? 0L : n;
     } catch (Exception ignored) {
@@ -318,9 +327,10 @@ class WorkItemStore {
     );
   }
 
-  private static SqlAndArgs buildWhere(WorkItemQuery.Filter filter) {
-    StringBuilder sql = new StringBuilder(" WHERE 1=1");
+  private static SqlAndArgs buildWhere(WorkItemQuery.Filter filter, String organizationId) {
+    StringBuilder sql = new StringBuilder(" WHERE org_id = ?");
     List<Object> args = new ArrayList<>();
+    args.add(organizationId);
     if (filter.state() != null) {
       sql.append(" AND state = ?");
       args.add(filter.state().name());
