@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
+import ru.ultimavox.itsm.cmdb.CmdbReferenceQuery;
 
 @Service
 public class WorkItemCiLinkService {
@@ -19,17 +20,20 @@ public class WorkItemCiLinkService {
   private final JdbcTemplate jdbc;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final CmdbReferenceQuery cmdb;
 
   WorkItemCiLinkService(
       WorkItemStore store,
       JdbcTemplate jdbc,
       AuditTrail audit,
-      IntegrationEventOutbox outbox
+      IntegrationEventOutbox outbox,
+      CmdbReferenceQuery cmdb
   ) {
     this.store = store;
     this.jdbc = jdbc;
     this.audit = audit;
     this.outbox = outbox;
+    this.cmdb = cmdb;
   }
 
   public List<UUID> listCiIds(UUID workItemId) {
@@ -49,12 +53,7 @@ public class WorkItemCiLinkService {
   @Transactional
   public List<UUID> link(UUID workItemId, UUID ciId, String actorId) {
     store.requireById(workItemId);
-    Integer exists = jdbc.queryForObject(
-        "SELECT COUNT(*) FROM configuration_item WHERE id = ?",
-        Integer.class,
-        ciId
-    );
-    if (exists == null || exists == 0) {
+    if (!cmdb.exists(ciId)) {
       throw new IllegalArgumentException("Configuration item not found: " + ciId);
     }
     Instant now = Instant.now();

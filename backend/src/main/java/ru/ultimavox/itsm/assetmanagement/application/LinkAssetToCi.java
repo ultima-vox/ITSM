@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
+import ru.ultimavox.itsm.cmdb.CmdbReferenceQuery;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
@@ -17,12 +18,20 @@ public class LinkAssetToCi {
   private final AssetQuery assetQuery;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final CmdbReferenceQuery cmdb;
 
-  public LinkAssetToCi(JdbcTemplate jdbc, AssetQuery assetQuery, AuditTrail audit, IntegrationEventOutbox outbox) {
+  public LinkAssetToCi(
+      JdbcTemplate jdbc,
+      AssetQuery assetQuery,
+      AuditTrail audit,
+      IntegrationEventOutbox outbox,
+      CmdbReferenceQuery cmdb
+  ) {
     this.jdbc = jdbc;
     this.assetQuery = assetQuery;
     this.audit = audit;
     this.outbox = outbox;
+    this.cmdb = cmdb;
   }
 
   @Transactional
@@ -30,12 +39,7 @@ public class LinkAssetToCi {
     Asset current = assetQuery.findById(assetId)
         .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + assetId));
 
-    Integer ciExists = jdbc.queryForObject(
-        "SELECT COUNT(*) FROM configuration_item WHERE id = ?",
-        Integer.class,
-        configurationItemId
-    );
-    if (ciExists == null || ciExists == 0) {
+    if (!cmdb.exists(configurationItemId)) {
       throw new IllegalArgumentException("Configuration item not found: " + configurationItemId);
     }
 

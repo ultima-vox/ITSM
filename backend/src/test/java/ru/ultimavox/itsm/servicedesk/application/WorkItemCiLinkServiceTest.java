@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.RowMapper;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
+import ru.ultimavox.itsm.cmdb.CmdbReferenceQuery;
 
 class WorkItemCiLinkServiceTest {
 
@@ -25,6 +26,7 @@ class WorkItemCiLinkServiceTest {
   private AuditTrail audit;
   private IntegrationEventOutbox outbox;
   private WorkItemCiLinkService service;
+  private CmdbReferenceQuery cmdb;
 
   private final UUID wi = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
   private final UUID ci = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -35,13 +37,14 @@ class WorkItemCiLinkServiceTest {
     jdbc = mock(JdbcTemplate.class);
     audit = mock(AuditTrail.class);
     outbox = mock(IntegrationEventOutbox.class);
-    service = new WorkItemCiLinkService(store, jdbc, audit, outbox);
+    cmdb = mock(CmdbReferenceQuery.class);
+    service = new WorkItemCiLinkService(store, jdbc, audit, outbox, cmdb);
   }
 
   @Test
   void link_rejects_missing_ci() {
     when(store.requireById(wi)).thenReturn(mock(WorkItem.class));
-    when(jdbc.queryForObject(any(String.class), eq(Integer.class), eq(ci))).thenReturn(0);
+    when(cmdb.exists(ci)).thenReturn(false);
     assertThatThrownBy(() -> service.link(wi, ci, "agent-1"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Configuration item");
@@ -51,7 +54,7 @@ class WorkItemCiLinkServiceTest {
   @SuppressWarnings("unchecked")
   void link_inserts_and_returns_list() {
     when(store.requireById(wi)).thenReturn(mock(WorkItem.class));
-    when(jdbc.queryForObject(any(String.class), eq(Integer.class), eq(ci))).thenReturn(1);
+    when(cmdb.exists(ci)).thenReturn(true);
     when(jdbc.update(any(String.class), any(), any(), any(), any())).thenReturn(1);
     when(jdbc.query(any(String.class), any(RowMapper.class), eq(wi))).thenReturn(List.of(ci));
 
