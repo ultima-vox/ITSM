@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
@@ -52,10 +53,11 @@ public class KnowledgeCommands {
 
     jdbc.update(
         """
-        INSERT INTO knowledge_article (id, number, status, version, owner_subject, next_review_at, slug, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?)
+        INSERT INTO knowledge_article (id, org_id, number, status, version, owner_subject, next_review_at, slug, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
         """,
         id,
+        OrganizationContext.current(),
         number,
         "DRAFT",
         1,
@@ -131,9 +133,9 @@ public class KnowledgeCommands {
           """
           UPDATE knowledge_article
           SET status = 'DRAFT', version = ?, updated_at = ?
-          WHERE id = ?
+          WHERE id = ? AND org_id = ?
           """,
-          nextVersion, Timestamp.from(now), id
+          nextVersion, Timestamp.from(now), id, OrganizationContext.current()
       );
     } else {
       // Edit current draft / in-review revision in place
@@ -162,7 +164,10 @@ public class KnowledgeCommands {
             UUID.randomUUID(), id, current.version(), locale, title, summary, body, actor, Timestamp.from(now)
         );
       }
-      jdbc.update("UPDATE knowledge_article SET updated_at = ? WHERE id = ?", Timestamp.from(now), id);
+      jdbc.update(
+          "UPDATE knowledge_article SET updated_at = ? WHERE id = ? AND org_id = ?",
+          Timestamp.from(now), id, OrganizationContext.current()
+      );
     }
 
     Map<String, Object> after = Map.of(
@@ -200,11 +205,12 @@ public class KnowledgeCommands {
         """
         UPDATE knowledge_article
         SET status = 'PUBLISHED', next_review_at = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND org_id = ?
         """,
         Timestamp.from(reviewAt),
         Timestamp.from(now),
-        id
+        id,
+        OrganizationContext.current()
     );
 
     Map<String, Object> after = Map.of(

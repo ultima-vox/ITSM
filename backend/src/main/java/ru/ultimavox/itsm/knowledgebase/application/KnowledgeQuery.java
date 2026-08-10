@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Service
 public class KnowledgeQuery {
@@ -33,7 +34,7 @@ public class KnowledgeQuery {
             FROM knowledge_article a
             JOIN knowledge_article_revision r
               ON r.article_id = a.id AND r.version = a.version AND r.locale = ?
-            WHERE 1=1
+            WHERE a.org_id = ?
             """
             + statusSql
             + """
@@ -52,7 +53,7 @@ public class KnowledgeQuery {
             rs.getString("summary"),
             rs.getString("locale")
         ),
-        loc, q, q
+        loc, OrganizationContext.current(), q, q
     );
   }
 
@@ -66,7 +67,7 @@ public class KnowledgeQuery {
             FROM knowledge_article a
             JOIN knowledge_article_revision r
               ON r.article_id = a.id AND r.version = a.version AND r.locale = ?
-            WHERE (a.id = ? OR a.slug = ?)
+            WHERE a.org_id = ? AND (a.id = ? OR a.slug = ?)
             """,
         (rs, i) -> new ArticleDetail(
             (UUID) rs.getObject("id"),
@@ -83,7 +84,7 @@ public class KnowledgeQuery {
             rs.getString("author_subject"),
             rs.getTimestamp("created_at").toInstant()
         ),
-        loc, asUuid, idOrSlug
+        loc, OrganizationContext.current(), asUuid, idOrSlug
     );
     return rows.stream().findFirst();
   }

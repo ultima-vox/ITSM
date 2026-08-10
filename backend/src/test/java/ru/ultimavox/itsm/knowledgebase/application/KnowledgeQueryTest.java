@@ -39,7 +39,7 @@ class KnowledgeQueryTest {
     when(resultSet.getString("summary")).thenReturn("Инструкция");
     when(resultSet.getString("locale")).thenReturn("ru");
 
-    when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any()))
+    when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any(), any()))
         .thenAnswer(invocation -> {
           RowMapper<?> mapper = invocation.getArgument(1);
           return List.of(mapper.mapRow(resultSet, 0));
@@ -52,20 +52,20 @@ class KnowledgeQueryTest {
     assertThat(results.getFirst().slug()).isEqualTo("vpn-connection-guide");
 
     ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-    verify(jdbc).query(sql.capture(), any(RowMapper.class), eq("ru"), eq("VPN"), eq("VPN"));
+    verify(jdbc).query(sql.capture(), any(RowMapper.class), eq("ru"), eq("default"), eq("VPN"), eq("VPN"));
     assertThat(sql.getValue()).contains("PUBLISHED");
     assertThat(sql.getValue()).contains("ILIKE");
   }
 
   @Test
   void search_without_query_still_filters_published_only() {
-    when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any())).thenReturn(List.of());
+    when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any(), any())).thenReturn(List.of());
 
     var results = new KnowledgeQuery(jdbc).searchPublished(null, "ru");
 
     assertThat(results).isEmpty();
     ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-    verify(jdbc).query(sql.capture(), any(RowMapper.class), eq("ru"), eq(null), eq(null));
+    verify(jdbc).query(sql.capture(), any(RowMapper.class), eq("ru"), eq("default"), eq(null), eq(null));
     assertThat(sql.getValue()).contains("status = 'PUBLISHED'");
   }
 }

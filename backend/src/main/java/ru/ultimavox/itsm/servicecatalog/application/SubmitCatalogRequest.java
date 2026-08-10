@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.servicecatalog.domain.CatalogItem;
@@ -52,10 +53,10 @@ public class SubmitCatalogRequest {
 
     jdbc.update(
         """
-            INSERT INTO catalog_request (id, number, catalog_item_id, requester_id, status, form_payload, created_at, updated_at)
-            VALUES (?,?,?,?,?,?::jsonb,?,?)
+            INSERT INTO catalog_request (id, org_id, number, catalog_item_id, requester_id, status, form_payload, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?::jsonb,?,?)
             """,
-        id, number, item.id(), actor, "SUBMITTED", payloadJson,
+        id, OrganizationContext.current(), number, item.id(), actor, "SUBMITTED", payloadJson,
         java.sql.Timestamp.from(now), java.sql.Timestamp.from(now)
     );
 

@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.servicecatalog.domain.CatalogItem;
 
 @Service
@@ -25,7 +26,8 @@ public class CatalogQuery {
                t.locale, t.name, t.description, t.category
         FROM catalog_item ci
         JOIN catalog_item_translation t ON t.catalog_item_id = ci.id
-        WHERE ci.status = 'PUBLISHED'
+        WHERE ci.org_id = ?
+          AND ci.status = 'PUBLISHED'
           AND t.locale = ?
           AND (?::text IS NULL OR t.category = ?)
           AND (?::text IS NULL OR t.name ILIKE '%' || ? || '%' OR t.description ILIKE '%' || ? || '%' OR ci.item_key ILIKE '%' || ? || '%')
@@ -46,7 +48,7 @@ public class CatalogQuery {
             rs.getString("description"),
             rs.getString("category")
         ),
-        loc, cat, cat, q, q, q, q
+        OrganizationContext.current(), loc, cat, cat, q, q, q, q
     );
   }
 
@@ -59,7 +61,7 @@ public class CatalogQuery {
                    t.locale, t.name, t.description, t.category
             FROM catalog_item ci
             LEFT JOIN catalog_item_translation t ON t.catalog_item_id = ci.id
-            WHERE ci.id = ?
+            WHERE ci.id = ? AND ci.org_id = ?
             ORDER BY CASE WHEN t.locale = ? THEN 0 ELSE 1 END, t.locale
             """,
         (rs, i) -> new CatalogItemDetail(
@@ -74,7 +76,7 @@ public class CatalogQuery {
             rs.getString("description"),
             rs.getString("category")
         ),
-        id, loc
+        id, OrganizationContext.current(), loc
     );
     if (rows.isEmpty()) {
       return Optional.empty();
@@ -108,9 +110,9 @@ public class CatalogQuery {
                    t.locale, t.name, t.description, t.category
             FROM catalog_item ci
             LEFT JOIN catalog_item_translation t ON t.catalog_item_id = ci.id
-            WHERE ci.id = ?
+            WHERE ci.id = ? AND ci.org_id = ?
             """,
-        id
+        id, OrganizationContext.current()
     );
     if (rows.isEmpty()) {
       return Optional.empty();
