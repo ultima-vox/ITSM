@@ -14,6 +14,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -54,6 +56,16 @@ class SecurityConfiguration {
         .csrf(csrf -> csrf.disable())
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .headers(headers -> headers
+            .contentSecurityPolicy(csp -> csp.policyDirectives(
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"))
+            .referrerPolicy(referrer -> referrer.policy(
+                ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+            .frameOptions(frame -> frame.deny())
+            .addHeaderWriter(new StaticHeadersWriter(
+                "Permissions-Policy",
+                "camera=(), microphone=(), geolocation=(), payment=(), usb=()"))
+        )
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(
                 "/actuator/health",
@@ -78,7 +90,7 @@ class SecurityConfiguration {
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
     config.setExposedHeaders(List.of("Location"));
-    config.setAllowCredentials(true);
+    config.setAllowCredentials(false);
     config.setMaxAge(3600L);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
