@@ -19,12 +19,14 @@ import org.springframework.web.server.ResponseStatusException;
 import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationStore;
 import ru.ultimavox.itsm.platform.notification.StoredNotification;
+import ru.ultimavox.itsm.platform.authorization.SelfScopedEndpoint;
 
 /**
  * In-app notification API. Rows are scoped to the authenticated subject.
  */
 @RestController
 @RequestMapping("/api/v1/notifications")
+@SelfScopedEndpoint
 @Tag(name = "Platform — Notifications")
 class NotificationController {
 

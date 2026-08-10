@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.localization.LocalePreferenceService;
+import ru.ultimavox.itsm.platform.authorization.SelfScopedEndpoint;
 
 @RestController
 @RequestMapping("/api/v1/me/locale")
+@SelfScopedEndpoint
 @Tag(name = "Platform — Locale")
 class LocaleController {
 
