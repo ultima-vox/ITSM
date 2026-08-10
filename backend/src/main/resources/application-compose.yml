@@ -1,6 +1,6 @@
 # =============================================================================
 # COMPOSE PROFILE — use with docker-compose stack fully wired:
-#   mvn spring-boot:run -Dspring-boot.run.profiles=dev,compose
+#   ./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 #   SPRING_PROFILES_ACTIVE=dev,compose
 #
 # Enables Redis cache, OpenSearch search index, and S3-compatible MinIO storage.

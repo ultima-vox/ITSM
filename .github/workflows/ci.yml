@@ -68,10 +68,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
 
       - name: Run backend tests
-        run: mvn --batch-mode --no-transfer-progress test
+        run: ./gradlew test --no-daemon
 
   scripts:
     name: Scripts lint

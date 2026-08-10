@@ -1,6 +1,6 @@
 # Compose integrations: Redis · OpenSearch · MinIO
 
-Default `application.yml` keeps Redis **off** and OpenSearch **URL empty** so unit tests and bare `mvn spring-boot:run` need no infra.
+Default `application.yml` keeps Redis **off** and OpenSearch **URL empty** so unit tests and bare `./gradlew bootRun` need no infra.
 
 Profile **`compose`** turns the full stack **on** against `docker-compose.yml`.
 
@@ -28,7 +28,7 @@ docker compose ps
 
 # 3) Backend: dev (open API) + compose (integrations)
 cd backend
-mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 ```
 
 Or load env from `backend/.env.compose` then run with the same profiles.

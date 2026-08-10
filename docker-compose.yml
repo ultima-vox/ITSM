@@ -13,7 +13,7 @@
 # Backend with full stack:
 #   docker compose up -d
 #   cd backend
-#   mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+#   .\backend\gradlew.bat bootRun --args='--spring.profiles.active=dev,compose'
 #
 # Env file (optional): backend/.env.compose or export vars from docs/ops/compose-integrations.md
 #

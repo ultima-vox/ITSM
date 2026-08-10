@@ -513,19 +513,19 @@ Stop: `docker compose down` (add `-v` to wipe volumes).
 
 ### How to run — backend
 
-Requirements: **Java 25**, **Maven 3.9+**, Postgres (and optionally full compose stack).
+Requirements: **Java 25**, Postgres (and optionally full compose stack). Gradle wrapper is included.
 
 ```bash
 cd backend
 
 # Production-like local run (JWT required; Keycloak must be up for issuer metadata)
-mvn spring-boot:run
+./gradlew bootRun
 
 # Local demo when OIDC is down — NEVER use in production
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./gradlew bootRun --args='--spring.profiles.active=dev'
 
 # Full stack: Redis + OpenSearch + MinIO (after docker compose up -d)
-mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 # See backend/.env.compose and docs/ops/compose-integrations.md
 ```
 
@@ -596,7 +596,7 @@ Flyway migrations: `backend/src/main/resources/db/migration/V1__…` through `V1
 
 ```bash
 cd backend
-mvn test
+./gradlew test
 ```
 
 Unit tests cover domain aggregates, workflow engine, service-desk use cases (including WorkflowEngine ObjectProvider integration), cache fallback, JWT authority mapping, and related platform services. Full Spring context / DB integration tests are optional and require Postgres.

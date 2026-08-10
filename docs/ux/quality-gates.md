@@ -23,7 +23,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck + build + e2e + backe
 
 ### Backend API smoke
 
-Backend must be reachable (compose + `mvn spring-boot:run`, or deployed target).
+Backend must be reachable (compose + `./gradlew bootRun`, or deployed target).
 
 ```bash
 # Unix / CI

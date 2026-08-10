@@ -9,6 +9,8 @@ dist/
 .env.*
 !.env.example
 target/
+backend/.gradle/
+backend/build/
 .DS_Store
 *.tsbuildinfo
 vite.config.js

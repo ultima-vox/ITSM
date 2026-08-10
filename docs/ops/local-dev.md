@@ -12,7 +12,7 @@ Starts PostgreSQL (`5432`), Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ `itsm-at
 
 ```bash
 cd backend
-mvn spring-boot:run "-Dspring-boot.run.profiles=dev,compose"
+./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 .\scripts\smoke-integrations.ps1
 ```
 
@@ -20,16 +20,16 @@ Stop: `docker compose down`. Wipe volumes: `docker compose down -v`.
 
 ## Backend
 
-Requirements: Java 25, Maven 3.9+, Postgres from compose.
+Requirements: Java 25 and Postgres from compose. Gradle wrapper is included.
 
 ```bash
 cd backend
 
 # JWT required — Keycloak must be up (issuer http://localhost:8081/realms/itsm)
-mvn spring-boot:run
+./gradlew bootRun
 
 # Local demo without OIDC — NEVER use in production
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
 Useful URLs:
@@ -73,12 +73,14 @@ VITE_OIDC_REDIRECT_URI=http://localhost:5173/auth/callback
 
 Then use **Sign in** in the profile menu or Settings (demo user `anna` / `anna`). Full notes: [auth.md](./auth.md).
 
-Alternative — paste a token:
+Development-only alternative — provide a token to Vite dev server:
 
 ```bash
 VITE_API_TOKEN=<access_token>
-# or localStorage.setItem('vox-api-token', '<token>')
 ```
+
+Production builds ignore `VITE_API_TOKEN`. OAuth tokens remain in memory and are
+cleared on reload; sign in again after a reload.
 
 Settings page shows Mock/Live pill and OIDC status when enabled.
 
@@ -93,7 +95,7 @@ npm run build:check    # same as build (CI-friendly alias)
 npm run test:e2e       # Playwright smoke (mock; uses 127.0.0.1:5173)
 ```
 
-CI (GitHub Actions on `main` / PR): frontend typecheck + build + Playwright, backend `mvn test`, shell syntax on smoke scripts.
+CI (GitHub Actions on `main` / PR): frontend typecheck + build + Playwright, backend `./gradlew test`, shell syntax on smoke scripts.
 
 ### Playwright smoke E2E
 
@@ -123,7 +125,8 @@ curl -s -X POST "http://localhost:8081/realms/itsm/protocol/openid-connect/token
   -d "password=anna"
 ```
 
-Use `access_token` as `Authorization: Bearer …` or `VITE_API_TOKEN`.
+Use `access_token` as `Authorization: Bearer …` for CLI calls. `VITE_API_TOKEN`
+is restricted to the Vite development server.
 
 Non-dev profile: all `/api/**` need valid OIDC JWT. Public: health + swagger only.
 
