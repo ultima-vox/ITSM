@@ -20,6 +20,7 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.modulith:spring-modulith-bom:1.4.0")
+        mavenBom("org.testcontainers:testcontainers-bom:2.0.5")
     }
 }
 
@@ -42,6 +43,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     // Spring Modulith 1.4.0 pins ArchUnit 1.4.0, whose ASM cannot read Java 25 bytecode.
     testImplementation("com.tngtech.archunit:archunit:1.5.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -49,4 +52,6 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    systemProperty("docker.api.version", System.getenv("DOCKER_API_VERSION") ?: "1.44")
+    System.getenv("DOCKER_HOST")?.let { systemProperty("docker.host", it) }
 }
