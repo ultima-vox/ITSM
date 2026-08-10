@@ -1,7 +1,28 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('live backend', () => {
+  test.describe.configure({ mode: 'serial' });
   test.skip(process.env.VITE_USE_MOCK !== 'false', 'requires VITE_USE_MOCK=false');
+  const fixtureTitle = 'CI live persisted incident';
+
+  test.beforeAll(async ({ request }) => {
+    const existing = await request.get('/api/v1/work-items?size=100');
+    expect(existing.ok()).toBeTruthy();
+    const body = (await existing.json()) as { items: Array<{ title: string }> };
+    if (!body.items.some((item) => item.title === fixtureTitle)) {
+      const created = await request.post('/api/v1/work-items', {
+        data: {
+          type: 'INCIDENT',
+          title: fixtureTitle,
+          description: 'Created by mandatory full-stack Playwright verification',
+          service: 'CI',
+          impact: 'MEDIUM',
+          urgency: 'MEDIUM',
+        },
+      });
+      expect(created.status()).toBe(201);
+    }
+  });
 
   test('loads persisted work items without server errors', async ({ page }) => {
     const serverErrors: string[] = [];
@@ -15,7 +36,7 @@ test.describe('live backend', () => {
     await expect(page.locator('.brand b')).toHaveText('vox');
     await expect(page.getByRole('link', { name: /Overview|Обзор/ })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByText('INC-001002')).toBeVisible();
+    await expect(page.getByText(fixtureTitle).first()).toBeVisible();
     expect(serverErrors).toEqual([]);
   });
 

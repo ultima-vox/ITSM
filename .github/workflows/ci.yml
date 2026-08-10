@@ -76,6 +76,75 @@ jobs:
       - name: Run backend tests
         run: ./gradlew test --no-daemon
 
+  live-e2e:
+    name: Live PostgreSQL full-stack E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+        env:
+          POSTGRES_DB: itsm
+          POSTGRES_USER: itsm
+          POSTGRES_PASSWORD: itsm-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U itsm -d itsm"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - name: Start migrated backend
+        run: |
+          SPRING_PROFILES_ACTIVE=dev \
+          DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/itsm \
+          DATABASE_PASSWORD=itsm-ci \
+          ./backend/gradlew -p backend bootRun --no-daemon > /tmp/itsm-backend.log 2>&1 &
+          echo $! > /tmp/itsm-backend.pid
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/actuator/health && exit 0
+            sleep 2
+          done
+          tail -100 /tmp/itsm-backend.log
+          exit 1
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run live contract E2E
+        working-directory: frontend
+        env:
+          CI: true
+          VITE_USE_MOCK: 'false'
+          VITE_API_PROXY_TARGET: http://127.0.0.1:8080
+        run: npx playwright test e2e/live.spec.ts
+
+      - name: Upload backend log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-e2e-backend-log
+          path: /tmp/itsm-backend.log
+
   scripts:
     name: Scripts lint
     runs-on: ubuntu-latest
@@ -169,7 +238,7 @@ jobs:
         run: docker compose up -d postgres redis opensearch minio minio-init rabbitmq
       - name: Wait for health
         run: |
-          for i in $(seq 1 40); do
+          for _ in $(seq 1 40); do
             docker compose ps
             curl -sf http://127.0.0.1:9200/_cluster/health && redis-cli -h 127.0.0.1 ping | grep -q PONG && break
             sleep 5
