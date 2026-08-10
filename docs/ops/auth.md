@@ -79,3 +79,9 @@ Manual token (without SPA login) still works:
 - [local-dev.md](./local-dev.md) — compose, backend profiles, frontend modes  
 - [infra/keycloak/README.md](../../infra/keycloak/README.md) — realm, clients, users  
 - [authorization.md](../security/authorization.md) — RBAC / JWT roles  
+## Organization claim
+
+Access tokens must include trusted string claim `organization_id`. Backend uses it for tenant
+data isolation; local realm maps user attribute with same name through default `organization`
+client scope. Provision every production user/service account with an organization attribute.
+Never accept organization scope from request headers or body fields.

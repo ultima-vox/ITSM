@@ -66,6 +66,9 @@
       "firstName": "Anna",
       "lastName": "Yakovleva",
       "email": "anna@itsm.local",
+      "attributes": {
+        "organization_id": ["default"]
+      },
       "credentials": [
         {
           "type": "password",
@@ -84,6 +87,9 @@
       "firstName": "Platform",
       "lastName": "Admin",
       "email": "admin@itsm.local",
+      "attributes": {
+        "organization_id": ["default"]
+      },
       "credentials": [
         {
           "type": "password",
@@ -102,6 +108,9 @@
       "firstName": "Sample",
       "lastName": "Requester",
       "email": "requester@itsm.local",
+      "attributes": {
+        "organization_id": ["default"]
+      },
       "credentials": [
         {
           "type": "password",
@@ -150,7 +159,8 @@
         "acr",
         "profile",
         "roles",
-        "email"
+        "email",
+        "organization"
       ],
       "optionalClientScopes": [
         "address",
@@ -196,7 +206,8 @@
         "acr",
         "profile",
         "roles",
-        "email"
+        "email",
+        "organization"
       ],
       "optionalClientScopes": [
         "address",
@@ -221,6 +232,33 @@
     }
   ],
   "clientScopes": [
+    {
+      "name": "organization",
+      "description": "Organization boundary claim for backend data isolation",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "organization-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "organization_id",
+            "claim.name": "organization_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true",
+            "multivalued": "false"
+          }
+        }
+      ]
+    },
     {
       "name": "roles",
       "description": "OpenID Connect scope for add user roles to the access token",

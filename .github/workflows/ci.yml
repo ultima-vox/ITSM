@@ -179,6 +179,13 @@ jobs:
           bash -n scripts/smoke-integrations.sh
           test -f scripts/smoke-api.ps1
           test -f scripts/smoke-integrations.ps1
+      - name: Validate Keycloak organization claims
+        run: |
+          jq -e '
+            ([.users[].attributes.organization_id[0]] | all(. == "default")) and
+            ([.clients[].defaultClientScopes] | all(index("organization"))) and
+            ([.clientScopes[].name] | index("organization") != null)
+          ' infra/keycloak/itsm-realm.json >/dev/null
 
   kubernetes:
     name: Kubernetes manifests
