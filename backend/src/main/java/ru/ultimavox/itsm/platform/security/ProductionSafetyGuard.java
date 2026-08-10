@@ -58,8 +58,40 @@ public class ProductionSafetyGuard implements ApplicationRunner {
               + "profiles " + profiles
       );
     }
+    if (prodLike) {
+      validateProductionConfiguration();
+    }
     if (dev) {
       log.warn("Profile 'dev' active — OIDC JWT enforcement disabled (local only)");
+    }
+  }
+
+  private void validateProductionConfiguration() {
+    requireSecret("spring.datasource.password", Set.of("itsm", "postgres", "password"));
+
+    String issuer = environment.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri", "");
+    if (!issuer.startsWith("https://")) {
+      fail("Refusing to start: production OIDC issuer must use https");
+    }
+
+    String origins = environment.getProperty("itsm.cors.allowed-origins", "");
+    boolean invalidOrigin = origins.isBlank() || Arrays.stream(origins.split("\\s*,\\s*"))
+        .anyMatch(origin -> !origin.startsWith("https://") || origin.contains("*")
+            || origin.contains("localhost") || origin.contains("127.0.0.1"));
+    if (invalidOrigin) {
+      fail("Refusing to start: production CORS origins must be explicit https URLs");
+    }
+
+    if ("s3".equalsIgnoreCase(environment.getProperty("itsm.storage.type", "local"))) {
+      requireSecret("itsm.storage.s3.access-key", Set.of("minioadmin"));
+      requireSecret("itsm.storage.s3.secret-key", Set.of("minioadmin"));
+    }
+  }
+
+  private void requireSecret(String property, Set<String> unsafeValues) {
+    String value = environment.getProperty(property, "").trim();
+    if (value.isBlank() || unsafeValues.stream().anyMatch(value::equalsIgnoreCase)) {
+      fail("Refusing to start: production secret " + property + " is missing or unsafe");
     }
   }
 
