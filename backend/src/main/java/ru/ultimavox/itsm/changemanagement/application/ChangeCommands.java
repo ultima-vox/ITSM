@@ -1,6 +1,7 @@
 package ru.ultimavox.itsm.changemanagement.application;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,6 +11,7 @@ import ru.ultimavox.itsm.changemanagement.domain.Change;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
+import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
 
 @Service
 public class ChangeCommands {
@@ -17,12 +19,20 @@ public class ChangeCommands {
   private final ChangeQuery query;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final WorkflowPolicyGateway workflows;
 
-  public ChangeCommands(JdbcTemplate jdbc, ChangeQuery query, AuditTrail audit, IntegrationEventOutbox outbox) {
+  public ChangeCommands(
+      JdbcTemplate jdbc,
+      ChangeQuery query,
+      AuditTrail audit,
+      IntegrationEventOutbox outbox,
+      WorkflowPolicyGateway workflows
+  ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
+    this.workflows = workflows;
   }
 
   @Transactional
@@ -65,6 +75,7 @@ public class ChangeCommands {
         change.businessJustification(), change.cabNotes(),
         change.cabRiskLevel() == null ? null : change.cabRiskLevel().name()
     );
+    workflows.startIfDefined("change", id.toString());
 
     Map<String, Object> state = Map.of(
         "number", number,
@@ -96,6 +107,13 @@ public class ChangeCommands {
     Change updated = withCab.transition(target);
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
+    Map<String, Object> workflowFields = new HashMap<>();
+    if (updated.cabNotes() != null) workflowFields.put("cab_notes", updated.cabNotes());
+    if (updated.cabRiskLevel() != null) workflowFields.put("cab_risk_level", updated.cabRiskLevel().name());
+    workflows.enforceByTarget(
+        actor, "change", id.toString(), current.status().name(), target.name(),
+        workflowFields, correlationId
+    );
 
     jdbc.update(
         """

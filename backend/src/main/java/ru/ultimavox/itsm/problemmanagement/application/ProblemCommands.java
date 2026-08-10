@@ -3,6 +3,7 @@ package ru.ultimavox.itsm.problemmanagement.application;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
+import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
 import ru.ultimavox.itsm.problemmanagement.domain.Problem;
 
 @Service
@@ -19,12 +21,20 @@ public class ProblemCommands {
   private final ProblemQuery query;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final WorkflowPolicyGateway workflows;
 
-  public ProblemCommands(JdbcTemplate jdbc, ProblemQuery query, AuditTrail audit, IntegrationEventOutbox outbox) {
+  public ProblemCommands(
+      JdbcTemplate jdbc,
+      ProblemQuery query,
+      AuditTrail audit,
+      IntegrationEventOutbox outbox,
+      WorkflowPolicyGateway workflows
+  ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
+    this.workflows = workflows;
   }
 
   @Transactional
@@ -47,6 +57,7 @@ public class ProblemCommands {
         id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
         Timestamp.from(now), Timestamp.from(now)
     );
+    workflows.startIfDefined("problem", id.toString());
 
     Map<String, Object> state = Map.of(
         "number", number,
@@ -118,6 +129,14 @@ public class ProblemCommands {
     Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution).transition(target);
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
+    Map<String, Object> workflowFields = new HashMap<>();
+    if (updated.rootCause() != null) workflowFields.put("root_cause", updated.rootCause());
+    if (updated.workaround() != null) workflowFields.put("workaround", updated.workaround());
+    if (updated.resolution() != null) workflowFields.put("resolution", updated.resolution());
+    workflows.enforceByTarget(
+        actor, "problem", id.toString(), current.status().name(), target.name(),
+        workflowFields, correlationId
+    );
 
     jdbc.update(
         """

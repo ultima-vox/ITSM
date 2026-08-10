@@ -127,7 +127,7 @@ public class WorkflowEngine {
 
         outbox.record(new DomainEvent(
                 UUID.randomUUID(),
-                command.objectType() + ".transitioned",
+                "workflow.transitioned",
                 1,
                 now,
                 correlationId,

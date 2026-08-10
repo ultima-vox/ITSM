@@ -167,7 +167,7 @@ class TransitionWorkItemTest {
   }
 
   @Test
-  void falls_back_to_local_when_no_matching_workflow_edge() {
+  void active_workflow_fails_closed_when_edge_is_missing() {
     when(workflowEngineProvider.getIfAvailable()).thenReturn(workflowEngine);
     when(store.requireById(id)).thenReturn(item(State.NEW));
 
@@ -185,15 +185,15 @@ class TransitionWorkItemTest {
     );
     when(workflowEngine.loadDefinition("work-item")).thenReturn(Optional.of(definition));
 
-    WorkItem result = service.transition(
+    assertThatThrownBy(() -> service.transition(
         id,
         new TransitionWorkItem.Command(State.IN_PROGRESS, null, null),
         "agent-1"
-    );
+    )).isInstanceOf(WorkflowTransitionException.class)
+        .hasMessageContaining("has no transition NEW -> IN_PROGRESS");
 
-    assertThat(result.state()).isEqualTo(State.IN_PROGRESS);
     verify(workflowEngine, never()).applyTransition(any());
-    verify(store).update(any());
+    verify(store, never()).update(any());
   }
 
   private WorkItem item(State state) {

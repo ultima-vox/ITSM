@@ -156,7 +156,7 @@ class WorkflowEngineTest {
 
         ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
         verify(outbox).record(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().type()).isEqualTo("work-item.transitioned");
+        assertThat(eventCaptor.getValue().type()).isEqualTo("workflow.transitioned");
         assertThat(eventCaptor.getValue().data()).containsEntry("fromState", "NEW");
         assertThat(eventCaptor.getValue().data()).containsEntry("toState", "IN_PROGRESS");
     }

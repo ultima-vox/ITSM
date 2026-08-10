@@ -199,8 +199,8 @@ public class TransitionWorkItem {
 
   /**
    * Attempts platform workflow. Returns true when the engine applied a matching transition.
-   * Returns false when the engine is absent, no definition exists, or no matching transition
-   * key is defined (local aggregate remains authoritative).
+   * Returns false when the engine is absent or no definition exists. An active definition is
+   * authoritative and rejects missing transition edges.
    * Re-throws {@link WorkflowTransitionException} when a matching transition is rejected
    * (permissions / required fields) so policy is not bypassed.
    */
@@ -227,12 +227,10 @@ public class TransitionWorkItem {
         .findFirst();
 
     if (match.isEmpty()) {
-      // Definition exists but does not model this edge — keep local fallback for partial metadata.
-      log.debug(
-          "No workflow transition {} -> {} for {}; using local state machine",
-          existing.state(), targetState, OBJECT_TYPE
-      );
-      return false;
+      // Configured workflow owns allowed edges; aggregate still enforces safety invariants.
+      throw new WorkflowTransitionException(
+          "Active workflow '%s' has no transition %s -> %s"
+              .formatted(OBJECT_TYPE, existing.state(), targetState));
     }
 
     try {

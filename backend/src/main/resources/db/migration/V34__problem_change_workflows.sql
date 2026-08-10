@@ -1,0 +1,41 @@
+INSERT INTO workflow_definition (object_key, version, active, definition)
+VALUES
+  (
+    'problem', 1, true,
+    '{
+      "initial":"NEW",
+      "states":["NEW","UNDER_INVESTIGATION","ROOT_CAUSE_IDENTIFIED","KNOWN_ERROR","RESOLVED","CLOSED"],
+      "transitions":[
+        {"key":"investigate","from":"NEW","to":"UNDER_INVESTIGATION","requiredPermissions":["problem.write"],"requiredFields":[]},
+        {"key":"identify-root-cause","from":"UNDER_INVESTIGATION","to":"ROOT_CAUSE_IDENTIFIED","requiredPermissions":["problem.write"],"requiredFields":["root_cause"]},
+        {"key":"known-error-from-investigation","from":"UNDER_INVESTIGATION","to":"KNOWN_ERROR","requiredPermissions":["problem.write"],"requiredFields":["workaround"]},
+        {"key":"known-error","from":"ROOT_CAUSE_IDENTIFIED","to":"KNOWN_ERROR","requiredPermissions":["problem.write"],"requiredFields":["workaround"]},
+        {"key":"resolve-identified","from":"ROOT_CAUSE_IDENTIFIED","to":"RESOLVED","requiredPermissions":["problem.write"],"requiredFields":["root_cause","resolution"]},
+        {"key":"resolve-known-error","from":"KNOWN_ERROR","to":"RESOLVED","requiredPermissions":["problem.write"],"requiredFields":["root_cause","resolution"]},
+        {"key":"close","from":"RESOLVED","to":"CLOSED","requiredPermissions":["problem.write"],"requiredFields":[]}
+      ]
+    }'::jsonb
+  ),
+  (
+    'change', 1, true,
+    '{
+      "initial":"DRAFT",
+      "states":["DRAFT","SUBMITTED","CAB_REVIEW","APPROVED","SCHEDULED","IMPLEMENTING","REVIEW","CLOSED","REJECTED"],
+      "transitions":[
+        {"key":"submit","from":"DRAFT","to":"SUBMITTED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"review","from":"SUBMITTED","to":"CAB_REVIEW","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"approve","from":"CAB_REVIEW","to":"APPROVED","requiredPermissions":["change.approve"],"requiredFields":[]},
+        {"key":"rework","from":"CAB_REVIEW","to":"SUBMITTED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"schedule","from":"APPROVED","to":"SCHEDULED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"implement","from":"SCHEDULED","to":"IMPLEMENTING","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"review-result","from":"IMPLEMENTING","to":"REVIEW","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"retry","from":"REVIEW","to":"IMPLEMENTING","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"close","from":"REVIEW","to":"CLOSED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"reject-draft","from":"DRAFT","to":"REJECTED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"reject-submitted","from":"SUBMITTED","to":"REJECTED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"reject-review","from":"CAB_REVIEW","to":"REJECTED","requiredPermissions":["change.approve"],"requiredFields":[]},
+        {"key":"reject-approved","from":"APPROVED","to":"REJECTED","requiredPermissions":["change.manage"],"requiredFields":[]},
+        {"key":"reject-scheduled","from":"SCHEDULED","to":"REJECTED","requiredPermissions":["change.manage"],"requiredFields":[]}
+      ]
+    }'::jsonb
+  );
