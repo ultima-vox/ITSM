@@ -44,6 +44,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Verify generated API contract
+        run: npm run api:check
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
@@ -129,6 +132,12 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+
+      - name: Check OpenAPI snapshot drift
+        run: |
+          curl -sf http://127.0.0.1:8080/v3/api-docs | jq -S . > /tmp/openapi-live.json
+          jq -S . frontend/openapi/itsm.json > /tmp/openapi-snapshot.json
+          diff -u /tmp/openapi-snapshot.json /tmp/openapi-live.json
 
       - name: Run live contract E2E
         working-directory: frontend

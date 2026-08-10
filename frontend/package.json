@@ -9,12 +9,15 @@
     "typecheck": "tsc --noEmit",
     "build:check": "tsc --noEmit && vite build",
     "lint": "eslint .",
+    "api:generate": "openapi-typescript openapi/itsm.json -o src/api/generated/schema.d.ts",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/api/generated/schema.d.ts",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "lucide-react": "0.460.0",
+    "openapi-fetch": "^0.17.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "7.18.2"
@@ -26,6 +29,7 @@
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "6.0.5",
+    "openapi-typescript": "^7.13.0",
     "typescript": "5.6.3",
     "vite": "8.2.1"
   }
