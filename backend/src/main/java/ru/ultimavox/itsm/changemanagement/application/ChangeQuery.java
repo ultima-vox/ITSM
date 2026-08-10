@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.changemanagement.domain.Change;
 
 @Service
@@ -23,11 +24,11 @@ public class ChangeQuery {
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
             FROM change_request
-            WHERE (?::text IS NULL OR status = ?)
+            WHERE org_id = ? AND (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
             """,
         (rs, i) -> map(rs),
-        statusFilter, statusFilter
+        OrganizationContext.current(), statusFilter, statusFilter
     );
   }
 
@@ -36,10 +37,10 @@ public class ChangeQuery {
         """
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
-            FROM change_request WHERE id = ?
+            FROM change_request WHERE id = ? AND org_id = ?
             """,
         (rs, i) -> map(rs),
-        id
+        id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
@@ -57,7 +58,8 @@ public class ChangeQuery {
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
             FROM change_request
-            WHERE status NOT IN ('REJECTED', 'CLOSED', 'DRAFT')
+            WHERE org_id = ?
+              AND status NOT IN ('REJECTED', 'CLOSED', 'DRAFT')
               AND planned_start IS NOT NULL
               AND planned_end IS NOT NULL
               AND planned_start < ?
@@ -66,6 +68,7 @@ public class ChangeQuery {
             ORDER BY planned_start ASC
             """,
         (rs, i) -> map(rs),
+        OrganizationContext.current(),
         java.sql.Timestamp.from(end),
         java.sql.Timestamp.from(start),
         excludeId,

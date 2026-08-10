@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
@@ -55,10 +56,10 @@ public class ProblemCommands {
 
     jdbc.update(
         """
-            INSERT INTO problem (id, number, title, status, root_cause, workaround, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?)
+            INSERT INTO problem (id, org_id, number, title, status, root_cause, workaround, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
             """,
-        id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
+        id, OrganizationContext.current(), number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
         Timestamp.from(now), Timestamp.from(now)
     );
     workflows.startIfDefined("problem", id.toString());
@@ -95,13 +96,14 @@ public class ProblemCommands {
         """
             UPDATE problem
             SET root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND org_id = ?
             """,
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
         Timestamp.from(now),
-        id
+        id,
+        OrganizationContext.current()
     );
     Map<String, Object> after = Map.of(
         "rootCause", String.valueOf(updated.rootCause()),
@@ -146,14 +148,15 @@ public class ProblemCommands {
         """
             UPDATE problem
             SET status = ?, root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND org_id = ?
             """,
         updated.status().name(),
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
         Timestamp.from(now),
-        id
+        id,
+        OrganizationContext.current()
     );
 
     Map<String, Object> before = Map.of("status", current.status().name());

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.changemanagement.domain.Change;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
@@ -62,12 +63,12 @@ public class ChangeCommands {
     jdbc.update(
         """
             INSERT INTO change_request (
-              id, number, type, risk, status, title, planned_start, planned_end,
+              id, org_id, number, type, risk, status, title, planned_start, planned_end,
               implementation_plan, rollback_plan, requester_id, created_at, updated_at,
               business_justification, cab_notes, cab_risk_level
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
-        id, number, change.type().name(), change.risk().name(), change.status().name(), change.title(),
+        id, OrganizationContext.current(), number, change.type().name(), change.risk().name(), change.status().name(), change.title(),
         change.plannedStart() == null ? null : java.sql.Timestamp.from(change.plannedStart()),
         change.plannedEnd() == null ? null : java.sql.Timestamp.from(change.plannedEnd()),
         change.implementationPlan(), change.rollbackPlan(), actor,
@@ -119,13 +120,14 @@ public class ChangeCommands {
         """
             UPDATE change_request
             SET status = ?, cab_notes = ?, cab_risk_level = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND org_id = ?
             """,
         updated.status().name(),
         updated.cabNotes(),
         updated.cabRiskLevel() == null ? null : updated.cabRiskLevel().name(),
         java.sql.Timestamp.from(now),
-        id
+        id,
+        OrganizationContext.current()
     );
 
     if (target == Change.Status.APPROVED || target == Change.Status.REJECTED) {

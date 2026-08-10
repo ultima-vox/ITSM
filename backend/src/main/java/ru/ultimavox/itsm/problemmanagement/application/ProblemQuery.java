@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.problemmanagement.domain.Problem;
 
 @Service
@@ -24,7 +25,7 @@ public class ProblemQuery {
         """
             SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at
             FROM problem
-            WHERE (?::text IS NULL OR status = ?)
+            WHERE org_id = ? AND (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
             """,
         (rs, i) -> new ProblemSummary(
@@ -38,13 +39,13 @@ public class ProblemQuery {
             rs.getTimestamp("created_at").toInstant(),
             rs.getTimestamp("updated_at").toInstant()
         ),
-        statusFilter, statusFilter
+        OrganizationContext.current(), statusFilter, statusFilter
     );
   }
 
   public Optional<Problem> findById(UUID id) {
     List<Problem> rows = jdbc.query(
-        "SELECT id, number, title, status, root_cause, workaround, resolution FROM problem WHERE id = ?",
+        "SELECT id, number, title, status, root_cause, workaround, resolution FROM problem WHERE id = ? AND org_id = ?",
         (rs, i) -> new Problem(
             (UUID) rs.getObject("id"),
             rs.getString("number"),
@@ -55,7 +56,7 @@ public class ProblemQuery {
             rs.getString("resolution"),
             loadLinks((UUID) rs.getObject("id"))
         ),
-        id
+        id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }

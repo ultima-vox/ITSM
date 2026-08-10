@@ -59,6 +59,8 @@ public class CabVoteService {
   }
 
   public long countApproves(UUID changeId) {
+    query.findById(changeId)
+        .orElseThrow(() -> new IllegalArgumentException("Change not found: " + changeId));
     Long n = jdbc.queryForObject(
         """
         SELECT count(*) FROM change_approval

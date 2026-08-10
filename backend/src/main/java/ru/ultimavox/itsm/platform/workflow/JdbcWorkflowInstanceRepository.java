@@ -3,6 +3,7 @@ package ru.ultimavox.itsm.platform.workflow;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -25,7 +26,7 @@ class JdbcWorkflowInstanceRepository implements WorkflowInstanceRepository {
                 """
                 SELECT id, object_type, object_id, state, definition_version, version, updated_at
                 FROM workflow_instance
-                WHERE object_type = ? AND object_id = ?
+                WHERE org_id = ? AND object_type = ? AND object_id = ?
                 """,
                 (rs, i) -> new WorkflowInstance(
                         rs.getObject("id", UUID.class),
@@ -36,7 +37,7 @@ class JdbcWorkflowInstanceRepository implements WorkflowInstanceRepository {
                         rs.getInt("version"),
                         rs.getTimestamp("updated_at").toInstant()
                 ),
-                objectType, objectId
+                OrganizationContext.current(), objectType, objectId
         );
         return rows.stream().findFirst();
     }
@@ -46,10 +47,11 @@ class JdbcWorkflowInstanceRepository implements WorkflowInstanceRepository {
         Instant now = instance.updatedAt() != null ? instance.updatedAt() : Instant.now();
         jdbc.update(
                 """
-                INSERT INTO workflow_instance (id, object_type, object_id, state, definition_version, version, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO workflow_instance (id, org_id, object_type, object_id, state, definition_version, version, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 instance.id(),
+                OrganizationContext.current(),
                 instance.objectType(),
                 instance.objectId(),
                 instance.state(),
@@ -75,11 +77,12 @@ class JdbcWorkflowInstanceRepository implements WorkflowInstanceRepository {
                 """
                 UPDATE workflow_instance
                 SET state = ?, version = version + 1, updated_at = ?
-                WHERE id = ? AND version = ?
+                WHERE id = ? AND org_id = ? AND version = ?
                 """,
                 newState,
                 Timestamp.from(now),
                 instance.id(),
+                OrganizationContext.current(),
                 expectedVersion
         );
         if (updated == 0) {
