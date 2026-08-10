@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine@sha256:5ecfde8e5ecde5954ea3721155b345ef56c1d579b940c761318ad4c05959a151 AS build
 WORKDIR /workspace
 COPY gradle gradle
 COPY gradlew ./
@@ -7,7 +7,7 @@ COPY build.gradle.kts settings.gradle.kts ./
 COPY src src
 RUN ./gradlew bootJar --no-daemon
 
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:25-jre-alpine@sha256:28db6fdf60e38945e43d840c0333aeaec66c15943070104f7586fd3c9d1665b0
 RUN apk upgrade --no-cache && \
     addgroup -S itsm && adduser -S -G itsm itsm
 WORKDIR /app

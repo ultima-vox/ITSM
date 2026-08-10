@@ -26,7 +26,7 @@
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
     environment:
       POSTGRES_DB: itsm
       POSTGRES_USER: itsm
@@ -41,7 +41,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     ports: ["${ITSM_REDIS_PORT:-6379}:6379"]
     volumes:
@@ -53,7 +53,7 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:4-management-alpine
+    image: rabbitmq:4-management-alpine@sha256:44bf7eb50fe1765885659e49ccfdc775f8e531964d979321aee380a071f49f94
     ports: ["${ITSM_RABBITMQ_PORT:-5672}:5672", "${ITSM_RABBITMQ_UI_PORT:-15672}:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -62,7 +62,7 @@ services:
       retries: 10
 
   opensearch:
-    image: opensearchproject/opensearch:2.19.1
+    image: opensearchproject/opensearch:2.19.1@sha256:72fe2fc84be8295906b8efca020b46c58ed45c8da60cd9b8b49e1991e38e89a4
     environment:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: "true"
@@ -83,7 +83,7 @@ services:
       start_period: 40s
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /data --console-address ':9001'
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -100,7 +100,7 @@ services:
 
   # Creates itsm-attachments bucket once MinIO is healthy (idempotent).
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
       minio:
         condition: service_healthy
@@ -116,7 +116,7 @@ services:
   # Dev mode with embedded store. Realm JSON is imported when the realm is missing
   # (re-create the container to re-import after editing infra/keycloak/*.json).
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2
+    image: quay.io/keycloak/keycloak:26.2@sha256:4883630ef9db14031cde3e60700c9a9a8eaf1b5c24db1589d6a2d43de38ba2a9
     command: ["start-dev", "--import-realm", "--hostname-strict=false"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
