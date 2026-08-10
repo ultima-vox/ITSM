@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 @Component
 class JdbcAuditTrail implements AuditTrail {
@@ -22,10 +23,11 @@ class JdbcAuditTrail implements AuditTrail {
     jdbc.update(
         """
             INSERT INTO audit_event (
-              actor_id, action, object_type, object_id,
+              organization_id, actor_id, action, object_type, object_id,
               before_state, after_state, correlation_id, occurred_at
-            ) VALUES (?,?,?,?,?::jsonb,?::jsonb,?,?)
+            ) VALUES (?,?,?,?,?,?::jsonb,?::jsonb,?,?)
             """,
+        OrganizationContext.current(),
         e.actorId(),
         e.action(),
         e.objectType(),

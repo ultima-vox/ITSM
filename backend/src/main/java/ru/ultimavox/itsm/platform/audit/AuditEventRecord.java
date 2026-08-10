@@ -15,5 +15,6 @@ public record AuditEventRecord(
     Map<String, Object> beforeState,
     Map<String, Object> afterState,
     UUID correlationId,
-    Map<String, Object> metadata
+    Map<String, Object> metadata,
+    String organizationId
 ) {}

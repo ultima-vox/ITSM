@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 /** Query side of the platform audit trail. */
 @Service
@@ -36,14 +37,15 @@ public class AuditQuery {
       return jdbc.query(
           """
           SELECT id, occurred_at, actor_id, action, object_type, object_id,
-                 before_state::text, after_state::text, correlation_id, metadata::text
+                 before_state::text, after_state::text, correlation_id, metadata::text,
+                 organization_id
           FROM audit_event
-          WHERE action = ?
+          WHERE organization_id = ? AND action = ?
           ORDER BY occurred_at DESC
           LIMIT ? OFFSET ?
           """,
           (rs, i) -> mapRow(rs),
-          actionFilter,
+          OrganizationContext.current(), actionFilter,
           cap,
           off
       );
@@ -51,13 +53,15 @@ public class AuditQuery {
     return jdbc.query(
         """
         SELECT id, occurred_at, actor_id, action, object_type, object_id,
-               before_state::text, after_state::text, correlation_id, metadata::text
+               before_state::text, after_state::text, correlation_id, metadata::text,
+               organization_id
         FROM audit_event
+        WHERE organization_id = ?
         ORDER BY occurred_at DESC
         LIMIT ? OFFSET ?
         """,
         (rs, i) -> mapRow(rs),
-        cap,
+        OrganizationContext.current(), cap,
         off
     );
   }
@@ -66,12 +70,12 @@ public class AuditQuery {
     int cap = Math.min(Math.max(limit, 1), 100);
     return jdbc.query(
         """
-        SELECT DISTINCT action FROM audit_event
+        SELECT DISTINCT action FROM audit_event WHERE organization_id = ?
         ORDER BY action
         LIMIT ?
         """,
         (rs, i) -> rs.getString(1),
-        cap
+        OrganizationContext.current(), cap
     );
   }
 
@@ -87,7 +91,8 @@ public class AuditQuery {
         readMap(rs.getString("before_state")),
         readMap(rs.getString("after_state")),
         rs.getObject("correlation_id", UUID.class),
-        readMap(rs.getString("metadata"))
+        readMap(rs.getString("metadata")),
+        rs.getString("organization_id")
     );
   }
 
