@@ -74,6 +74,7 @@ export function ProfileMenu({ compact, onDark }: ProfileMenuProps) {
       <button
         type="button"
         className={compact ? 'sidebar__profile' : 'profile-trigger'}
+        aria-label={`${displayName}, ${displayRole}`}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}

@@ -11,7 +11,7 @@
   --vox-violet-700: #5744bd;
   --vox-violet-600: #6249d7;
   --vox-violet-500: #7158df;
-  --vox-violet-400: #8b73ff;
+  --vox-violet-400: #674bd6;
   --vox-violet-300: #a894ff;
   --vox-violet-100: #f0edff;
   --vox-violet-50: #f7f6fd;
@@ -35,8 +35,8 @@
   --vox-ink-700: #343c51;
   --vox-ink-600: #424960;
   --vox-ink-500: #566076;
-  --vox-ink-400: #6f788b;
-  --vox-ink-300: #8d96a9;
+  --vox-ink-400: #596174;
+  --vox-ink-300: #5f687b;
   --vox-ink-200: #a4acbc;
   --vox-ink-100: #c7ccd6;
   --vox-line-200: #e5e7ef;
@@ -69,7 +69,7 @@
   --vox-sidebar-text: #d4d9ed;
   --vox-sidebar-muted: #99a3c0;
   --vox-sidebar-hover: var(--vox-navy-500);
-  --vox-sidebar-active-bar: #8b73ff;
+  --vox-sidebar-active-bar: #8067ee;
 
   /* Spacing (8px rhythm) */
   --space-0: 0;
