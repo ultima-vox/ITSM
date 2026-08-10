@@ -70,18 +70,22 @@ class AttachmentController {
   @GetMapping("/{id}")
   @Operation(summary = "Get attachment metadata")
   AttachmentResponse metadata(Authentication authentication, @PathVariable UUID id) {
-    access.require(authentication.getName(), "attachment.read", "attachment", id.toString());
-    return attachments.findById(id)
-        .map(AttachmentResponse::from)
+    Attachment attachment = attachments.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+    access.requireOwned(
+        authentication.getName(), "attachment.read", "attachment", id.toString(),
+        attachment.uploadedBy());
+    return AttachmentResponse.from(attachment);
   }
 
   @GetMapping("/{id}/content")
   @Operation(summary = "Download attachment content (when storage backend holds bytes)")
   ResponseEntity<InputStreamResource> content(Authentication authentication, @PathVariable UUID id) {
-    access.require(authentication.getName(), "attachment.read", "attachment", id.toString());
     Attachment attachment = attachments.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+    access.requireOwned(
+        authentication.getName(), "attachment.read", "attachment", id.toString(),
+        attachment.uploadedBy());
 
     if (!attachment.isDownloadAllowed()) {
       throw new ResponseStatusException(
