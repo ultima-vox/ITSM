@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshTokens = useCallback(async (): Promise<boolean> => {
     const cfg = getOidcConfig();
-    // Prefer live ref; fall back to sessionStorage (e.g. race before hydrate)
+    // Prefer live ref; fall back to current in-memory session.
     const current = sessionRef.current ?? readSession();
     if (!cfg || !current?.refreshToken) return false;
     if (!sessionRef.current) {
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshTokens],
   );
 
-  // Hydrate from sessionStorage once on mount
+  // Hydrate current in-memory session once on mount.
   const hydrated = useRef(false);
   useEffect(() => {
     if (hydrated.current) return;
@@ -190,26 +190,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', maybeRefresh);
     };
   }, [oidcEnabled, refreshTokens]);
-
-  // Cross-tab logout / login sync via storage events on token mirror
-  useEffect(() => {
-    if (!oidcEnabled) return;
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== 'vox-api-token') return;
-      if (e.newValue == null || e.newValue === '') {
-        sessionRef.current = null;
-        setSession(null);
-      } else if (e.newValue && e.newValue !== sessionRef.current?.accessToken) {
-        const restored = readSession();
-        if (restored) {
-          sessionRef.current = restored;
-          setSession(restored);
-        }
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [oidcEnabled]);
 
   const login = useCallback(async (returnTo?: string) => {
     const cfg = getOidcConfig();

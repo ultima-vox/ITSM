@@ -29,13 +29,13 @@ When OIDC is disabled, mock mode and backend `dev` profile still work without a 
 
 1. **Login** — SPA generates `code_verifier` / S256 `code_challenge` + `state`, stores them in `sessionStorage`, redirects to Keycloak authorize.
 2. **Callback** — route `/auth/callback` exchanges `code` + verifier at the token endpoint.
-3. **Tokens** — full OIDC session (incl. refresh) in `sessionStorage` (`vox-oidc-session`); **access token** mirrored to `localStorage` key `vox-api-token` via `setApiToken` so `apiRequest` sends `Authorization: Bearer …`.
+3. **Tokens** — access, refresh and ID tokens remain in memory only. `apiRequest` receives the access token through the in-memory auth session and sends `Authorization: Bearer …`.
 4. **Actor** — JWT `sub` → `localStorage` `vox-user-id` for assign-to-me.
 5. **Refresh (silent renew)** — if `refresh_token` is present:
    - timer refreshes slightly before `expires_at` and reschedules;
    - on load, near-expiry sessions (&lt; 90s) refresh immediately;
    - on tab **visible** / window **focus**, refresh if &lt; 120s remaining;
-   - cross-tab: clearing `vox-api-token` in another tab logs this tab out.
+   - reload or tab close clears the session; user signs in again.
 6. **401 interceptor** — `apiRequest` / `apiFetch` (attachments multipart):
    - on HTTP **401**, call registered `setAuthRefreshHandler` (wired by `AuthProvider`);
    - **single-flight**: concurrent 401s share one refresh promise;
@@ -71,7 +71,7 @@ Manual token (without SPA login) still works:
 
 ```bash
 # password grant against itsm-spa, then:
-# localStorage.setItem('vox-api-token', '<access_token>')
+# Development only: VITE_API_TOKEN=<access_token> npm run dev
 ```
 
 ## Related

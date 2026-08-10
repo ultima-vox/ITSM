@@ -26,8 +26,8 @@ export class ApiError extends Error {
 }
 
 const DEFAULT_BASE = '/api/v1';
-const TOKEN_STORAGE_KEY = 'vox-api-token';
 const ACTOR_STORAGE_KEY = 'vox-user-id';
+let apiToken: string | null = null;
 
 /** Returns true if tokens were refreshed and a retry may succeed. */
 export type AuthRefreshHandler = () => Promise<boolean>;
@@ -82,26 +82,15 @@ export function isLiveFeatureUnsupported(err: unknown): boolean {
 }
 
 export function getApiToken(): string | null {
-  const fromEnv = (import.meta.env.VITE_API_TOKEN as string | undefined)?.trim();
+  const fromEnv = import.meta.env.DEV
+    ? (import.meta.env.VITE_API_TOKEN as string | undefined)?.trim()
+    : undefined;
   if (fromEnv) return fromEnv;
-  try {
-    const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    return stored?.trim() || null;
-  } catch {
-    return null;
-  }
+  return apiToken;
 }
 
 export function setApiToken(token: string | null): void {
-  try {
-    if (token == null || token === '') {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-    } else {
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    }
-  } catch {
-    /* ignore quota / private mode */
-  }
+  apiToken = token?.trim() || null;
 }
 
 /**

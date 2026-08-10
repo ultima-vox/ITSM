@@ -1,7 +1,5 @@
 /**
- * OIDC session persistence.
- * Full session (incl. refresh_token) lives in sessionStorage.
- * Access token is also mirrored to localStorage via setApiToken for apiRequest.
+ * In-memory OIDC session. OAuth tokens are never written to browser storage.
  */
 
 import { setApiActorId, setApiToken } from '@/api/client';
@@ -12,7 +10,7 @@ import {
   type JwtPayload,
 } from './jwt';
 
-const SESSION_KEY = 'vox-oidc-session';
+let currentSession: OidcSession | null = null;
 
 export interface AuthUser {
   sub: string;
@@ -68,27 +66,11 @@ export function sessionFromTokenResponse(tokens: TokenResponse): OidcSession {
 }
 
 export function readSession(): OidcSession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as OidcSession;
-    if (!parsed?.accessToken || !parsed?.user?.sub) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  return currentSession;
 }
 
 export function writeSession(session: OidcSession | null): void {
-  try {
-    if (!session) {
-      sessionStorage.removeItem(SESSION_KEY);
-    } else {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    }
-  } catch {
-    /* ignore */
-  }
+  currentSession = session;
 
   if (session) {
     setApiToken(session.accessToken);

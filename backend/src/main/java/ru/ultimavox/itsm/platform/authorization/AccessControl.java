@@ -3,7 +3,6 @@ package ru.ultimavox.itsm.platform.authorization;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -30,9 +29,8 @@ public class AccessControl {
 
     /**
      * Requires permission and that the subject owns the object (subject equals ownerId),
-     * or the subject has an elevated grant (admin-style permission already allowed by checker).
-     * Ownership is an additional constraint when the base permission check succeeds via
-     * a non-admin policy — callers should pass ownerId when known.
+     * or the subject has the explicit elevated {@code permission.any} grant.
+     * Missing ownership data fails closed unless that elevated grant is present.
      */
     public void requireOwned(
             String subject,
@@ -41,30 +39,25 @@ public class AccessControl {
             String objectId,
             String ownerId
     ) {
+        if (subject == null || subject.isBlank()) {
+            throw new AccessDeniedException("Permission denied: authenticated subject required");
+        }
         PermissionChecker.Decision decision = permissions.check(
                 new PermissionChecker.Request(subject, permission, objectType, objectId, null)
         );
         if (!decision.allowed()) {
             throw new AccessDeniedException("Permission denied: " + permission);
         }
-        // Admin / full grants skip ownership
-        if (decision.policyId() != null
-                && (decision.policyId().contains("admin") || decision.policyId().contains("ADMIN"))) {
+        if (ownerId != null && !ownerId.isBlank() && ownerId.equals(subject)) {
             return;
         }
-        if (ownerId != null && !Objects.equals(subject, ownerId)) {
-            // Re-check with ownership-aware permission if subject is not owner
-            PermissionChecker.Decision elevate = permissions.check(
-                    new PermissionChecker.Request(subject, permission + ".any", objectType, objectId, null)
-            );
-            if (!elevate.allowed()) {
-                // Still allow if subject has manager-style base permission without ownership restriction
-                // when policy is role-based (not self-only). Self-only is indicated by policy ending in ownership.
-                if (decision.policyId() != null && decision.policyId().endsWith("ownership")) {
-                    throw new AccessDeniedException(
-                            "Permission denied: ownership required for " + objectType + "/" + objectId);
-                }
-            }
+
+        PermissionChecker.Decision elevated = permissions.check(
+                new PermissionChecker.Request(subject, permission + ".any", objectType, objectId, null)
+        );
+        if (!elevated.allowed()) {
+            throw new AccessDeniedException(
+                    "Permission denied: ownership required for " + objectType + "/" + objectId);
         }
     }
 
