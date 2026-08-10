@@ -476,6 +476,7 @@ This repository now contains a production-oriented modular-monolith foundation:
 - **`backend/`** — Java 25 / Spring Boot modular monolith (`ru.ultimavox.itsm`): platform engines (metadata, workflow, forms, automation, RBAC, SLA, audit, outbox, search, AI gateway), Service Desk operator API, Change / Problem / CMDB / Asset / Knowledge / Catalog modules, Flyway migrations **V1–V15**, OpenAPI groups, OIDC JWT security (Keycloak), optional **dev** + **compose** profiles.
 - **`docker-compose.yml`** — PostgreSQL, Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ bucket init), Keycloak realm import.
 - **`docs/`** — architecture, ADRs, product notes, security, UX quality gates, [compose integrations](docs/ops/compose-integrations.md).
+- **Production images** — non-root backend and nginx frontend Dockerfiles; see [production deployment](docs/ops/production-deployment.md).
 
 ### Current maturity
 
