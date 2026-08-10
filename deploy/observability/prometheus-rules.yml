@@ -1,0 +1,59 @@
+groups:
+  - name: vox-itsm-availability
+    interval: 30s
+    rules:
+      - alert: VoxItsmUnavailable
+        expr: up{job="vox-itsm"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Vox ITSM backend unavailable
+          runbook_url: docs/ops/observability.md#backend-unavailable
+      - alert: VoxItsmHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="vox-itsm",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count{job="vox-itsm"}[5m])), 0.001)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Vox ITSM HTTP 5xx rate exceeds 5%
+          runbook_url: docs/ops/observability.md#high-http-error-rate
+      - alert: VoxItsmHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{job="vox-itsm"}[5m]))) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Vox ITSM p95 HTTP latency exceeds 2 seconds
+          runbook_url: docs/ops/observability.md#high-http-latency
+  - name: vox-itsm-capacity
+    interval: 30s
+    rules:
+      - alert: VoxItsmJvmHeapPressure
+        expr: |
+          sum(jvm_memory_used_bytes{job="vox-itsm",area="heap"})
+          /
+          clamp_min(sum(jvm_memory_max_bytes{job="vox-itsm",area="heap"}), 1) > 0.85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Vox ITSM JVM heap exceeds 85%
+          runbook_url: docs/ops/observability.md#jvm-heap-pressure
+      - alert: VoxItsmDatabasePoolSaturated
+        expr: |
+          sum(hikaricp_connections_active{job="vox-itsm"})
+          /
+          clamp_min(sum(hikaricp_connections_max{job="vox-itsm"}), 1) > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Vox ITSM database pool exceeds 90% utilization
+          runbook_url: docs/ops/observability.md#database-pool-saturation

@@ -182,6 +182,15 @@ jobs:
             -v /tmp/itsm-kubernetes.yaml:/manifest.yaml:ro \
             ghcr.io/yannh/kubeconform:v0.7.0 \
             -strict -summary /manifest.yaml
+      - name: Validate observability assets
+        run: |
+          docker run --rm \
+            -v "$PWD/deploy/observability:/observability:ro" \
+            --entrypoint /bin/promtool \
+            prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996 \
+            check rules /observability/prometheus-rules.yml
+          jq -e '.uid and (.panels | length > 0)' \
+            deploy/observability/grafana-dashboard.json >/dev/null
 
   security:
     name: Security + SBOM
