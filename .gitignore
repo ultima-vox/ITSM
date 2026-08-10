@@ -1,4 +1,5 @@
 .grok/
+.codex/
 .tools/
 node_modules/
 dist/
