@@ -1,13 +1,15 @@
 FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 COPY gradle gradle
-COPY gradlew build.gradle.kts settings.gradle.kts ./
-RUN chmod +x gradlew
+COPY gradlew ./
+RUN chmod +x gradlew && ./gradlew --version
+COPY build.gradle.kts settings.gradle.kts ./
 COPY src src
 RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:25-jre-alpine
-RUN addgroup -S itsm && adduser -S -G itsm itsm
+RUN apk upgrade --no-cache && \
+    addgroup -S itsm && adduser -S -G itsm itsm
 WORKDIR /app
 COPY --from=build /workspace/build/libs/itsm-platform-*.jar app.jar
 USER itsm

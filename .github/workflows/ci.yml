@@ -127,6 +127,37 @@ jobs:
         with:
           fail-on-severity: high
 
+  container-security:
+    name: Container image scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: vox-itsm-backend:ci
+            context: backend
+          - image: vox-itsm-frontend:ci
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          load: true
+          push: false
+          tags: ${{ matrix.image }}
+
+      - name: Scan ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
   # Optional full stack — manual only (slow / resource heavy)
   compose-smoke:
     name: Compose integrations smoke

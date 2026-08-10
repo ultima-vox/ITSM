@@ -1,11 +1,17 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.5.0"
+    id("org.springframework.boot") version "3.5.14"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "ru.ultimavox"
 version = "0.1.0-SNAPSHOT"
+
+extra["tomcat.version"] = "10.1.55"
+extra["spring-framework.version"] = "6.2.19"
+extra["spring-data-bom.version"] = "2025.0.12"
+extra["micrometer.version"] = "1.15.12"
+extra["jackson-bom.version"] = "2.21.4"
 
 java {
     toolchain {
@@ -21,6 +27,7 @@ dependencyManagement {
     imports {
         mavenBom("org.springframework.modulith:spring-modulith-bom:1.4.0")
         mavenBom("org.testcontainers:testcontainers-bom:2.0.5")
+        mavenBom("io.netty:netty-bom:4.1.136.Final")
     }
 }
 
@@ -39,7 +46,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.31.50")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
 
-    runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("org.postgresql:postgresql:42.7.12")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
