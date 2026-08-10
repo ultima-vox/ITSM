@@ -17,15 +17,15 @@
     "lucide-react": "0.460.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router-dom": "6.28.0"
+    "react-router-dom": "7.18.2"
   },
   "devDependencies": {
-    "@playwright/test": "1.51.1",
-    "@types/node": "22.10.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "22.20.1",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
-    "@vitejs/plugin-react": "4.3.4",
+    "@vitejs/plugin-react": "6.0.5",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "vite": "8.2.1"
   }
 }
