@@ -39,7 +39,7 @@ public class RecordHelpfulnessVote {
 
     UUID feedbackId = UUID.randomUUID();
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         """

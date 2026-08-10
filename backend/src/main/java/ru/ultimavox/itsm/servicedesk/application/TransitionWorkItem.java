@@ -68,7 +68,7 @@ public class TransitionWorkItem {
 
     WorkItem existing = store.requireById(id);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     Map<String, Object> fields = workflowFields(existing, command);
     boolean usedPlatformWorkflow = tryPlatformWorkflow(

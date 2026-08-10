@@ -30,7 +30,7 @@ public class ProblemCommands {
   @Transactional
   public Problem create(CreateCommand command, String actor) {
     UUID id = UUID.randomUUID();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Instant now = Instant.now();
     Long sequence = jdbc.queryForObject("SELECT nextval('problem_number_seq')", Long.class);
     String number = "PRB-%06d".formatted(sequence);
@@ -75,7 +75,7 @@ public class ProblemCommands {
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
     Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     jdbc.update(
         """
             UPDATE problem
@@ -117,7 +117,7 @@ public class ProblemCommands {
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
     Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution).transition(target);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         """
@@ -165,7 +165,7 @@ public class ProblemCommands {
 
     Problem linked = current.linkWorkItem(workItemId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         """

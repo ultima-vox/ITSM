@@ -43,7 +43,7 @@ public class KnowledgeCommands {
     }
     UUID id = UUID.randomUUID();
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Long seq = jdbc.queryForObject("SELECT nextval('knowledge_number_seq')", Long.class);
     String number = "KB-%06d".formatted(seq == null ? 1 : seq);
     String slug = slugify(command.slug() != null ? command.slug() : command.title(), number);
@@ -105,7 +105,7 @@ public class KnowledgeCommands {
     KnowledgeQuery.ArticleDetail current = query.findByIdOrSlug(id.toString(), blankTo(command.locale(), "ru"))
         .orElseThrow(() -> new IllegalArgumentException("Article not found: " + id));
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     String locale = blankTo(command.locale(), blankTo(current.locale(), "ru"));
     String status = current.status();
 
@@ -194,7 +194,7 @@ public class KnowledgeCommands {
     }
     Instant now = Instant.now();
     Instant reviewAt = now.plus(180, ChronoUnit.DAYS);
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         """

@@ -40,7 +40,7 @@ public class UpdateWorkItem {
     }
 
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     String title = command.title() != null ? command.title().trim() : existing.title();
     String description = command.description() != null ? command.description().trim() : existing.description();

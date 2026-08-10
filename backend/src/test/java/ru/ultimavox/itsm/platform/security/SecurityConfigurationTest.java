@@ -26,5 +26,7 @@ class SecurityConfigurationTest {
                 "https://portal.example.test", "https://desk.example.test");
         assertThat(cors.getAllowCredentials()).isFalse();
         assertThat(cors.getAllowedOriginPatterns()).isNullOrEmpty();
+        assertThat(cors.getAllowedHeaders()).contains("X-Correlation-ID");
+        assertThat(cors.getExposedHeaders()).contains("X-Correlation-ID");
     }
 }

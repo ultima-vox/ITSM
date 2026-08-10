@@ -50,7 +50,7 @@ public class CmdbCommands {
         : command.status();
     UUID id = UUID.randomUUID();
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Map<String, Object> attrs = command.attributes() == null ? Map.of() : command.attributes();
     if (command.owner() != null && !command.owner().isBlank()) {
       attrs = new java.util.HashMap<>(attrs);
@@ -109,7 +109,7 @@ public class CmdbCommands {
     }
     UUID id = UUID.randomUUID();
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     try {
       jdbc.update(
           """
@@ -140,7 +140,7 @@ public class CmdbCommands {
   @Transactional
   public void deleteRelationship(UUID relationshipId, String actor) {
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     int n = jdbc.update("DELETE FROM ci_relationship WHERE id = ?", relationshipId);
     if (n == 0) {
       throw new IllegalArgumentException("Relationship not found: " + relationshipId);

@@ -58,7 +58,7 @@ public class WorkItemCiLinkService {
       throw new IllegalArgumentException("Configuration item not found: " + ciId);
     }
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     try {
       jdbc.update(
           """
@@ -89,7 +89,7 @@ public class WorkItemCiLinkService {
   public List<UUID> unlink(UUID workItemId, UUID ciId, String actorId) {
     store.requireById(workItemId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     int n = jdbc.update(
         """
         DELETE FROM work_item_configuration_item

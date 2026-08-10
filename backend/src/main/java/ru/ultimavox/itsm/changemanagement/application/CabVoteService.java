@@ -84,7 +84,7 @@ public class CabVoteService {
     }
     String normalized = normalizeDecision(decision);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     // Replace prior vote from same approver
     jdbc.update(

@@ -69,7 +69,7 @@ public class WorkItemLinkService {
     store.requireById(targetId);
     Instant now = Instant.now();
     UUID id = UUID.randomUUID();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     try {
       jdbc.update(
           """
@@ -107,7 +107,7 @@ public class WorkItemLinkService {
   public void unlink(UUID sourceId, UUID linkId, String actorId) {
     store.requireById(sourceId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     int n = jdbc.update(
         "DELETE FROM work_item_link WHERE id = ? AND (source_id = ? OR target_id = ?)",
         linkId,

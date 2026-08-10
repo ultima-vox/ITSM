@@ -35,7 +35,7 @@ public class WorkItemWatcherService {
     }
     store.requireById(workItemId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     boolean already = store.isWatching(workItemId, subjectId);
     store.addWatcher(workItemId, subjectId, now);
     if (!already) {
@@ -71,7 +71,7 @@ public class WorkItemWatcherService {
     }
     store.requireById(workItemId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     boolean removed = store.removeWatcher(workItemId, subjectId);
     if (removed) {
       Map<String, Object> after = Map.of("watcherSubject", subjectId);

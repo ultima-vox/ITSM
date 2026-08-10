@@ -49,7 +49,7 @@ public class AssignWorkItem {
     }
 
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     String teamId = command.teamId() != null ? command.teamId() : existing.teamId();
     WorkItem updated = existing.assign(command.assigneeId().trim(), teamId, now);
     store.update(updated);

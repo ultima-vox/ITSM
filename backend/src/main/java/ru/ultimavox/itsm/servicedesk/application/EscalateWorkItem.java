@@ -45,7 +45,7 @@ public class EscalateWorkItem {
   public WorkItem escalate(UUID id, String actorId) {
     WorkItem existing = store.requireById(id);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     WorkItem updated = existing.escalate(now);
     if (updated.state() == State.NEW) {

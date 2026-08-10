@@ -28,7 +28,7 @@ public class ChangeCommands {
   @Transactional
   public Change create(CreateCommand command, String actor) {
     UUID id = UUID.randomUUID();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Instant now = Instant.now();
     Long sequence = jdbc.queryForObject("SELECT nextval('change_number_seq')", Long.class);
     String number = "CHG-%06d".formatted(sequence);
@@ -95,7 +95,7 @@ public class ChangeCommands {
         : current;
     Change updated = withCab.transition(target);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         """

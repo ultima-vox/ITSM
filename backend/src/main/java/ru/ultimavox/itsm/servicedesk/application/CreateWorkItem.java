@@ -69,7 +69,7 @@ public class CreateWorkItem {
     validate(command);
 
     UUID id = UUID.randomUUID();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Instant now = Instant.now();
 
     Impact impact = command.impact() == null ? Impact.MEDIUM : command.impact();

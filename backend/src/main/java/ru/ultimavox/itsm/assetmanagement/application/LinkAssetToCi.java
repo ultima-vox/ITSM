@@ -41,7 +41,7 @@ public class LinkAssetToCi {
 
     Asset linked = current.linkToCi(configurationItemId);
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
     jdbc.update(
         "UPDATE asset SET configuration_item_id = ?, updated_at = ? WHERE id = ?",

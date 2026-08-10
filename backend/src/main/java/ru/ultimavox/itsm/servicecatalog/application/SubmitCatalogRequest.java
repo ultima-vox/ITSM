@@ -44,7 +44,7 @@ public class SubmitCatalogRequest {
     }
 
     UUID id = UUID.randomUUID();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Instant now = Instant.now();
     Long sequence = jdbc.queryForObject("SELECT nextval('catalog_request_number_seq')", Long.class);
     String number = "CRQ-%06d".formatted(sequence);

@@ -47,7 +47,7 @@ public class AddWorkItemComment {
     WorkItem item = store.requireById(workItemId);
 
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     WorkItemComment comment = new WorkItemComment(
         UUID.randomUUID(),
         workItemId,

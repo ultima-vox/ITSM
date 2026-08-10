@@ -93,7 +93,7 @@ public class WorkItemAttachmentService {
           .orElse(new LinkedAttachment(attachment, actorId, now));
     }
 
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Map<String, Object> after = Map.of(
         "attachmentId", attachmentId.toString(),
         "filename", attachment.filename(),
@@ -136,7 +136,7 @@ public class WorkItemAttachmentService {
     }
 
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     Map<String, Object> after = Map.of("attachmentId", attachmentId.toString());
     audit.append(new AuditTrail.Entry(
         actorId,

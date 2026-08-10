@@ -51,7 +51,7 @@ public class AssetCommands {
 
   private void persist(Asset updated, Asset before, String actor, String action) {
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     jdbc.update(
         """
         UPDATE asset

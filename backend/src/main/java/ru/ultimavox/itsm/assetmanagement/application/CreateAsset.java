@@ -41,7 +41,7 @@ public class CreateAsset {
     Asset.Status status = command.status() == null ? Asset.Status.IN_STOCK : command.status();
     UUID id = UUID.randomUUID();
     Instant now = Instant.now();
-    UUID correlationId = UUID.randomUUID();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     jdbc.update(
         """
         INSERT INTO asset (id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, created_at, updated_at)
