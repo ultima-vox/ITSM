@@ -24,12 +24,18 @@ class JdbcIntegrationEventOutbox implements IntegrationEventOutbox {
       jdbc.update(
           """
               INSERT INTO outbox_event (
-                id, occurred_at, event_type, aggregate_type, aggregate_id, payload
-              ) VALUES (?,?,?,?,?,?::jsonb)
+                id, occurred_at, event_type, schema_version, correlation_id, causation_id,
+                organization_id, actor_id, aggregate_type, aggregate_id, payload
+              ) VALUES (?,?,?,?,?,?,?,?,?,?,?::jsonb)
               """,
           e.id(),
           Timestamp.from(e.occurredAt()),
           e.type(),
+          e.schemaVersion(),
+          e.correlationId(),
+          e.causationId(),
+          e.organizationId(),
+          e.actorId(),
           e.aggregateType(),
           e.aggregateId(),
           json.writeValueAsString(e)
