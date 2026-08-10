@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itsm-config
+  namespace: vox-itsm
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  ITSM_REDIS_ENABLED: "true"
+  REDIS_HOST: redis.data.svc.cluster.local
+  REDIS_PORT: "6379"
+  RABBITMQ_HOST: rabbitmq.messaging.svc.cluster.local
+  RABBITMQ_PORT: "5672"
+  OPENSEARCH_URL: https://opensearch.search.svc.cluster.local:9200
+  ITSM_STORAGE_TYPE: s3
+  S3_ENDPOINT: https://s3.example.com
+  S3_BUCKET: itsm-attachments
+  S3_REGION: eu-central-1
+  S3_PATH_STYLE: "false"
+  ITSM_CORS_ORIGINS: https://itsm.example.com
