@@ -35,11 +35,19 @@ class JdbcRbacRepository implements RbacRepository {
             JOIN permission p ON p.id = rp.permission_id
             WHERE pr.org_id = ? AND pr.subject_id = ?
             UNION
+            SELECT p.permission_key
+            FROM role_delegation d
+            JOIN role_permission rp ON rp.role_id = d.role_id
+            JOIN permission p ON p.id = rp.permission_id
+            WHERE d.org_id = ? AND d.delegatee_id = ?
+              AND d.revoked_at IS NULL AND now() >= d.starts_at AND now() < d.expires_at
+            UNION
             SELECT g.permission
             FROM rbac_grant g
             WHERE g.org_id = ? AND g.subject_type = 'USER' AND g.subject_id = ?
             """,
         (rs, i) -> rs.getString(1),
+        OrganizationContext.current(), subjectId,
         OrganizationContext.current(), subjectId,
         OrganizationContext.current(), subjectId
     );
@@ -54,8 +62,15 @@ class JdbcRbacRepository implements RbacRepository {
             FROM principal_role pr
             JOIN role r ON r.id = pr.role_id
             WHERE pr.org_id = ? AND pr.subject_id = ?
+            UNION
+            SELECT r.role_key
+            FROM role_delegation d
+            JOIN role r ON r.id = d.role_id
+            WHERE d.org_id = ? AND d.delegatee_id = ?
+              AND d.revoked_at IS NULL AND now() >= d.starts_at AND now() < d.expires_at
             """,
         (rs, i) -> rs.getString(1),
+        OrganizationContext.current(), subjectId,
         OrganizationContext.current(), subjectId
     );
     return new HashSet<>(rows);
@@ -73,6 +88,13 @@ class JdbcRbacRepository implements RbacRepository {
               WHERE pr.org_id = ? AND pr.subject_id = ? AND p.permission_key = ?
               UNION ALL
               SELECT 1
+              FROM role_delegation d
+              JOIN role_permission rp ON rp.role_id = d.role_id
+              JOIN permission p ON p.id = rp.permission_id
+              WHERE d.org_id = ? AND d.delegatee_id = ? AND p.permission_key = ?
+                AND d.revoked_at IS NULL AND now() >= d.starts_at AND now() < d.expires_at
+              UNION ALL
+              SELECT 1
               FROM rbac_grant g
               WHERE g.org_id = ? AND g.subject_type = 'USER' AND g.subject_id = ? AND g.permission = ?
               UNION ALL
@@ -85,6 +107,7 @@ class JdbcRbacRepository implements RbacRepository {
             ) grants
             """,
         Integer.class,
+        OrganizationContext.current(), subjectId, permissionKey,
         OrganizationContext.current(), subjectId, permissionKey,
         OrganizationContext.current(), subjectId, permissionKey,
         OrganizationContext.current(), subjectId

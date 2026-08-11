@@ -31,8 +31,11 @@ class JdbcRbacRepositoryOrganizationTest {
     ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
     verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
-    assertThat(sql.getValue()).contains("pr.org_id = ?").contains("g.org_id = ?");
-    assertThat(args.getValue()).containsExactly("org-secure", "same-user", "org-secure", "same-user");
+    assertThat(sql.getValue()).contains("pr.org_id = ?").contains("d.org_id = ?").contains("g.org_id = ?");
+    assertThat(args.getValue()).containsExactly(
+        "org-secure", "same-user",
+        "org-secure", "same-user",
+        "org-secure", "same-user");
   }
 
   @Test void roleReplacementDeletesAndInsertsOnlyWithinTrustedOrganization() {

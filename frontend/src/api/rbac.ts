@@ -29,6 +29,29 @@ interface BackendPrincipal {
   roleKeys: string[];
 }
 
+export interface RoleDelegation {
+  id: string;
+  delegatorId: string;
+  delegateeId: string;
+  roleKey: string;
+  startsAt: string;
+  expiresAt: string;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+  revokedBy?: string;
+  revokedAt?: string;
+}
+
+export interface CreateRoleDelegation {
+  delegatorId: string;
+  delegateeId: string;
+  roleKey: string;
+  startsAt?: string;
+  expiresAt: string;
+  reason: string;
+}
+
 function mapRole(dto: BackendRole): RbacRole {
   const labels = dto.labels ?? {};
   return {
@@ -101,6 +124,26 @@ export async function assignUserRole(
     { method: 'PUT', body: { roleKey } },
   );
   return mapPrincipal(changed);
+}
+
+export async function fetchRoleDelegations(): Promise<RoleDelegation[]> {
+  if (isMockMode()) return [];
+  return apiRequest<RoleDelegation[]>('/rbac/delegations');
+}
+
+export async function createRoleDelegation(
+  input: CreateRoleDelegation,
+): Promise<RoleDelegation> {
+  return apiRequest<RoleDelegation>('/rbac/delegations', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function revokeRoleDelegation(id: string): Promise<void> {
+  await apiRequest<void>(`/rbac/delegations/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 export function getPermissionDescription(key: string): string {

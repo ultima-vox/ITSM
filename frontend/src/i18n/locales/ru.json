@@ -1353,7 +1353,20 @@
     "selectRoleTitle": "Выберите роль",
     "selectRoleHint": "Выберите роль слева, чтобы просмотреть выданные права.",
     "permsEmptyTitle": "Нет прав",
-    "permsEmptyHint": "У этой роли пока нет выданных прав."
+    "permsEmptyHint": "У этой роли пока нет выданных прав.",
+    "tabDelegations": "Делегирование",
+    "delegator": "Кто делегирует",
+    "delegatee": "Кому делегируют",
+    "reason": "Деловая причина",
+    "expires": "Истекает",
+    "active": "Активно",
+    "revoked": "Отозвано",
+    "revoke": "Отозвать",
+    "createDelegation": "Делегировать на 7 дней",
+    "delegationCreated": "Временное делегирование роли создано",
+    "delegationFailed": "Не удалось изменить делегирование роли",
+    "emptyDelegations": "Делегирований нет",
+    "emptyDelegationsHint": "Временные назначения появятся здесь."
   },
   "workItem": {
     "notFound": "Обращение не найдено",

@@ -1353,7 +1353,20 @@
     "selectRoleTitle": "Rolle auswählen",
     "selectRoleHint": "Wählen Sie links eine Rolle, um die Berechtigungen zu prüfen.",
     "permsEmptyTitle": "Keine Berechtigungen",
-    "permsEmptyHint": "Diese Rolle hat noch keine Berechtigungen."
+    "permsEmptyHint": "Diese Rolle hat noch keine Berechtigungen.",
+    "tabDelegations": "Delegierungen",
+    "delegator": "Delegierende Person",
+    "delegatee": "Vertretung",
+    "reason": "Geschäftlicher Grund",
+    "expires": "Läuft ab",
+    "active": "Aktiv",
+    "revoked": "Widerrufen",
+    "revoke": "Widerrufen",
+    "createDelegation": "Für 7 Tage delegieren",
+    "delegationCreated": "Temporäre Rollendelegierung erstellt",
+    "delegationFailed": "Rollendelegierung konnte nicht geändert werden",
+    "emptyDelegations": "Keine Rollendelegierungen",
+    "emptyDelegationsHint": "Temporäre Vertretungen werden hier angezeigt."
   },
   "workItem": {
     "notFound": "Ticket nicht gefunden",

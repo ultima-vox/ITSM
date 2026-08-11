@@ -5,17 +5,22 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.authorization.RbacRepository;
+import ru.ultimavox.itsm.platform.authorization.RoleDelegationService;
 import ru.ultimavox.itsm.platform.authorization.RbacRepository.PermissionCatalogEntry;
 import ru.ultimavox.itsm.platform.authorization.RbacRepository.PrincipalAssignment;
 import ru.ultimavox.itsm.platform.authorization.RbacRepository.RoleCatalogEntry;
@@ -27,10 +32,12 @@ class RbacAdminController {
 
   private final RbacRepository rbac;
   private final AccessControl access;
+  private final RoleDelegationService delegations;
 
-  RbacAdminController(RbacRepository rbac, AccessControl access) {
+  RbacAdminController(RbacRepository rbac, AccessControl access, RoleDelegationService delegations) {
     this.rbac = rbac;
     this.access = access;
+    this.delegations = delegations;
   }
 
   @GetMapping("/roles")
@@ -78,6 +85,45 @@ class RbacAdminController {
   }
 
   record ReplaceRoleRequest(String roleKey) {}
+
+  @GetMapping("/delegations")
+  @Operation(summary = "List temporary role delegations in current organization")
+  List<RoleDelegationService.Delegation> listDelegations(Authentication authentication) {
+    access.require(authentication.getName(), "rbac.read", "role-delegation", null);
+    return delegations.list();
+  }
+
+  @PostMapping("/delegations")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Create a bounded temporary role delegation")
+  RoleDelegationService.Delegation createDelegation(
+      Authentication authentication, @RequestBody DelegationRequest body) {
+    String actor = authentication.getName();
+    access.require(actor, "rbac.delegate", "role-delegation", null);
+    try {
+      return delegations.create(new RoleDelegationService.Command(
+          body.delegatorId(), body.delegateeId(), body.roleKey(), body.startsAt(),
+          body.expiresAt(), body.reason()), actor);
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping("/delegations/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Revoke an active temporary role delegation")
+  void revokeDelegation(Authentication authentication, @PathVariable UUID id) {
+    String actor = authentication.getName();
+    access.require(actor, "rbac.delegate", "role-delegation", id.toString());
+    try {
+      delegations.revoke(id, actor);
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
+  record DelegationRequest(String delegatorId, String delegateeId, String roleKey,
+                           Instant startsAt, Instant expiresAt, String reason) {}
 
   private void requireRead(Authentication authentication) {
     String actor = authentication != null ? authentication.getName() : null;

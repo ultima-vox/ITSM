@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { KeyRound, Shield, Users } from 'lucide-react';
+import { KeyRound, Shield, Users, UserRoundCheck } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import {
   assignUserRole,
@@ -9,9 +9,13 @@ import {
   rbacWritable,
   subscribeRbac,
   isMockMode,
+  fetchRoleDelegations,
+  createRoleDelegation,
+  revokeRoleDelegation,
 } from '@/api';
+import type { RoleDelegation } from '@/api';
 import type { LocaleCode, RbacRole, RbacRoleKey, RbacUser, RbacUserStatus } from '@/types';
-import { Badge, EmptyState, ErrorState, Select, Tabs } from '@/components/ui';
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Tabs } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 
 const ROLE_CHIP_LIMIT = 6;
@@ -40,20 +44,29 @@ function statusTone(
 export function RbacPage() {
   const t = useT();
   const { locale } = useI18n();
-  const { success } = useToast();
+  const { success, error } = useToast();
   const writable = rbacWritable();
   const liveMode = !isMockMode();
-  const [tab, setTab] = useState<'roles' | 'users'>('roles');
+  const [tab, setTab] = useState<'roles' | 'users' | 'delegations'>('roles');
   const [roles, setRoles] = useState<RbacRole[]>([]);
   const [users, setUsers] = useState<RbacUser[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [delegations, setDelegations] = useState<RoleDelegation[]>([]);
+  const [delegatorId, setDelegatorId] = useState('');
+  const [delegateeId, setDelegateeId] = useState('');
+  const [delegationRole, setDelegationRole] = useState('SERVICE_DESK_AGENT');
+  const [delegationReason, setDelegationReason] = useState('');
+  const [delegationSaving, setDelegationSaving] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [r, u] = await Promise.all([fetchRbacRoles(), fetchRbacUsers()]);
+      const [r, u, d] = await Promise.all([
+        fetchRbacRoles(), fetchRbacUsers(), fetchRoleDelegations(),
+      ]);
       setRoles(r);
       setUsers(u);
+      setDelegations(d);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -95,6 +108,25 @@ export function RbacPage() {
     });
   };
 
+  const handleDelegate = async () => {
+    setDelegationSaving(true);
+    try {
+      const expiresAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+      await createRoleDelegation({
+        delegatorId, delegateeId, roleKey: delegationRole, expiresAt,
+        reason: delegationReason,
+      });
+      success(t('rbacAdmin.delegationCreated'));
+      setDelegateeId('');
+      setDelegationReason('');
+      await reload();
+    } catch {
+      error(t('rbacAdmin.delegationFailed'));
+    } finally {
+      setDelegationSaving(false);
+    }
+  };
+
   if (loadError) {
     return (
       <section className="page page--rbac">
@@ -134,10 +166,11 @@ export function RbacPage() {
       <Tabs
         className="rbac-admin-tabs"
         value={tab}
-        onChange={(id) => setTab(id as 'roles' | 'users')}
+        onChange={(id) => setTab(id as 'roles' | 'users' | 'delegations')}
         items={[
           { id: 'roles', label: t('rbacAdmin.tabRoles'), count: roles.length },
           { id: 'users', label: t('rbacAdmin.tabUsers'), count: users.length },
+          { id: 'delegations', label: t('rbacAdmin.tabDelegations'), count: delegations.filter((d) => !d.revokedAt).length },
         ]}
       />
 
@@ -329,6 +362,41 @@ export function RbacPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'delegations' && (
+        <div className="panel rbac-admin-users">
+          {liveMode && writable && (
+            <div className="form-grid mb-4">
+              <Input aria-label={t('rbacAdmin.delegator')} placeholder={t('rbacAdmin.delegator')}
+                value={delegatorId} onChange={(e) => setDelegatorId(e.target.value)} />
+              <Input aria-label={t('rbacAdmin.delegatee')} placeholder={t('rbacAdmin.delegatee')}
+                value={delegateeId} onChange={(e) => setDelegateeId(e.target.value)} />
+              <Select id="delegation-role" aria-label={t('rbacAdmin.colRole')}
+                options={roleOptions.filter((r) => r.value !== 'ADMIN')}
+                value={delegationRole} onChange={(e) => setDelegationRole(e.target.value)} />
+              <Input aria-label={t('rbacAdmin.reason')} placeholder={t('rbacAdmin.reason')}
+                value={delegationReason} onChange={(e) => setDelegationReason(e.target.value)} />
+              <Button disabled={delegationSaving || !delegatorId.trim() || !delegateeId.trim() || !delegationReason.trim()}
+                onClick={() => void handleDelegate()}>{t('rbacAdmin.createDelegation')}</Button>
+            </div>
+          )}
+          {delegations.length === 0 ? (
+            <EmptyState icon={<UserRoundCheck size={22} />} title={t('rbacAdmin.emptyDelegations')}
+              description={t('rbacAdmin.emptyDelegationsHint')} />
+          ) : (
+            <div className="data-table-wrap"><table className="data-table data-table--dense">
+              <thead><tr><th>{t('rbacAdmin.delegator')}</th><th>{t('rbacAdmin.delegatee')}</th>
+                <th>{t('rbacAdmin.colRole')}</th><th>{t('rbacAdmin.expires')}</th><th>{t('rbacAdmin.colStatus')}</th><th /></tr></thead>
+              <tbody>{delegations.map((d) => <tr key={d.id}>
+                <td>{d.delegatorId}</td><td>{d.delegateeId}</td><td><code>{d.roleKey}</code></td>
+                <td>{new Date(d.expiresAt).toLocaleString(locale)}</td>
+                <td><Badge tone={d.revokedAt ? 'neutral' : 'mint'}>{d.revokedAt ? t('rbacAdmin.revoked') : t('rbacAdmin.active')}</Badge></td>
+                <td>{!d.revokedAt && <Button variant="secondary" onClick={() => void revokeRoleDelegation(d.id).then(reload).catch(() => error(t('rbacAdmin.delegationFailed')))}>{t('rbacAdmin.revoke')}</Button>}</td>
+              </tr>)}</tbody>
+            </table></div>
           )}
         </div>
       )}

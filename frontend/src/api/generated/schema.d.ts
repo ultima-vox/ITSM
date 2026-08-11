@@ -371,6 +371,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rbac/delegations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List temporary role delegations in current organization */
+        get: operations["listDelegations"];
+        put?: never;
+        /** Create a bounded temporary role delegation */
+        post: operations["createDelegation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/problems": {
         parameters: {
             query?: never;
@@ -1567,6 +1585,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rbac/delegations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an active temporary role delegation */
+        delete: operations["revokeDelegation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cmdb/relationships/{id}": {
         parameters: {
             query?: never;
@@ -1843,6 +1878,34 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        DelegationRequest: {
+            delegatorId?: string;
+            delegateeId?: string;
+            roleKey?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            reason?: string;
+        };
+        Delegation: {
+            /** Format: uuid */
+            id?: string;
+            delegatorId?: string;
+            delegateeId?: string;
+            roleKey?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            reason?: string;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            revokedBy?: string;
+            /** Format: date-time */
+            revokedAt?: string;
         };
         Problem: {
             /** Format: uuid */
@@ -3257,6 +3320,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    listDelegations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Delegation"][];
+                };
+            };
+        };
+    };
+    createDelegation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DelegationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Delegation"];
                 };
             };
         };
@@ -5106,6 +5213,26 @@ export interface operations {
             path: {
                 id: string;
                 attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeDelegation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
             };
             cookie?: never;
         };

@@ -1353,7 +1353,20 @@
     "selectRoleTitle": "Select a role",
     "selectRoleHint": "Choose a role on the left to inspect its permission grants.",
     "permsEmptyTitle": "No permissions",
-    "permsEmptyHint": "This role has no permission grants yet."
+    "permsEmptyHint": "This role has no permission grants yet.",
+    "tabDelegations": "Delegations",
+    "delegator": "Delegator subject",
+    "delegatee": "Delegate subject",
+    "reason": "Business reason",
+    "expires": "Expires",
+    "active": "Active",
+    "revoked": "Revoked",
+    "revoke": "Revoke",
+    "createDelegation": "Delegate for 7 days",
+    "delegationCreated": "Temporary role delegation created",
+    "delegationFailed": "Role delegation could not be changed",
+    "emptyDelegations": "No role delegations",
+    "emptyDelegationsHint": "Temporary coverage assignments will appear here."
   },
   "workItem": {
     "notFound": "Work item not found",
