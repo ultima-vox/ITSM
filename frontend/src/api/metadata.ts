@@ -258,6 +258,29 @@ export interface FormDefinition {
   sections: FormSection[];
 }
 
+export interface FormDefinitionVersionView {
+  definition: FormDefinition;
+  active: boolean;
+}
+
+export async function fetchFormDefinitionVersions(formKey: string): Promise<FormDefinitionVersionView[]> {
+  if (isMockMode()) return [];
+  return apiRequest(`/metadata/forms/definitions/${encodeURIComponent(formKey)}/versions`);
+}
+
+export async function createFormDefinitionDraft(
+  definition: Pick<FormDefinition, 'key' | 'objectKey' | 'sections'>,
+): Promise<FormDefinitionVersionView> {
+  return apiRequest('/metadata/forms/drafts', { method: 'POST', body: definition });
+}
+
+export async function publishFormDefinitionVersion(
+  formKey: string, version: number,
+): Promise<FormDefinitionVersionView> {
+  return apiRequest(`/metadata/forms/definitions/${encodeURIComponent(formKey)}/versions/${version}/publish`,
+    { method: 'POST' });
+}
+
 /**
  * Mock work-item form: title, description, service, impact, urgency.
  * Values map to existing WorkItem store fields.

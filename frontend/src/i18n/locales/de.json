@@ -1232,7 +1232,19 @@
     "draftCreated": "Schemaentwurf erstellt",
     "draftFailed": "Schemaentwurf ist ungültig",
     "published": "Schemaversion veröffentlicht",
-    "publishFailed": "Veröffentlichung abgelehnt: Schema ist inkompatibel"
+    "publishFailed": "Veröffentlichung abgelehnt: Schema ist inkompatibel",
+    "createForm": "Formular erstellen",
+    "newFormVersion": "Formularversion erstellen",
+    "formVersions": "Formularversionen",
+    "formDesigner": "Formulardesigner",
+    "formDraftTitle": "Unveränderlichen Formularentwurf erstellen",
+    "formKey": "Formularschlüssel",
+    "sectionsJson": "Abschnitte und Felder (JSON)",
+    "formDesignerHint": "Felder müssen im aktiven Objektschema existieren. Bedingungen akzeptieren nur CEL-Metadaten.",
+    "formDraftCreated": "Formularentwurf erstellt",
+    "formDraftFailed": "Formularentwurf ist ungültig",
+    "formPublished": "Formularversion veröffentlicht",
+    "formPublishFailed": "Formularveröffentlichung abgelehnt"
   },
   "automation": {
     "title": "Automatisierungsregeln",

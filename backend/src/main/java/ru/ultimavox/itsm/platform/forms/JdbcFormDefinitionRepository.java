@@ -89,6 +89,52 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
         return new FormDefinition(id, definition.key(), definition.objectKey(), definition.version(), definition.sections());
     }
 
+    @Override
+    public List<FormDefinitionVersion> findVersions(String formKey) {
+        return jdbc.query("""
+                SELECT id, form_key, object_key, version, active, definition::text
+                FROM form_definition WHERE org_id = ? AND form_key = ? ORDER BY version DESC
+                """, (rs, i) -> new FormDefinitionVersion(map(rs.getObject("id", UUID.class),
+                rs.getString("form_key"), rs.getString("object_key"), rs.getInt("version"),
+                rs.getString("definition")), rs.getBoolean("active")),
+                OrganizationContext.current(), formKey);
+    }
+
+    @Override
+    public FormDefinition insertNextDraft(FormDefinition definition, String definitionJson) {
+        String org = OrganizationContext.current();
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+                ps -> ps.setString(1, org + ":form:" + definition.key()), rs -> null);
+        Integer next = jdbc.queryForObject("""
+                SELECT COALESCE(MAX(version), 0) + 1 FROM form_definition
+                WHERE org_id = ? AND form_key = ?
+                """, Integer.class, org, definition.key());
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO form_definition(id, org_id, form_key, object_key, version, active, definition)
+                VALUES (?, ?, ?, ?, ?, false, ?::jsonb)
+                """, id, org, definition.key(), definition.objectKey(), next, definitionJson);
+        return new FormDefinition(id, definition.key(), definition.objectKey(), next, definition.sections());
+    }
+
+    @Override
+    public FormDefinition publish(String formKey, int version) {
+        String org = OrganizationContext.current();
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+                ps -> ps.setString(1, org + ":form:" + formKey), rs -> null);
+        FormDefinition target = findVersions(formKey).stream()
+                .filter(item -> item.definition().version() == version)
+                .map(FormDefinitionVersion::definition).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown form version: " + formKey + " v" + version));
+        jdbc.update("UPDATE form_definition SET active = false WHERE org_id = ? AND form_key = ?", org, formKey);
+        int changed = jdbc.update("""
+                UPDATE form_definition SET active = true
+                WHERE org_id = ? AND form_key = ? AND version = ?
+                """, org, formKey, version);
+        if (changed != 1) throw new IllegalStateException("Form publication lost target version");
+        return target;
+    }
+
     private FormDefinition map(UUID id, String formKey, String objectKey, int version, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);

@@ -1232,7 +1232,19 @@
     "draftCreated": "Schema draft created",
     "draftFailed": "Schema draft is invalid",
     "published": "Schema version published",
-    "publishFailed": "Publication rejected: schema is incompatible"
+    "publishFailed": "Publication rejected: schema is incompatible",
+    "createForm": "Create form",
+    "newFormVersion": "Create form version",
+    "formVersions": "Form versions",
+    "formDesigner": "Form designer",
+    "formDraftTitle": "Create immutable form draft",
+    "formKey": "Form key",
+    "sectionsJson": "Sections and fields (JSON)",
+    "formDesignerHint": "Fields must exist in active object schema. Conditions accept CEL metadata only.",
+    "formDraftCreated": "Form draft created",
+    "formDraftFailed": "Form draft is invalid",
+    "formPublished": "Form version published",
+    "formPublishFailed": "Form publication rejected"
   },
   "automation": {
     "title": "Automation rules",

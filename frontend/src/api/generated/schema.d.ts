@@ -561,6 +561,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metadata/forms/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createDraft_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/forms/definitions/{formKey}/versions/{version}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["publish_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/articles": {
         parameters: {
             query?: never;
@@ -606,7 +638,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Publish a draft or in-review article */
-        post: operations["publish_1"];
+        post: operations["publish_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1299,6 +1331,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metadata/forms/definitions/{formKey}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["versions_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metadata/forms/{objectKey}": {
         parameters: {
             query?: never;
@@ -1316,6 +1364,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metadata/forms/by-object/{objectKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get active form render model for an object type */
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/articles/{idOrSlug}": {
         parameters: {
             query?: never;
@@ -1324,7 +1389,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get article by id or slug */
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1358,7 +1423,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get configuration item by id */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1409,7 +1474,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get change by id */
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1560,7 +1625,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get catalog item detail */
-        get: operations["get_8"];
+        get: operations["get_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1662,7 +1727,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get asset by id */
-        get: operations["get_9"];
+        get: operations["get_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2186,6 +2251,41 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
+        };
+        Draft: {
+            key?: string;
+            objectKey?: string;
+            sections?: components["schemas"]["Section"][];
+        };
+        Expression: {
+            language?: string;
+            source?: string;
+        };
+        Field: {
+            attributeKey?: string;
+            required?: boolean;
+            visibleWhen?: components["schemas"]["Expression"];
+            readOnlyWhen?: components["schemas"]["Expression"];
+        };
+        Section: {
+            key?: string;
+            labels?: {
+                [key: string]: string;
+            };
+            fields?: components["schemas"]["Field"][];
+        };
+        FormDefinition: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            objectKey?: string;
+            /** Format: int32 */
+            version?: number;
+            sections?: components["schemas"]["Section"][];
+        };
+        FormDefinitionVersion: {
+            definition?: components["schemas"]["FormDefinition"];
+            active?: boolean;
         };
         CreateArticleRequest: {
             title: string;
@@ -3886,6 +3986,53 @@ export interface operations {
             };
         };
     };
+    createDraft_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Draft"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormDefinitionVersion"];
+                };
+            };
+        };
+    };
+    publish_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                formKey: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormDefinitionVersion"];
+                };
+            };
+        };
+    };
     list_5: {
         parameters: {
             query?: {
@@ -3960,7 +4107,7 @@ export interface operations {
             };
         };
     };
-    publish_1: {
+    publish_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5116,6 +5263,28 @@ export interface operations {
             };
         };
     };
+    versions_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                formKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormDefinitionVersion"][];
+                };
+            };
+        };
+    };
     get_4: {
         parameters: {
             query?: never;
@@ -5139,6 +5308,28 @@ export interface operations {
         };
     };
     get_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormRenderModel"];
+                };
+            };
+        };
+    };
+    get_6: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5184,7 +5375,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5252,7 +5443,7 @@ export interface operations {
             };
         };
     };
-    get_7: {
+    get_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -5456,7 +5647,7 @@ export interface operations {
             };
         };
     };
-    get_8: {
+    get_9: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5588,7 +5779,7 @@ export interface operations {
             };
         };
     };
-    get_9: {
+    get_10: {
         parameters: {
             query?: never;
             header?: never;

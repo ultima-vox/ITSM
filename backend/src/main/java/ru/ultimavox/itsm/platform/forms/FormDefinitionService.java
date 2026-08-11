@@ -41,12 +41,7 @@ public class FormDefinitionService {
 
     @Transactional
     public FormDefinition save(FormDefinition definition) {
-        try {
-            String payload = json.writeValueAsString(toPersistable(definition));
-            return repository.save(definition, payload);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Cannot serialize form definition", ex);
-        }
+        return repository.save(definition, serialize(definition));
     }
 
     /**
@@ -85,6 +80,14 @@ public class FormDefinitionService {
             return null;
         }
         return new ExpressionModel(expression.language(), expression.source());
+    }
+
+    String serialize(FormDefinition definition) {
+        try {
+            return json.writeValueAsString(toPersistable(definition));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Cannot serialize form definition", ex);
+        }
     }
 
     private Map<String, Object> toPersistable(FormDefinition definition) {

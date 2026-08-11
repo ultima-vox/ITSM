@@ -12,6 +12,10 @@ import {
   fetchObjectDefinitionVersions,
   createObjectDefinitionDraft,
   publishObjectDefinitionVersion,
+  fetchFormDefinitionVersions,
+  createFormDefinitionDraft,
+  publishFormDefinitionVersion,
+  type FormDefinitionVersionView,
   isMockMode,
 } from '@/api';
 import { DynamicForm } from '@/components/form/DynamicForm';
@@ -68,6 +72,10 @@ export function MetadataPage() {
   const [draftRelations, setDraftRelations] = useState('[]');
   const [savingDraft, setSavingDraft] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<ObjectDefinition | null>(null);
+  const [formDesignerOpen, setFormDesignerOpen] = useState(false);
+  const [formKey, setFormKey] = useState('');
+  const [formSections, setFormSections] = useState('[]');
+  const [formVersions, setFormVersions] = useState<FormDefinitionVersionView[]>([]);
   const { success, error: toastError } = useToast();
   const liveMode = !isMockMode();
 
@@ -130,6 +138,47 @@ export function MetadataPage() {
       cancelled = true;
     };
   }, [selectedObjectKey]);
+
+  useEffect(() => {
+    const key = formDef?.key;
+    if (!key || !liveMode) { setFormVersions([]); return; }
+    void fetchFormDefinitionVersions(key).then(setFormVersions).catch(() => setFormVersions([]));
+  }, [formDef, liveMode]);
+
+  const openFormDesigner = () => {
+    if (!selected) return;
+    setFormKey(formDef?.key ?? `${selected.key}.default`);
+    setFormSections(JSON.stringify(formDef?.sections ?? [{ key: 'main',
+      labels: { ru: 'Основное', en: 'Main' },
+      fields: selected.attributes.slice(0, 5).map((attribute) => ({
+        attributeKey: attribute.key, required: attribute.required,
+        visibleWhen: null, readOnlyWhen: null,
+      })) }], null, 2));
+    setFormDesignerOpen(true);
+  };
+
+  const saveFormDraft = async () => {
+    if (!selected) return;
+    setSavingDraft(true);
+    try {
+      const created = await createFormDefinitionDraft({ key: formKey.trim(), objectKey: selected.key,
+        sections: JSON.parse(formSections) as FormDefinition['sections'] });
+      setFormDesignerOpen(false);
+      setFormVersions(await fetchFormDefinitionVersions(created.definition.key));
+      success(t('metadata.formDraftCreated'));
+    } catch { toastError(t('metadata.formDraftFailed')); }
+    finally { setSavingDraft(false); }
+  };
+
+  const publishFormVersion = async (version: number) => {
+    try {
+      const key = formVersions[0]?.definition.key ?? formKey;
+      const published = await publishFormDefinitionVersion(key, version);
+      setFormDef(published.definition);
+      setFormVersions(await fetchFormDefinitionVersions(key));
+      success(t('metadata.formPublished'));
+    } catch { toastError(t('metadata.formPublishFailed')); }
+  };
 
   useEffect(() => {
     if (!selectedObjectKey || !liveMode) { setVersions([]); return; }
@@ -328,6 +377,9 @@ export function MetadataPage() {
                   {!formDef && !formLoading && (
                     <span className="chip chip--muted">{t('metadata.noForm')}</span>
                   )}
+                  {liveMode && <Button variant="secondary" size="sm" onClick={openFormDesigner}>
+                    {formDef ? t('metadata.newFormVersion') : t('metadata.createForm')}
+                  </Button>}
                 </div>
               </div>
 
@@ -340,6 +392,15 @@ export function MetadataPage() {
                     {!item.active && <Button size="sm" onClick={() => void publishVersion(item.definition.version)}>
                       {t('metadata.publish')}
                     </Button>}
+                  </span>)}</div>
+              </div>}
+
+              {formVersions.length > 0 && <div className="metadata-workflow">
+                <div className="metadata-workflow__head"><FileText size={15} aria-hidden />
+                  <h3>{t('metadata.formVersions')}</h3></div>
+                <div className="metadata-detail__badges">{formVersions.map((item) =>
+                  <span className="chip" key={item.definition.version}>v{item.definition.version} · {item.active ? t('metadata.active') : t('metadata.draft')}
+                    {!item.active && <Button size="sm" onClick={() => void publishFormVersion(item.definition.version)}>{t('metadata.publish')}</Button>}
                   </span>)}</div>
               </div>}
 
@@ -502,6 +563,24 @@ export function MetadataPage() {
         <p className="panel-hint">{t('metadata.designerHint')}</p>
         <div className="dialog-actions"><Button variant="secondary" onClick={() => setDesignerOpen(false)}>{t('app.cancel')}</Button>
           <Button disabled={savingDraft} onClick={() => void saveDraft()}>{t('metadata.saveDraft')}</Button></div>
+      </Modal>
+
+      <Modal
+        open={formDesignerOpen}
+        onClose={() => setFormDesignerOpen(false)}
+        size="lg"
+        labelledBy="form-designer-title"
+      >
+        <div className="dialog-head"><div><p className="eyebrow">{t('metadata.formDesigner')}</p>
+          <h2 id="form-designer-title">{t('metadata.formDraftTitle')}</h2></div>
+          <button type="button" className="icon-btn" aria-label={t('app.close')} onClick={() => setFormDesignerOpen(false)}><X size={18} /></button>
+        </div>
+        <Input label={t('metadata.formKey')} value={formKey} onChange={(e) => setFormKey(e.target.value)} />
+        <label className="field"><span className="field__label">{t('metadata.sectionsJson')}</span>
+          <textarea className="input mono" rows={16} value={formSections} onChange={(e) => setFormSections(e.target.value)} /></label>
+        <p className="panel-hint">{t('metadata.formDesignerHint')}</p>
+        <div className="dialog-actions"><Button variant="secondary" onClick={() => setFormDesignerOpen(false)}>{t('app.cancel')}</Button>
+          <Button disabled={savingDraft} onClick={() => void saveFormDraft()}>{t('metadata.saveDraft')}</Button></div>
       </Modal>
 
       <Modal
