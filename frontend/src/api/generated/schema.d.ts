@@ -2209,6 +2209,15 @@ export interface components {
             description?: string;
             category?: string;
         };
+        BundleComponent: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            /** Format: int32 */
+            quantity?: number;
+            /** Format: int32 */
+            position?: number;
+        };
         CatalogItemDetail: {
             /** Format: uuid */
             id?: string;
@@ -2226,6 +2235,7 @@ export interface components {
             translations?: {
                 [key: string]: components["schemas"]["Translation"];
             };
+            components?: components["schemas"]["BundleComponent"][];
         };
         Translation: {
             name?: string;
