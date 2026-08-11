@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/v1/work-item-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a work item template using optimistic locking */
+        put: operations["update"];
+        post?: never;
+        /** Archive a work item template using optimistic locking */
+        delete: operations["archive"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rbac/principals/{subjectId}/role": {
         parameters: {
             query?: never;
@@ -48,7 +66,7 @@ export interface paths {
         };
         get?: never;
         /** Update article content (draft in place; published creates new draft version) */
-        put: operations["update"];
+        put: operations["update_1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -335,6 +353,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-item-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List available work item templates */
+        get: operations["list_2"];
+        put?: never;
+        /** Create a reusable work item template */
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/problems": {
         parameters: {
             query?: never;
@@ -343,10 +379,10 @@ export interface paths {
             cookie?: never;
         };
         /** List problems */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /** Create a problem */
-        post: operations["create_1"];
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -429,10 +465,10 @@ export interface paths {
             cookie?: never;
         };
         /** List articles; publishedOnly=false for CMS (requires knowledge.write) */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Create a draft knowledge article */
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -517,10 +553,10 @@ export interface paths {
             cookie?: never;
         };
         /** List or search configuration items */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         /** Create a configuration item */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -535,10 +571,10 @@ export interface paths {
             cookie?: never;
         };
         /** List changes */
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         /** Create a change request (DRAFT) */
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -654,10 +690,10 @@ export interface paths {
             cookie?: never;
         };
         /** List assets */
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         /** Create an asset */
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -798,7 +834,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update work item fields */
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/sla/policies/{id}": {
@@ -1065,7 +1101,7 @@ export interface paths {
             cookie?: never;
         };
         /** List in-app notifications for the authenticated actor */
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1082,7 +1118,7 @@ export interface paths {
             cookie?: never;
         };
         /** List active object definitions */
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1352,7 +1388,7 @@ export interface paths {
             cookie?: never;
         };
         /** List or search published catalog items by category */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1403,7 +1439,7 @@ export interface paths {
             cookie?: never;
         };
         /** List recent platform audit events (newest first) */
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1569,6 +1605,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateRequest: {
+            name: string;
+            /** @enum {string} */
+            type: "INCIDENT" | "SERVICE_REQUEST";
+            title: string;
+            description: string;
+            service: string;
+            /** @enum {string} */
+            impact: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            urgency: "HIGH" | "MEDIUM" | "LOW";
+            teamId?: string;
+        };
         ReplaceRoleRequest: {
             roleKey?: string;
         };
@@ -1633,19 +1682,6 @@ export interface components {
             version?: number;
             /** Format: date-time */
             updatedAt?: string;
-        };
-        CreateRequest: {
-            /** @enum {string} */
-            type: "INCIDENT" | "SERVICE_REQUEST";
-            title: string;
-            description: string;
-            service: string;
-            /** @enum {string} */
-            impact?: "HIGH" | "MEDIUM" | "LOW";
-            /** @enum {string} */
-            urgency?: "HIGH" | "MEDIUM" | "LOW";
-            assigneeId?: string;
-            teamId?: string;
         };
         Created: {
             /** Format: uuid */
@@ -1782,6 +1818,29 @@ export interface components {
             ids: string[];
             assigneeId: string;
             teamId?: string;
+        };
+        Template: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** @enum {string} */
+            type?: "INCIDENT" | "SERVICE_REQUEST";
+            title?: string;
+            description?: string;
+            service?: string;
+            /** @enum {string} */
+            impact?: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            urgency?: "HIGH" | "MEDIUM" | "LOW";
+            teamId?: string;
+            active?: boolean;
+            /** Format: int64 */
+            version?: number;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
         };
         Problem: {
             /** Format: uuid */
@@ -2429,6 +2488,54 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    update: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    archive: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     replaceRole: {
         parameters: {
             query?: never;
@@ -2497,7 +2604,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3105,6 +3212,52 @@ export interface operations {
     list_2: {
         parameters: {
             query?: {
+                includeInactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Template"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: {
                 status?: string;
             };
             header?: never;
@@ -3124,7 +3277,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3240,7 +3393,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: {
                 q?: string;
@@ -3264,7 +3417,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3428,7 +3581,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 classKey?: string;
@@ -3452,7 +3605,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -3476,7 +3629,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: {
                 status?: string;
@@ -3498,7 +3651,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -3703,7 +3856,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: {
                 status?: string;
@@ -3727,7 +3880,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -3951,7 +4104,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4332,7 +4485,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: {
                 limit?: number;
@@ -4356,7 +4509,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -4714,7 +4867,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 category?: string;
@@ -4782,7 +4935,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: {
                 action?: string;

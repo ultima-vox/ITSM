@@ -1553,6 +1553,8 @@
     "incidentKicker": "New incident",
     "requestKicker": "New request",
     "incidentTitle": "Report an issue",
+    "template": "Template",
+    "templatePlaceholder": "Start without a template",
     "requestTitle": "Request a service",
     "incidentIntro": "Describe the problem — we will set priority and find the right team.",
     "requestIntro": "Tell us what you need. Fields and approvals will adapt to the service.",

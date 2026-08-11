@@ -55,6 +55,31 @@ export interface MajorIncident {
 
 const mockMajorIncidents = new Map<string, MajorIncident>();
 
+export interface WorkItemTemplate {
+  id: string;
+  name: string;
+  type: 'INCIDENT' | 'SERVICE_REQUEST';
+  title: string;
+  description: string;
+  service: string;
+  impact: 'LOW' | 'MEDIUM' | 'HIGH';
+  urgency: 'LOW' | 'MEDIUM' | 'HIGH';
+  teamId?: string | null;
+  active: boolean;
+  version: number;
+}
+
+const mockTemplates: WorkItemTemplate[] = [
+  { id: 'mock-template-vpn', name: 'VPN access issue', type: 'INCIDENT',
+    title: 'VPN connection unavailable', description: 'Describe device, location, error and last successful connection.',
+    service: 'workplace', impact: 'MEDIUM', urgency: 'MEDIUM', active: true, version: 0 },
+];
+
+export async function fetchWorkItemTemplates(): Promise<WorkItemTemplate[]> {
+  if (isMockMode()) { await delay(40); return mockTemplates; }
+  return apiRequest<WorkItemTemplate[]>('/work-item-templates');
+}
+
 export async function fetchMajorIncident(id: string): Promise<MajorIncident | null> {
   if (isMockMode()) {
     await delay(40);

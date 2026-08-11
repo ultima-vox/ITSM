@@ -1553,6 +1553,8 @@
     "incidentKicker": "Neue Störung",
     "requestKicker": "Neue Anfrage",
     "incidentTitle": "Problem melden",
+    "template": "Vorlage",
+    "templatePlaceholder": "Ohne Vorlage beginnen",
     "requestTitle": "Service anfordern",
     "incidentIntro": "Beschreiben Sie das Problem — wir setzen Priorität und finden das richtige Team.",
     "requestIntro": "Sagen Sie uns, was Sie brauchen. Felder und Freigaben passen sich dem Service an.",

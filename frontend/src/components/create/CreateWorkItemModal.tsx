@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { Modal, Button } from '@/components/ui';
+import { Modal, Button, Select } from '@/components/ui';
 import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
 import { useT } from '@/i18n';
 import {
@@ -18,8 +18,10 @@ import {
   formatBytes,
   uploadAndLinkWorkItemAttachment,
   findDuplicateWorkItems,
+  fetchWorkItemTemplates,
   type DuplicateWorkItemMatch,
   type FormDefinition,
+  type WorkItemTemplate,
 } from '@/api';
 import type { CreateKind, ImpactLevel, UrgencyLevel } from '@/types';
 
@@ -62,6 +64,8 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
   const [uploadNote, setUploadNote] = useState('');
   const [duplicates, setDuplicates] = useState<DuplicateWorkItemMatch[]>([]);
   const [duplicatesLoading, setDuplicatesLoading] = useState(false);
+  const [templates, setTemplates] = useState<WorkItemTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('');
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +82,8 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
       setSent(false);
       setUploadNote('');
       setDuplicates([]);
+      setTemplates([]);
+      setTemplateId('');
       return;
     }
     setValues((v) => ({
@@ -86,6 +92,10 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
       urgency: kind === 'incident' ? 'high' : 'medium',
     }));
     let cancelled = false;
+    void fetchWorkItemTemplates().then((items) => {
+      if (!cancelled) setTemplates(items.filter((item) =>
+        item.type === (kind === 'incident' ? 'INCIDENT' : 'SERVICE_REQUEST')));
+    }).catch(() => { if (!cancelled) setTemplates([]); });
     void fetchFormDefinition('work-item').then((def) => {
       if (!cancelled) setFormDef(def);
     });
@@ -93,6 +103,17 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
       cancelled = true;
     };
   }, [open, kind]);
+
+  const applyTemplate = (id: string) => {
+    setTemplateId(id);
+    const template = templates.find((item) => item.id === id);
+    if (!template) return;
+    setValues((current) => ({ ...current,
+      title: template.title, description: template.description, service: template.service,
+      impact: template.impact.toLowerCase(), urgency: template.urgency.toLowerCase(),
+    }));
+    setErrors({});
+  };
 
   useEffect(() => {
     const title = values.title.trim();
@@ -260,6 +281,15 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
           </p>
 
           <form onSubmit={onSubmit} noValidate>
+            {templates.length > 0 && (
+              <Select
+                label={t('create.template')}
+                value={templateId}
+                placeholder={t('create.templatePlaceholder')}
+                options={templates.map((template) => ({ value: template.id, label: template.name }))}
+                onChange={(event) => applyTemplate(event.target.value)}
+              />
+            )}
             {formDef ? (
               <DynamicForm
                 definition={formDef}
