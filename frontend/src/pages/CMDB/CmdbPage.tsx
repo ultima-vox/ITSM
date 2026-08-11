@@ -339,7 +339,10 @@ export function CmdbPage() {
   const data = localItems ?? itemsAsync.data;
   const loading = itemsAsync.loading && !data;
   const error = itemsAsync.error;
-  const relations = localRelations ?? relationsAsync.data ?? [];
+  const relations = useMemo(
+    () => localRelations ?? relationsAsync.data ?? [],
+    [localRelations, relationsAsync.data],
+  );
 
   const filterCounts = useMemo(() => {
     const all = data ?? [];

@@ -349,7 +349,7 @@ export function WorkItemDetailPage() {
       impact: wi.impact ?? 'medium',
       urgency: wi.urgency ?? 'medium',
     });
-  }, [wi?.id, wi?.title, wi?.description, wi?.service, wi?.impact, wi?.urgency, wi?.updatedAt]);
+  }, [wi]);
 
   // Load persisted links when work item changes
   useEffect(() => {

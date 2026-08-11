@@ -104,7 +104,7 @@ export function KnowledgePage() {
     return subscribeKnowledge(() => {
       articles.reload();
     });
-  }, [articles.reload]);
+  }, [articles]);
 
   // Honor ?article= deep-link from search / related links
   useEffect(() => {
@@ -127,7 +127,7 @@ export function KnowledgePage() {
     if (fresh && fresh !== active) {
       setActive(fresh);
     }
-  }, [articles.data, active?.id]);
+  }, [articles.data, active]);
 
   const statusCounts = useMemo(() => {
     const list = articles.data ?? [];

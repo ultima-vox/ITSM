@@ -411,11 +411,11 @@ export function ChangesPage() {
       setCabNotesDraft(selected.cabNotes ?? '');
       setRiskDraft(selected.risk);
     }
-  }, [selected?.id, selected?.cabNotes, selected?.risk, selected?.implementationPlan, selected?.backoutPlan]);
+  }, [selected]);
 
   const activities = useMemo(
     () => (selected ? getModuleActivities(selected.id) : []),
-    [selected, data],
+    [selected],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {
@@ -440,7 +440,7 @@ export function ChangesPage() {
     return items;
   }, [selected, t]);
 
-  const allChanges = data ?? [];
+  const allChanges = useMemo(() => data ?? [], [data]);
   const liveMode = !isMockMode();
 
   /** Client-side CI-overlap pairs (mock-friendly + always available). */

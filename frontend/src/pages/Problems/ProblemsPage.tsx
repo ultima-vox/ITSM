@@ -273,11 +273,11 @@ export function ProblemsPage() {
       setWorkaroundDraft(selected.workaround ?? '');
       setResolutionDraft(selected.resolution ?? '');
     }
-  }, [selected?.id]);
+  }, [selected]);
 
   const activities = useMemo(
     () => (selected ? getModuleActivities(selected.id) : []),
-    [selected, data],
+    [selected],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {

@@ -74,8 +74,8 @@ export function CatalogPage() {
   const categories = useAsync(() => fetchCatalogCategories(), []);
   const services = useAsync(() => fetchCatalogServices(), []);
 
-  const allServices = services.data ?? [];
-  const cats = categories.data ?? [];
+  const allServices = useMemo(() => services.data ?? [], [services.data]);
+  const cats = useMemo(() => categories.data ?? [], [categories.data]);
   const loadError = categories.error || services.error;
   const reloadAll = () => {
     categories.reload();

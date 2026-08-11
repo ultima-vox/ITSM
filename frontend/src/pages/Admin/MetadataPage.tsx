@@ -54,7 +54,7 @@ export function MetadataPage() {
   const [formDef, setFormDef] = useState<FormDefinition | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const objects = data ?? [];
+  const objects = useMemo(() => data ?? [], [data]);
 
   const filteredObjects = useMemo(() => {
     const q = objectQuery.trim().toLowerCase();

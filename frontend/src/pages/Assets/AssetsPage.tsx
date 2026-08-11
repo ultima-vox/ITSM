@@ -162,7 +162,7 @@ export function AssetsPage() {
 
   const activities = useMemo(
     () => (selected ? getModuleActivities(selected.id) : []),
-    [selected, data],
+    [selected],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {
