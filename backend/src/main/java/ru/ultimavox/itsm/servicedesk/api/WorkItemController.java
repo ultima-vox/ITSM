@@ -36,6 +36,7 @@ import ru.ultimavox.itsm.servicedesk.application.CreateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.EscalateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.GetWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.ListWorkItemComments;
+import ru.ultimavox.itsm.servicedesk.application.MajorIncidentService;
 import ru.ultimavox.itsm.servicedesk.application.SubmitWorkItemSurvey;
 import ru.ultimavox.itsm.servicedesk.application.TransitionWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.UpdateWorkItem;
@@ -76,6 +77,7 @@ class WorkItemController {
   private final WorkItemCiLinkService ciLinks;
   private final SubmitWorkItemSurvey surveys;
   private final DuplicateWorkItemQuery duplicates;
+  private final MajorIncidentService majorIncidents;
   private final AccessControl access;
 
   WorkItemController(
@@ -96,6 +98,7 @@ class WorkItemController {
       WorkItemCiLinkService ciLinks,
       SubmitWorkItemSurvey surveys,
       DuplicateWorkItemQuery duplicates,
+      MajorIncidentService majorIncidents,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -115,6 +118,7 @@ class WorkItemController {
     this.ciLinks = ciLinks;
     this.surveys = surveys;
     this.duplicates = duplicates;
+    this.majorIncidents = majorIncidents;
     this.access = access;
   }
 
@@ -266,6 +270,38 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.read", "work-item", id.toString());
     return surveys.submit(id, request.rating(), request.comment(), actor);
+  }
+
+  @GetMapping("/{id}/major-incident")
+  @Operation(summary = "Get major incident declaration")
+  ResponseEntity<MajorIncidentService.View> majorIncident(
+      @PathVariable UUID id, Authentication authentication
+  ) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return ResponseEntity.of(majorIncidents.find(id));
+  }
+
+  @PostMapping("/{id}/major-incident")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Declare an incident as major")
+  MajorIncidentService.View declareMajorIncident(
+      @PathVariable UUID id,
+      @Valid @RequestBody MajorIncidentRequest request,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.major", "work-item", id.toString());
+    return majorIncidents.declare(id, request.commanderId(), request.summary(), actor);
+  }
+
+  @PostMapping("/{id}/major-incident/resolve")
+  @Operation(summary = "Resolve a major incident declaration")
+  MajorIncidentService.View resolveMajorIncident(
+      @PathVariable UUID id, Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.major", "work-item", id.toString());
+    return majorIncidents.resolve(id, actor);
   }
 
   @GetMapping("/{id}/comments")
@@ -473,6 +509,11 @@ class WorkItemController {
   record SurveyRequest(
       @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(5) int rating,
       @Size(max = 2000) String comment
+  ) {}
+
+  record MajorIncidentRequest(
+      @NotBlank @Size(max = 128) String commanderId,
+      @NotBlank @Size(max = 2000) String summary
   ) {}
 
   record CreateLinkRequest(

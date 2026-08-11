@@ -160,6 +160,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{id}/major-incident": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get major incident declaration */
+        get: operations["majorIncident"];
+        put?: never;
+        /** Declare an incident as major */
+        post: operations["declareMajorIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/{id}/major-incident/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a major incident declaration */
+        post: operations["resolveMajorIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/{id}/links": {
         parameters: {
             query?: never;
@@ -1630,6 +1665,23 @@ export interface components {
             /** Format: date-time */
             submittedAt?: string;
         };
+        MajorIncidentRequest: {
+            commanderId: string;
+            summary: string;
+        };
+        View: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            workItemId?: string;
+            status?: string;
+            commanderId?: string;
+            summary?: string;
+            /** Format: date-time */
+            declaredAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+        };
         CreateLinkRequest: {
             /** Format: uuid */
             targetId: string;
@@ -2644,6 +2696,76 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Result"];
+                };
+            };
+        };
+    };
+    majorIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
+    declareMajorIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MajorIncidentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
+                };
+            };
+        };
+    };
+    resolveMajorIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
                 };
             };
         };
