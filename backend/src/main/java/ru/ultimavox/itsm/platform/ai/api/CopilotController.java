@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import ru.ultimavox.itsm.platform.ai.AiGateway;
 import ru.ultimavox.itsm.platform.ai.PolicyGate;
+import ru.ultimavox.itsm.platform.authorization.GuardedEndpoint;
 
 @RestController
 @RequestMapping("/api/v1/ai/copilot")
+@GuardedEndpoint
 @Tag(name = "AI Copilot")
 class CopilotController {
   private final AiGateway gateway;
