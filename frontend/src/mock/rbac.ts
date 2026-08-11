@@ -27,6 +27,7 @@ export function subscribeRbac(listener: Listener): () => void {
 /** Full permission catalog (V10 + V12 + V13 + V15). */
 export const RBAC_PERMISSIONS: RbacPermission[] = [
   { key: 'work-item.read', description: 'Read work items' },
+  { key: 'work-item.read.any', description: 'Read all requester work items' },
   { key: 'work-item.create', description: 'Create work items' },
   { key: 'work-item.update', description: 'Update work items' },
   { key: 'work-item.transition', description: 'Transition work item workflow' },
@@ -100,6 +101,7 @@ const SEED_ROLES: RbacRole[] = [
     'Handles incidents and requests',
     [
       'work-item.read',
+      'work-item.read.any',
       'work-item.create',
       'work-item.update',
       'work-item.transition',
@@ -122,6 +124,7 @@ const SEED_ROLES: RbacRole[] = [
     'Manages service desk operations',
     [
       'work-item.read',
+      'work-item.read.any',
       'work-item.create',
       'work-item.update',
       'work-item.transition',

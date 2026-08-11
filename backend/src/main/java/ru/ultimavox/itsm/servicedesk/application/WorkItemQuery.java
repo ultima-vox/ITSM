@@ -26,7 +26,7 @@ public class WorkItemQuery {
 
   /** Legacy convenience used by early list endpoint. */
   public List<WorkItem> findVisibleTo(String subject) {
-    return search(new Filter(null, null, null, null, null), 0, 50).items();
+    return search(new Filter(null, null, null, null, null, subject), 0, 50).items();
   }
 
   public record Filter(
@@ -34,7 +34,8 @@ public class WorkItemQuery {
       Type type,
       String assigneeId,
       Priority priority,
-      String query
+      String query,
+      String requesterId
   ) {}
 
   public record PageResult(List<WorkItem> items, long total, int page, int size) {}

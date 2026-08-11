@@ -41,7 +41,8 @@ class WorkItemQueryTest {
         Type.INCIDENT,
         "agent-1",
         Priority.CRITICAL,
-        "VPN"
+        "VPN",
+        "requester-1"
     );
     when(store.count(filter)).thenReturn(1L);
     when(store.search(eq(filter), eq(0), eq(200))).thenReturn(List.of(item));
@@ -60,6 +61,18 @@ class WorkItemQueryTest {
     assertThat(filterCaptor.getValue().assigneeId()).isEqualTo("agent-1");
     assertThat(filterCaptor.getValue().priority()).isEqualTo(Priority.CRITICAL);
     assertThat(filterCaptor.getValue().query()).isEqualTo("VPN");
+    assertThat(filterCaptor.getValue().requesterId()).isEqualTo("requester-1");
+  }
+
+  @Test
+  void requesterConvenienceQueryAlwaysScopesBySubject() {
+    WorkItemQuery.Filter expected = new WorkItemQuery.Filter(
+        null, null, null, null, null, "requester-7");
+    when(store.count(expected)).thenReturn(0L);
+    when(store.search(expected, 0, 50)).thenReturn(List.of());
+    query.findVisibleTo("requester-7");
+    verify(store).count(expected);
+    verify(store).search(expected, 0, 50);
   }
 
   private static WorkItem sample() {

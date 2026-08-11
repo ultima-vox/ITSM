@@ -163,24 +163,26 @@ class WorkItemController {
       @RequestParam(defaultValue = "20") int size,
       Authentication authentication
   ) {
-    access.require(authentication.getName(), "work-item.read", "work-item", null);
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", null);
+    boolean unrestricted = access.isAllowed(actor, "work-item.read.any", "work-item", null);
     return WorkItemPageResponse.from(
-        workItemQuery.search(new WorkItemQuery.Filter(state, type, assigneeId, priority, q), page, size)
+        workItemQuery.search(new WorkItemQuery.Filter(
+            state, type, assigneeId, priority, q, unrestricted ? null : actor), page, size)
     );
   }
 
   @GetMapping("/stats")
   @Operation(summary = "Operator dashboard counters")
   StatsResponse stats(Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", null);
+    access.require(authentication.getName(), "work-item.read.any", "work-item", null);
     return StatsResponse.from(statsQuery.stats());
   }
 
   @GetMapping("/{id}")
   @Operation(summary = "Get work item by id")
   WorkItemResponse get(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
-    return WorkItemResponse.from(getWorkItem.get(id));
+    return WorkItemResponse.from(requireRead(authentication.getName(), id));
   }
 
   @PatchMapping("/{id}")
@@ -262,7 +264,7 @@ class WorkItemController {
       @RequestParam(defaultValue="5") int limit,
       Authentication authentication
   ) {
-    access.require(authentication.getName(),"work-item.read","work-item",null);
+    access.require(authentication.getName(),"work-item.read.any","work-item",null);
     return duplicates.find(title,description,excludeId,limit);
   }
 
@@ -273,7 +275,7 @@ class WorkItemController {
       @PathVariable UUID id, @Valid @RequestBody SurveyRequest request, Authentication authentication
   ) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.read", "work-item", id.toString());
+    requireRead(actor, id);
     return surveys.submit(id, request.rating(), request.comment(), actor);
   }
 
@@ -302,7 +304,7 @@ class WorkItemController {
   ResponseEntity<MajorIncidentService.View> majorIncident(
       @PathVariable UUID id, Authentication authentication
   ) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    requireRead(authentication.getName(), id);
     return ResponseEntity.of(majorIncidents.find(id));
   }
 
@@ -333,7 +335,7 @@ class WorkItemController {
   @Operation(summary = "List comments on a work item")
   List<CommentResponse> listComments(@PathVariable UUID id, Authentication authentication) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.read", "work-item", id.toString());
+    requireRead(actor, id);
     boolean includeInternal = access.isAllowed(
         actor, "work-item.comment.internal", "work-item", id.toString());
     if (!includeInternal && !actor.equals(getWorkItem.get(id).requesterId())) {
@@ -371,7 +373,7 @@ class WorkItemController {
   @Operation(summary = "Audit activity trail for a work item")
   List<ActivityResponse> activity(@PathVariable UUID id, Authentication authentication) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.read", "work-item", id.toString());
+    requireRead(actor, id);
     boolean includeInternal = access.isAllowed(
         actor, "work-item.comment.internal", "work-item", id.toString());
     if (!includeInternal && !actor.equals(getWorkItem.get(id).requesterId())) {
@@ -387,7 +389,7 @@ class WorkItemController {
       @PathVariable UUID id,
       Authentication authentication
   ) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    requireRead(authentication.getName(), id);
     access.require(authentication.getName(), "attachment.read", "attachment", null);
     return workItemAttachments.list(id).stream().map(AttachmentLinkResponse::from).toList();
   }
@@ -424,7 +426,7 @@ class WorkItemController {
   @GetMapping("/{id}/watchers")
   @Operation(summary = "List subjects watching a work item")
   List<String> listWatchers(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    requireRead(authentication.getName(), id);
     return watchers.list(id);
   }
 
@@ -432,7 +434,7 @@ class WorkItemController {
   @Operation(summary = "Watch a work item as the authenticated actor")
   List<String> watch(@PathVariable UUID id, Authentication authentication) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.read", "work-item", id.toString());
+    requireRead(actor, id);
     return watchers.watch(id, actor);
   }
 
@@ -440,14 +442,14 @@ class WorkItemController {
   @Operation(summary = "Stop watching a work item")
   List<String> unwatch(@PathVariable UUID id, Authentication authentication) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.read", "work-item", id.toString());
+    requireRead(actor, id);
     return watchers.unwatch(id, actor);
   }
 
   @GetMapping("/{id}/links")
   @Operation(summary = "List related work item links")
   List<LinkResponse> listLinks(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    requireRead(authentication.getName(), id);
     return links.listFor(id).stream().map(LinkResponse::from).toList();
   }
 
@@ -486,7 +488,7 @@ class WorkItemController {
   @GetMapping("/{id}/configuration-items")
   @Operation(summary = "List configuration items linked to a work item")
   List<UUID> listConfigurationItems(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    requireRead(authentication.getName(), id);
     return ciLinks.listCiIds(id);
   }
 
@@ -554,6 +556,12 @@ class WorkItemController {
       @NotBlank @Size(max = 12000) String body,
       boolean internal
   ) {}
+
+  private ru.ultimavox.itsm.servicedesk.domain.WorkItem requireRead(String actor, UUID id) {
+    var item = getWorkItem.get(id);
+    access.requireOwned(actor, "work-item.read", "work-item", id.toString(), item.requesterId());
+    return item;
+  }
 
   record SurveyRequest(
       @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(5) int rating,

@@ -367,6 +367,10 @@ class WorkItemStore {
       sql.append(" AND priority = ?");
       args.add(filter.priority().name());
     }
+    if (filter.requesterId() != null && !filter.requesterId().isBlank()) {
+      sql.append(" AND requester_id = ?");
+      args.add(filter.requesterId());
+    }
     if (filter.query() != null && !filter.query().isBlank()) {
       sql.append(" AND (lower(title) LIKE ? OR lower(description) LIKE ? OR lower(number) LIKE ?)");
       String pattern = "%" + filter.query().trim().toLowerCase() + "%";
