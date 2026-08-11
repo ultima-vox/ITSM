@@ -130,7 +130,7 @@ function downloadWorkItemsCsv(items: WorkItem[], filename: string) {
  * Only fall back to light synthetic fill when the entire week is empty —
  * and mark those days so the UI can label them honestly.
  */
-function buildTrend(list: WorkItem[]) {
+export function buildTrend(list: WorkItem[], allowSynthetic: boolean) {
   const days = last7DayKeys();
   const raw = days.map((day) => {
     const opened = list.filter(
@@ -143,7 +143,7 @@ function buildTrend(list: WorkItem[]) {
     return { ...day, opened, closed, synthetic: false };
   });
   const hasStoreActivity = raw.some((d) => d.opened > 0 || d.closed > 0);
-  if (hasStoreActivity) {
+  if (hasStoreActivity || !allowSynthetic) {
     return { trend: raw, usedSynthetic: false };
   }
   // Empty store week — optional visual fill, clearly labeled
@@ -164,7 +164,7 @@ function buildTrend(list: WorkItem[]) {
  * 1) History from store activities for those ids only (not global seed dump)
  * 2) Else current slaState snapshot on the same list
  */
-function computeSlaCompliance(list: WorkItem[]): {
+function computeSlaCompliance(list: WorkItem[], includeMockHistory: boolean): {
   pct: number | null;
   met: number;
   breached: number;
@@ -176,13 +176,15 @@ function computeSlaCompliance(list: WorkItem[]): {
 
   let histMet = 0;
   let histBreached = 0;
-  for (const w of list) {
-    for (const a of getActivities(w.id)) {
-      if (a.kind !== 'sla') continue;
-      const at = new Date(a.at).getTime();
-      if (Number.isNaN(at) || at < weekStartMs) continue;
-      if (a.text === 'sla_breached') histBreached += 1;
-      else if (a.text === 'sla_met' || a.text === 'sla_restored') histMet += 1;
+  if (includeMockHistory) {
+    for (const w of list) {
+      for (const a of getActivities(w.id)) {
+        if (a.kind !== 'sla') continue;
+        const at = new Date(a.at).getTime();
+        if (Number.isNaN(at) || at < weekStartMs) continue;
+        if (a.text === 'sla_breached') histBreached += 1;
+        else if (a.text === 'sla_met' || a.text === 'sla_restored') histMet += 1;
+      }
     }
   }
   if (histMet + histBreached > 0) {
@@ -289,7 +291,7 @@ export function ReportsPage() {
       mttrHours = Math.round((totalMs / resolved.length / 3_600_000) * 10) / 10;
     }
 
-    const { trend, usedSynthetic } = buildTrend(list);
+    const { trend, usedSynthetic } = buildTrend(list, !liveMode);
     const trendMax = Math.max(
       1,
       ...trend.map((d) => Math.max(d.opened, d.closed)),
@@ -308,8 +310,10 @@ export function ReportsPage() {
       .slice(0, 5);
     const maxAssignee = Math.max(1, ...topAssignees.map((a) => a.count), 1);
 
-    const slaCompliance = computeSlaCompliance(list);
-    const filteredCsat = computeFilteredCsat(list);
+    const slaCompliance = computeSlaCompliance(list, !liveMode);
+    const filteredCsat = liveMode
+      ? (metrics.data?.satisfaction ?? null)
+      : computeFilteredCsat(list);
 
     return {
       resolved: resolved.length,
@@ -341,7 +345,7 @@ export function ReportsPage() {
         )
         .slice(0, 5),
     };
-  }, [filtered]);
+  }, [filtered, liveMode, metrics.data?.satisfaction]);
 
   const barPct = (n: number, max: number) =>
     `${Math.round((n / max) * 100)}%`;
@@ -489,7 +493,7 @@ export function ReportsPage() {
                   : '—'
               }
               label={t('reports.satisfaction')}
-              detail={t('reports.satisfactionFilteredDetail')}
+              detail={t(liveMode ? 'reports.satisfactionDetail' : 'reports.satisfactionFilteredDetail')}
             />
           </>
         )}
