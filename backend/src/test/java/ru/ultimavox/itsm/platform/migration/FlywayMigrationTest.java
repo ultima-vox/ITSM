@@ -29,7 +29,7 @@ class FlywayMigrationTest {
         var result = flyway.migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("64");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("65");
         assertThat(flyway.info().pending()).isEmpty();
         flyway.validate();
     }

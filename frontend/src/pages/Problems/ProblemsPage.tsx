@@ -16,10 +16,13 @@ import {
   createKnowledgeArticle,
   createProblem,
   fetchProblems,
+  fetchWorkflowDefinitions,
+  fetchMyEffectiveAccess,
   isLiveFeatureUnsupported,
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
+  subscribeWorkflowDefinitions,
 } from '@/api';
 import {
   Avatar,
@@ -50,10 +53,6 @@ import {
   workflowStateLabelKey,
   type ProblemRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import {
-  getActiveWorkflowDefinition,
-  subscribeWorkflowDefinitions,
-} from '@/mock/workflow';
 import { getModuleActivities } from '@/mock/store';
 import type { Priority, Problem, WorkItemStatus } from '@/types';
 
@@ -173,6 +172,10 @@ export function ProblemsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Bumps when admin toggles active workflow version (session store). */
   const [workflowTick, setWorkflowTick] = useState(0);
+  const workflowDefinitions = useAsync(
+    () => fetchWorkflowDefinitions(), [workflowTick],
+  );
+  const effectiveAccess = useAsync(() => fetchMyEffectiveAccess(), []);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
@@ -512,16 +515,17 @@ export function ProblemsPage() {
 
   // Active problem workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.
+  const activeProblemWorkflow = (workflowDefinitions.data ?? []).find(
+    (definition) => definition.objectKey === 'problem' && definition.active,
+  ) ?? null;
   const wfRuntime = selected
     ? getProblemRuntimeTransitions(selected, {
-        definition:
-          workflowTick >= 0
-            ? getActiveWorkflowDefinition('problem')
-            : null,
+        definition: activeProblemWorkflow,
         fieldOverrides: {
           rootCause: rootCauseDraft,
           workaround: workaroundDraft,
         },
+        permissions: effectiveAccess.data?.permissions ?? [],
       })
     : null;
 

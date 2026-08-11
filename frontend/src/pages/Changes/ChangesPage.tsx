@@ -28,6 +28,8 @@ import {
   countCabApproves,
   createChange,
   fetchChanges,
+  fetchWorkflowDefinitions,
+  fetchMyEffectiveAccess,
   fetchScheduleConflicts,
   isLiveFeatureUnsupported,
   patchChange,
@@ -35,6 +37,7 @@ import {
   subscribeSecondaryModules,
   transitionChangeStatus,
   isMockMode,
+  subscribeWorkflowDefinitions,
 } from '@/api';
 import {
   Avatar,
@@ -65,10 +68,6 @@ import {
   workflowStateLabelKey,
   type ChangeRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import {
-  getActiveWorkflowDefinition,
-  subscribeWorkflowDefinitions,
-} from '@/mock/workflow';
 import { getModuleActivities } from '@/mock/store';
 import type {
   CabVoteDecision,
@@ -288,6 +287,10 @@ export function ChangesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Bumps when admin toggles active workflow version (session store). */
   const [workflowTick, setWorkflowTick] = useState(0);
+  const workflowDefinitions = useAsync(
+    () => fetchWorkflowDefinitions(), [workflowTick],
+  );
+  const effectiveAccess = useAsync(() => fetchMyEffectiveAccess(), []);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
@@ -759,12 +762,14 @@ export function ChangesPage() {
   // Policy gates (CAB required, plans) disable illegal edges with tooltips.
   const wfRuntime = selected
     ? getChangeRuntimeTransitions(selected, {
-        definition:
-          workflowTick >= 0 ? getActiveWorkflowDefinition('change') : null,
+        definition: (workflowDefinitions.data ?? []).find(
+          (definition) => definition.objectKey === 'change' && definition.active,
+        ) ?? null,
         fieldOverrides: {
           implementationPlan: planDraft,
           backoutPlan: backoutDraft,
         },
+        permissions: effectiveAccess.data?.permissions ?? [],
       })
     : null;
 
