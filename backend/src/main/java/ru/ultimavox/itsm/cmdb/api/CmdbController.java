@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -160,6 +161,28 @@ class CmdbController {
     }
   }
 
+  @PatchMapping({"/relations/{id}", "/relationships/{id}"})
+  @Operation(summary = "Update a CI relationship type")
+  CiRelationship updateRelationship(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @RequestBody UpdateRelationRequest body
+  ) {
+    access.require(authentication.getName(), "cmdb.write", "configuration-item", id.toString());
+    try {
+      return commands.updateRelationship(id, mapFrontendRelType(body.type()), authentication.getName());
+    } catch (IllegalArgumentException ex) {
+      HttpStatus status = ex.getMessage() != null && ex.getMessage().startsWith("Relationship not found")
+          ? HttpStatus.NOT_FOUND
+          : HttpStatus.BAD_REQUEST;
+      throw new ResponseStatusException(status, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  record UpdateRelationRequest(String type) {}
+
   record CreateRelationRequest(
       UUID sourceCiId,
       UUID targetCiId,
@@ -179,7 +202,8 @@ class CmdbController {
       case "RUNS_ON" -> CiRelationship.Type.RUNS_ON;
       case "USES", "LOCATED_IN" -> CiRelationship.Type.USES;
       case "CONNECTED_TO", "CONNECTS_TO" -> CiRelationship.Type.CONNECTED_TO;
-      default -> CiRelationship.Type.DEPENDS_ON;
+      case "DEPENDS_ON" -> CiRelationship.Type.DEPENDS_ON;
+      default -> throw new IllegalArgumentException("Unsupported relationship type: " + raw);
     };
   }
 

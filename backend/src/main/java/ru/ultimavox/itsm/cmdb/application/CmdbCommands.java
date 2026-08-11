@@ -161,6 +161,62 @@ public class CmdbCommands {
     ));
   }
 
+  @Transactional
+  public CiRelationship updateRelationship(
+      UUID relationshipId,
+      CiRelationship.Type type,
+      String actor
+  ) {
+    if (type == null) {
+      throw new IllegalArgumentException("relationship type is required");
+    }
+    String orgId = OrganizationContext.current();
+    CiRelationship before = jdbc.query(
+        """
+        SELECT id, source_ci_id, target_ci_id, relationship_type
+        FROM ci_relationship WHERE id = ? AND org_id = ?
+        """,
+        (rs, row) -> new CiRelationship(
+            (UUID) rs.getObject("id"),
+            (UUID) rs.getObject("source_ci_id"),
+            (UUID) rs.getObject("target_ci_id"),
+            CiRelationship.Type.valueOf(rs.getString("relationship_type"))
+        ),
+        relationshipId, orgId
+    ).stream().findFirst().orElseThrow(
+        () -> new IllegalArgumentException("Relationship not found: " + relationshipId)
+    );
+    if (before.type() == type) {
+      return before;
+    }
+    try {
+      jdbc.update(
+          "UPDATE ci_relationship SET relationship_type = ? WHERE id = ? AND org_id = ?",
+          type.name(), relationshipId, orgId
+      );
+    } catch (org.springframework.dao.DuplicateKeyException ex) {
+      throw new IllegalStateException("Relationship already exists");
+    }
+
+    Instant now = Instant.now();
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
+    Map<String, Object> oldValue = Map.of("type", before.type().name());
+    Map<String, Object> newValue = Map.of(
+        "sourceCiId", before.sourceCiId().toString(),
+        "targetCiId", before.targetCiId().toString(),
+        "type", type.name()
+    );
+    audit.append(new AuditTrail.Entry(
+        actor, "cmdb.relationship-updated", "configuration-item", before.sourceCiId().toString(),
+        oldValue, newValue, correlationId, now
+    ));
+    outbox.record(new DomainEvent(
+        UUID.randomUUID(), "cmdb.relationship-updated", 1, now, correlationId,
+        "configuration-item", before.sourceCiId().toString(), newValue
+    ));
+    return new CiRelationship(relationshipId, before.sourceCiId(), before.targetCiId(), type);
+  }
+
   public record CreateCommand(
       String name,
       String classKey,

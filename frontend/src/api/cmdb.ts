@@ -125,11 +125,11 @@ export async function updateCiRelation(
     return storeUpdateCiRelation(id, patch);
   }
   try {
-    const relation = await apiRequest<CiRelation>(`/cmdb/relations/${id}`, {
+    const relation = await apiRequest<BackendCiRelationship>(`/cmdb/relations/${id}`, {
       method: 'PATCH',
       body: patch,
     });
-    return { ok: true, relation };
+    return { ok: true, relation: mapCiRelationship(relation) };
   } catch {
     return { ok: false, errorKey: 'cmdb.relForm.error' };
   }
