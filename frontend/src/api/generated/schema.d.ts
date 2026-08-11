@@ -651,6 +651,23 @@ export interface paths {
         patch: operations["patchNotes"];
         trace?: never;
     };
+    "/api/v1/automation/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable or disable an automation rule for current organization */
+        patch: operations["setEnabled"];
+        trace?: never;
+    };
     "/api/v1/workflow/definitions": {
         parameters: {
             query?: never;
@@ -1625,6 +1642,30 @@ export interface components {
             workaround?: string;
             resolution?: string;
         };
+        SetEnabledRequest: {
+            enabled?: boolean;
+        };
+        ActionResponse: {
+            type?: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+        };
+        ConditionResponse: {
+            field?: string;
+            operator?: string;
+            value?: string;
+        };
+        RuleResponse: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            name?: string;
+            enabled?: boolean;
+            eventType?: string;
+            conditions?: components["schemas"]["ConditionResponse"][];
+            actions?: components["schemas"]["ActionResponse"][];
+        };
         DefinitionResponse: {
             /** Format: uuid */
             id?: string;
@@ -1934,27 +1975,6 @@ export interface components {
             name?: string;
             description?: string;
             category?: string;
-        };
-        ActionResponse: {
-            type?: string;
-            parameters?: {
-                [key: string]: unknown;
-            };
-        };
-        ConditionResponse: {
-            field?: string;
-            operator?: string;
-            value?: string;
-        };
-        RuleResponse: {
-            /** Format: uuid */
-            id?: string;
-            key?: string;
-            name?: string;
-            enabled?: boolean;
-            eventType?: string;
-            conditions?: components["schemas"]["ConditionResponse"][];
-            actions?: components["schemas"]["ActionResponse"][];
         };
         ActorView: {
             id?: string;
@@ -3308,6 +3328,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
                 };
             };
         };

@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -68,6 +69,39 @@ class JdbcAutomationRuleRepository implements AutomationRuleRepository {
                         rs.getString("definition")
                 ), OrganizationContext.current(), OrganizationContext.current()
         );
+    }
+
+    @Override
+    public Optional<AutomationRule> setEnabled(UUID id, boolean enabled) {
+        String organization = OrganizationContext.current();
+        List<AutomationRule> rows = jdbc.query(
+                """
+                WITH source AS (
+                  SELECT rule_key, definition, version
+                  FROM automation_rule
+                  WHERE id = ? AND org_id IN (?, 'default')
+                  ORDER BY (org_id = ?) DESC
+                  LIMIT 1
+                ), changed AS (
+                  INSERT INTO automation_rule (org_id, rule_key, enabled, definition, version, updated_at)
+                  SELECT ?, rule_key, ?, definition, version, now() FROM source
+                  ON CONFLICT (org_id, rule_key) DO UPDATE
+                    SET enabled = EXCLUDED.enabled,
+                        version = automation_rule.version + 1,
+                        updated_at = now()
+                  RETURNING id, rule_key, enabled, definition::text
+                )
+                SELECT id, rule_key, enabled, definition FROM changed
+                """,
+                (rs, i) -> map(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("rule_key"),
+                        rs.getBoolean("enabled"),
+                        rs.getString("definition")
+                ),
+                id, organization, organization, organization, enabled
+        );
+        return rows.stream().findFirst();
     }
 
     private AutomationRule map(UUID id, String ruleKey, boolean enabled, String definitionJson) {

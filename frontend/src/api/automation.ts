@@ -66,12 +66,15 @@ export async function setAutomationRuleEnabled(
     await delay(60);
     return mockSetEnabled(id, enabled);
   }
-  // Live toggle not yet exposed — refuse fake success
-  throw new Error('module.errors.bulkLiveUnsupported');
+  const changed = await apiRequest<BackendRule>(
+    `/automation/rules/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: { enabled } },
+  );
+  return mapRule(changed);
 }
 
 export function automationRulesWritable(): boolean {
-  return isMockMode();
+  return true;
 }
 
 export function subscribeAutomationRules(listener: () => void): () => void {

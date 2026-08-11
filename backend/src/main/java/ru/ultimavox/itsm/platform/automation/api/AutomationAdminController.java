@@ -7,6 +7,9 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
@@ -33,6 +36,23 @@ class AutomationAdminController {
     access.require(actor, "automation.read", "automation_rule", null);
     return rules.listAll().stream().map(RuleResponse::from).toList();
   }
+
+  @PatchMapping("/rules/{id}")
+  @Operation(summary = "Enable or disable an automation rule for current organization")
+  RuleResponse setEnabled(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @RequestBody SetEnabledRequest body
+  ) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "automation.write", "automation_rule", id.toString());
+    return rules.setEnabled(id, body.enabled())
+        .map(RuleResponse::from)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Automation rule not found"));
+  }
+
+  record SetEnabledRequest(boolean enabled) {}
 
   record RuleResponse(
       UUID id,
