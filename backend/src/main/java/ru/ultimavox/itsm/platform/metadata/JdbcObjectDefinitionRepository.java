@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 class JdbcObjectDefinitionRepository implements ObjectDefinitionRepository {
@@ -69,6 +70,80 @@ class JdbcObjectDefinitionRepository implements ObjectDefinitionRepository {
                 OrganizationContext.current(), objectKey, version, OrganizationContext.current()
         );
         return rows.stream().findFirst();
+    }
+
+    @Override
+    public List<ObjectDefinitionVersion> findVersions(String objectKey) {
+        return jdbc.query(
+                """
+                SELECT id,object_key,version,active,definition::text
+                FROM object_definition WHERE org_id=? AND object_key=? ORDER BY version DESC
+                """,
+                (rs, i) -> new ObjectDefinitionVersion(
+                        map(rs.getObject("id", UUID.class), rs.getString("object_key"),
+                                rs.getInt("version"), rs.getString("definition")),
+                        rs.getBoolean("active")),
+                OrganizationContext.current(), objectKey);
+    }
+
+    @Override
+    @Transactional
+    public ObjectDefinition insertNextDraft(ObjectDefinition draft) {
+        String org = OrganizationContext.current();
+        lockDefinition(org, draft.key());
+        Integer next = jdbc.queryForObject(
+                "SELECT COALESCE(MAX(version),0)+1 FROM object_definition WHERE org_id=? AND object_key=?",
+                Integer.class, org, draft.key());
+        int version = next == null ? 1 : next;
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO object_definition(id,org_id,object_key,version,active,definition)
+                VALUES (?,?,?,?,false,?::jsonb)
+                """, id, org, draft.key(), version, writeDefinition(draft));
+        return new ObjectDefinition(id, draft.key(), version, draft.labels(), draft.attributes(), draft.relations());
+    }
+
+    @Override
+    @Transactional
+    public ObjectDefinition publish(String objectKey, int version) {
+        String org = OrganizationContext.current();
+        lockDefinition(org, objectKey);
+        ObjectDefinition target = findTenantVersion(objectKey, version)
+                .orElseThrow(() -> new ObjectDefinitionNotFoundException(objectKey + " v" + version));
+        jdbc.update("UPDATE object_definition SET active=false WHERE org_id=? AND object_key=?",
+                org, objectKey);
+        int changed = jdbc.update("""
+                UPDATE object_definition SET active=true
+                WHERE org_id=? AND object_key=? AND version=?
+                """, org, objectKey, version);
+        if (changed != 1) throw new IllegalStateException("Object definition publication conflict");
+        return target;
+    }
+
+    private Optional<ObjectDefinition> findTenantVersion(String objectKey, int version) {
+        return jdbc.query(
+                SELECT_BASE + " WHERE org_id=? AND object_key=? AND version=? LIMIT 1",
+                (rs, i) -> map(rs.getObject("id", UUID.class), rs.getString("object_key"),
+                        rs.getInt("version"), rs.getString("definition")),
+                OrganizationContext.current(), objectKey, version).stream().findFirst();
+    }
+
+    private String writeDefinition(ObjectDefinition definition) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("labels", definition.labels());
+        body.put("attributes", definition.attributeList());
+        body.put("relations", definition.relations());
+        try {
+            return json.writeValueAsString(body);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Cannot serialize object definition", ex);
+        }
+    }
+
+    private void lockDefinition(String org, String objectKey) {
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",
+                ps -> ps.setString(1, org + ":object-definition:" + objectKey),
+                rs -> null);
     }
 
     private ObjectDefinition map(UUID id, String key, int version, String definitionJson) {

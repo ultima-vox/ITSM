@@ -8,6 +8,11 @@ import {
   type ObjectDefinition,
   type FormDefinition,
   type MetadataAttribute,
+  type ObjectDefinitionVersionView,
+  fetchObjectDefinitionVersions,
+  createObjectDefinitionDraft,
+  publishObjectDefinitionVersion,
+  isMockMode,
 } from '@/api';
 import { DynamicForm } from '@/components/form/DynamicForm';
 import {
@@ -19,6 +24,7 @@ import {
   Modal,
   SkeletonRows,
 } from '@/components/ui';
+import { useToast } from '@/hooks/useToast';
 
 function localizeLabel(
   labels: Record<string, string> | undefined,
@@ -53,8 +59,23 @@ export function MetadataPage() {
   const [formPreviewOpen, setFormPreviewOpen] = useState(false);
   const [formDef, setFormDef] = useState<FormDefinition | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [versions, setVersions] = useState<ObjectDefinitionVersionView[]>([]);
+  const [designerOpen, setDesignerOpen] = useState(false);
+  const [draftKey, setDraftKey] = useState('');
+  const [draftRu, setDraftRu] = useState('');
+  const [draftEn, setDraftEn] = useState('');
+  const [draftAttributes, setDraftAttributes] = useState('[]');
+  const [draftRelations, setDraftRelations] = useState('[]');
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<ObjectDefinition | null>(null);
+  const { success, error: toastError } = useToast();
+  const liveMode = !isMockMode();
 
-  const objects = useMemo(() => data ?? [], [data]);
+  const objects = useMemo(() => {
+    const active = data ?? [];
+    return pendingDraft && !active.some((item) => item.key === pendingDraft.key)
+      ? [...active, pendingDraft] : active;
+  }, [data, pendingDraft]);
 
   const filteredObjects = useMemo(() => {
     const q = objectQuery.trim().toLowerCase();
@@ -110,6 +131,58 @@ export function MetadataPage() {
     };
   }, [selectedObjectKey]);
 
+  useEffect(() => {
+    if (!selectedObjectKey || !liveMode) { setVersions([]); return; }
+    let cancelled = false;
+    void fetchObjectDefinitionVersions(selectedObjectKey)
+      .then((items) => { if (!cancelled) setVersions(items); })
+      .catch(() => { if (!cancelled) setVersions([]); });
+    return () => { cancelled = true; };
+  }, [selectedObjectKey, liveMode]);
+
+  const openDesigner = (source?: ObjectDefinition) => {
+    setDraftKey(source?.key ?? 'custom-object');
+    setDraftRu(source?.labels.ru ?? 'Новый объект');
+    setDraftEn(source?.labels.en ?? 'New object');
+    setDraftAttributes(JSON.stringify(source?.attributes ?? [{
+      key: 'title', type: 'TEXT', required: true, searchable: true,
+      labels: { ru: 'Заголовок', en: 'Title' }, enumValues: [],
+    }], null, 2));
+    setDraftRelations(JSON.stringify(source?.relations ?? [], null, 2));
+    setDesignerOpen(true);
+  };
+
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const attributes = JSON.parse(draftAttributes) as MetadataAttribute[];
+      const relations = JSON.parse(draftRelations) as ObjectDefinition['relations'];
+      const created = await createObjectDefinitionDraft({
+        key: draftKey.trim(), labels: { ru: draftRu.trim(), en: draftEn.trim() },
+        attributes, relations,
+      });
+      setDesignerOpen(false);
+      setPendingDraft(created.definition);
+      setSelectedKey(draftKey.trim());
+      await reload();
+      setVersions(await fetchObjectDefinitionVersions(draftKey.trim()));
+      success(t('metadata.draftCreated'));
+    } catch {
+      toastError(t('metadata.draftFailed'));
+    } finally { setSavingDraft(false); }
+  };
+
+  const publishVersion = async (version: number) => {
+    if (!selected) return;
+    try {
+      await publishObjectDefinitionVersion(selected.key, version);
+      setVersions(await fetchObjectDefinitionVersions(selected.key));
+      await reload();
+      if (pendingDraft?.key === selected.key) setPendingDraft(null);
+      success(t('metadata.published'));
+    } catch { toastError(t('metadata.publishFailed')); }
+  };
+
   if (error && !loading && !data) {
     return (
       <section className="page page--metadata">
@@ -132,11 +205,12 @@ export function MetadataPage() {
           <p className="page-subtitle">{t('metadata.subtitle')}</p>
         </div>
         <div className="page-head__meta">
+          {liveMode && <Button size="sm" onClick={() => openDesigner()}>{t('metadata.newObject')}</Button>}
           <span className="chip">
             <Layers size={14} aria-hidden />
             {t('metadata.objectCount', { n: objects.length })}
           </span>
-          <span className="chip chip--muted">{t('metadata.readOnly')}</span>
+          <span className="chip chip--muted">{liveMode ? t('metadata.versioned') : t('metadata.readOnly')}</span>
         </div>
       </div>
 
@@ -229,6 +303,9 @@ export function MetadataPage() {
                   </h2>
                 </div>
                 <div className="metadata-detail__badges">
+                  {liveMode && <Button variant="secondary" size="sm" onClick={() => openDesigner(selected)}>
+                    {t('metadata.newVersion')}
+                  </Button>}
                   <Badge>{t('metadata.version', { n: selected.version })}</Badge>
                   <Badge tone="neutral">
                     {t('metadata.attrCount', { n: selected.attributes.length })}
@@ -253,6 +330,18 @@ export function MetadataPage() {
                   )}
                 </div>
               </div>
+
+              {versions.length > 0 && <div className="metadata-workflow">
+                <div className="metadata-workflow__head"><Layers size={15} aria-hidden />
+                  <h3>{t('metadata.versions')}</h3></div>
+                <div className="metadata-detail__badges">{versions.map((item) =>
+                  <span className="chip" key={item.definition.version}>
+                    v{item.definition.version} · {item.active ? t('metadata.active') : t('metadata.draft')}
+                    {!item.active && <Button size="sm" onClick={() => void publishVersion(item.definition.version)}>
+                      {t('metadata.publish')}
+                    </Button>}
+                  </span>)}</div>
+              </div>}
 
               {workflowAttr?.enumValues && workflowAttr.enumValues.length > 0 && (
                 <div className="metadata-workflow">
@@ -390,6 +479,30 @@ export function MetadataPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={designerOpen}
+        onClose={() => setDesignerOpen(false)}
+        size="lg"
+        labelledBy="metadata-designer-title"
+      >
+        <div className="dialog-head"><div><p className="eyebrow">{t('metadata.designer')}</p>
+          <h2 id="metadata-designer-title">{t('metadata.draftTitle')}</h2></div>
+          <button type="button" className="icon-btn" aria-label={t('app.close')} onClick={() => setDesignerOpen(false)}><X size={18} /></button>
+        </div>
+        <div className="form-grid">
+          <Input label={t('metadata.key')} value={draftKey} onChange={(e) => setDraftKey(e.target.value)} />
+          <Input label={t('metadata.labelRu')} value={draftRu} onChange={(e) => setDraftRu(e.target.value)} />
+          <Input label={t('metadata.labelEn')} value={draftEn} onChange={(e) => setDraftEn(e.target.value)} />
+        </div>
+        <label className="field"><span className="field__label">{t('metadata.attributesJson')}</span>
+          <textarea className="input mono" rows={12} value={draftAttributes} onChange={(e) => setDraftAttributes(e.target.value)} /></label>
+        <label className="field"><span className="field__label">{t('metadata.relationsJson')}</span>
+          <textarea className="input mono" rows={7} value={draftRelations} onChange={(e) => setDraftRelations(e.target.value)} /></label>
+        <p className="panel-hint">{t('metadata.designerHint')}</p>
+        <div className="dialog-actions"><Button variant="secondary" onClick={() => setDesignerOpen(false)}>{t('app.cancel')}</Button>
+          <Button disabled={savingDraft} onClick={() => void saveDraft()}>{t('metadata.saveDraft')}</Button></div>
+      </Modal>
 
       <Modal
         open={formPreviewOpen && Boolean(formDef)}

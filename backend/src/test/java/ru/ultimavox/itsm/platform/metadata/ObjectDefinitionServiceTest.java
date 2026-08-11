@@ -178,5 +178,21 @@ class ObjectDefinitionServiceTest {
             }
             return Optional.empty();
         }
+
+        @Override
+        public List<ObjectDefinitionVersion> findVersions(String objectKey) {
+            return definition.key().equals(objectKey)
+                    ? List.of(new ObjectDefinitionVersion(definition, true)) : List.of();
+        }
+
+        @Override
+        public ObjectDefinition insertNextDraft(ObjectDefinition draft) {
+            throw new UnsupportedOperationException("read-only test repository");
+        }
+
+        @Override
+        public ObjectDefinition publish(String objectKey, int version) {
+            throw new UnsupportedOperationException("read-only test repository");
+        }
     }
 }

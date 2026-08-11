@@ -11,4 +11,10 @@ public interface ObjectDefinitionRepository {
     List<ObjectDefinition> findAllActive();
 
     Optional<ObjectDefinition> findByKeyAndVersion(String objectKey, int version);
+
+    List<ObjectDefinitionVersion> findVersions(String objectKey);
+
+    ObjectDefinition insertNextDraft(ObjectDefinition draft);
+
+    ObjectDefinition publish(String objectKey, int version);
 }

@@ -25,6 +25,11 @@ export interface ObjectDefinition {
   relations: MetadataRelation[];
 }
 
+export interface ObjectDefinitionVersionView {
+  definition: ObjectDefinition;
+  active: boolean;
+}
+
 /** Sample UI catalog keys for Translation admin (work-item namespace). */
 export interface SampleTranslationRow {
   namespace: string;
@@ -193,6 +198,34 @@ export async function fetchObjectDefinitions(): Promise<ObjectDefinition[]> {
     return structuredClone(MOCK_OBJECTS);
   }
   return apiRequest<ObjectDefinition[]>('/metadata/objects');
+}
+
+export async function fetchObjectDefinitionVersions(
+  key: string,
+): Promise<ObjectDefinitionVersionView[]> {
+  if (isMockMode()) return [];
+  return apiRequest<ObjectDefinitionVersionView[]>(
+    `/metadata/objects/${encodeURIComponent(key)}/versions`,
+  );
+}
+
+export async function createObjectDefinitionDraft(
+  definition: Omit<ObjectDefinition, 'version'>,
+): Promise<ObjectDefinitionVersionView> {
+  return apiRequest<ObjectDefinitionVersionView>('/metadata/objects/drafts', {
+    method: 'POST',
+    body: definition,
+  });
+}
+
+export async function publishObjectDefinitionVersion(
+  key: string,
+  version: number,
+): Promise<ObjectDefinitionVersionView> {
+  return apiRequest<ObjectDefinitionVersionView>(
+    `/metadata/objects/${encodeURIComponent(key)}/versions/${version}/publish`,
+    { method: 'POST' },
+  );
 }
 
 /* ── Form definition (form engine metadata) ───────────────── */

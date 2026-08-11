@@ -527,6 +527,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metadata/objects/{key}/versions/{version}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically publish a compatible tenant object schema version */
+        post: operations["publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/objects/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create the next immutable object schema draft */
+        post: operations["createDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/articles": {
         parameters: {
             query?: never;
@@ -572,7 +606,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Publish a draft or in-review article */
-        post: operations["publish"];
+        post: operations["publish_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1240,6 +1274,23 @@ export interface paths {
         };
         /** Get active object definition by key */
         get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/objects/{key}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant-owned draft and published object schema versions */
+        get: operations["versions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2074,6 +2125,68 @@ export interface components {
             /** Format: int32 */
             updated?: number;
         };
+        AttributeView: {
+            key?: string;
+            type?: string;
+            required?: boolean;
+            searchable?: boolean;
+            labels?: {
+                [key: string]: string;
+            };
+            enumValues?: string[];
+        };
+        ObjectDefinitionVersionView: {
+            definition?: components["schemas"]["ObjectDefinitionView"];
+            active?: boolean;
+        };
+        ObjectDefinitionView: {
+            key?: string;
+            /** Format: int32 */
+            version?: number;
+            labels?: {
+                [key: string]: string;
+            };
+            attributes?: components["schemas"]["AttributeView"][];
+            relations?: components["schemas"]["RelationView"][];
+        };
+        RelationView: {
+            key?: string;
+            targetObjectKey?: string;
+            cardinality?: string;
+            required?: boolean;
+            labels?: {
+                [key: string]: string;
+            };
+        };
+        AttributeDefinition: {
+            key?: string;
+            /** @enum {string} */
+            type?: "TEXT" | "RICH_TEXT" | "NUMBER" | "DATE_TIME" | "USER" | "REFERENCE" | "ENUM" | "BOOLEAN" | "ATTACHMENT";
+            required?: boolean;
+            searchable?: boolean;
+            labels?: {
+                [key: string]: string;
+            };
+            enumValues?: string[];
+        };
+        DraftRequest: {
+            key?: string;
+            labels?: {
+                [key: string]: string;
+            };
+            attributes?: components["schemas"]["AttributeDefinition"][];
+            relations?: components["schemas"]["RelationDefinition"][];
+        };
+        RelationDefinition: {
+            key?: string;
+            targetObjectKey?: string;
+            /** @enum {string} */
+            cardinality?: "ONE_TO_ONE" | "ONE_TO_MANY" | "MANY_TO_ONE" | "MANY_TO_MANY";
+            required?: boolean;
+            labels?: {
+                [key: string]: string;
+            };
+        };
         CreateArticleRequest: {
             title: string;
             body: string;
@@ -2500,35 +2613,6 @@ export interface components {
             source?: string;
             entityType?: string;
             entityId?: string;
-        };
-        AttributeView: {
-            key?: string;
-            type?: string;
-            required?: boolean;
-            searchable?: boolean;
-            labels?: {
-                [key: string]: string;
-            };
-            enumValues?: string[];
-        };
-        ObjectDefinitionView: {
-            key?: string;
-            /** Format: int32 */
-            version?: number;
-            labels?: {
-                [key: string]: string;
-            };
-            attributes?: components["schemas"]["AttributeView"][];
-            relations?: components["schemas"]["RelationView"][];
-        };
-        RelationView: {
-            key?: string;
-            targetObjectKey?: string;
-            cardinality?: string;
-            required?: boolean;
-            labels?: {
-                [key: string]: string;
-            };
         };
         ExpressionModel: {
             language?: string;
@@ -3755,6 +3839,53 @@ export interface operations {
             };
         };
     };
+    publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjectDefinitionVersionView"];
+                };
+            };
+        };
+    };
+    createDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjectDefinitionVersionView"];
+                };
+            };
+        };
+    };
     list_5: {
         parameters: {
             query?: {
@@ -3829,7 +3960,7 @@ export interface operations {
             };
         };
     };
-    publish: {
+    publish_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4959,6 +5090,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ObjectDefinitionView"];
+                };
+            };
+        };
+    };
+    versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjectDefinitionVersionView"][];
                 };
             };
         };
