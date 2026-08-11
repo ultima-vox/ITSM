@@ -1,6 +1,7 @@
 package ru.ultimavox.itsm.servicedesk.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.storage.Attachment;
 import ru.ultimavox.itsm.platform.storage.AttachmentService;
@@ -38,12 +40,13 @@ class WorkItemAttachmentServiceTest {
   @Mock AttachmentService attachments;
   @Mock AuditTrail audit;
   @Mock IntegrationEventOutbox outbox;
+  @Mock AccessControl access;
 
   WorkItemAttachmentService service;
 
   @BeforeEach
   void setUp() {
-    service = new WorkItemAttachmentService(jdbc, store, attachments, audit, outbox);
+    service = new WorkItemAttachmentService(jdbc, store, attachments, audit, outbox, access);
   }
 
   @Test
@@ -59,6 +62,8 @@ class WorkItemAttachmentServiceTest {
 
     when(store.requireById(wi)).thenReturn(item);
     when(attachments.findById(att)).thenReturn(Optional.of(attachment));
+    when(access.isAllowed("actor", "attachment.read.any", "attachment", att.toString()))
+        .thenReturn(true);
     when(jdbc.update(anyString(), eq(wi), eq(att), eq("actor"), any())).thenReturn(1);
 
     var linked = service.link(wi, att, "actor");
@@ -75,6 +80,21 @@ class WorkItemAttachmentServiceTest {
     when(jdbc.query(anyString(), any(RowMapper.class), eq(wi))).thenReturn(List.of());
 
     assertThat(service.list(wi)).isEmpty();
+  }
+
+  @Test
+  void linkRejectsAttachmentFromUnrelatedUploader() {
+    UUID wi = UUID.randomUUID();
+    UUID att = UUID.randomUUID();
+    Instant now = Instant.now();
+    when(store.requireById(wi)).thenReturn(sample(wi, now));
+    when(attachments.findById(att)).thenReturn(Optional.of(new Attachment(
+        att, "secret.txt", "text/plain", 4, "k", "other-user", now,
+        ScanStatus.CLEAN, "scanner", null, now)));
+
+    assertThatThrownBy(() -> service.link(wi, att, "requester"))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+        .hasMessageContaining("uploader");
   }
 
   private static WorkItem sample(UUID id, Instant now) {

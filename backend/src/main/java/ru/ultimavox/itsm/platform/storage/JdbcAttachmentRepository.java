@@ -60,6 +60,35 @@ public class JdbcAttachmentRepository implements AttachmentRepository {
     return rows.stream().findFirst();
   }
 
+  @Override
+  public boolean canRead(UUID id, String subjectId) {
+    Integer count = jdbc.queryForObject(
+        "SELECT count(*) FROM attachment_access_grant WHERE attachment_id=? AND org_id=? AND subject_id=?",
+        Integer.class, id, OrganizationContext.current(), subjectId);
+    return count != null && count > 0;
+  }
+
+  @Override
+  public void grantRead(UUID id, String subjectId, String sourceType, String sourceId,
+                        String grantedBy, Instant createdAt) {
+    if (subjectId == null || subjectId.isBlank()) return;
+    jdbc.update(
+        """
+        INSERT INTO attachment_access_grant(
+          attachment_id,org_id,subject_id,source_type,source_id,granted_by,created_at
+        ) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING
+        """,
+        id, OrganizationContext.current(), subjectId, sourceType, sourceId, grantedBy,
+        Timestamp.from(createdAt));
+  }
+
+  @Override
+  public void revokeSource(UUID id, String subjectId, String sourceType, String sourceId) {
+    jdbc.update(
+        "DELETE FROM attachment_access_grant WHERE attachment_id=? AND org_id=? AND subject_id=? AND source_type=? AND source_id=?",
+        id, OrganizationContext.current(), subjectId, sourceType, sourceId);
+  }
+
   public static Attachment mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
     Timestamp scanned = rs.getTimestamp("scanned_at");
     String statusRaw = rs.getString("scan_status");

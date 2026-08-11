@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.storage.Attachment;
@@ -29,19 +30,22 @@ public class WorkItemAttachmentService {
   private final AttachmentService attachments;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final AccessControl access;
 
   public WorkItemAttachmentService(
       JdbcTemplate jdbc,
       WorkItemStore store,
       AttachmentService attachments,
       AuditTrail audit,
-      IntegrationEventOutbox outbox
+      IntegrationEventOutbox outbox,
+      AccessControl access
   ) {
     this.jdbc = jdbc;
     this.store = store;
     this.attachments = attachments;
     this.audit = audit;
     this.outbox = outbox;
+    this.access = access;
   }
 
   public List<LinkedAttachment> list(UUID workItemId) {
@@ -72,6 +76,12 @@ public class WorkItemAttachmentService {
     WorkItem item = store.requireById(workItemId);
     Attachment attachment = attachments.findById(attachmentId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+    access.require(actorId, "attachment.read", "attachment", attachmentId.toString());
+    if (!actorId.equals(attachment.uploadedBy())
+        && !access.isAllowed(actorId, "attachment.read.any", "attachment", attachmentId.toString())) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Only uploader or elevated reader may link attachment");
+    }
 
     Instant now = Instant.now();
     int inserted = jdbc.update(
@@ -85,6 +95,8 @@ public class WorkItemAttachmentService {
         actorId,
         Timestamp.from(now)
     );
+    attachments.grantRead(
+        attachmentId, item.requesterId(), "work-item", workItemId.toString(), actorId, now);
 
     if (inserted == 0) {
       // Already linked — return existing
@@ -126,7 +138,7 @@ public class WorkItemAttachmentService {
 
   @Transactional
   public void unlink(UUID workItemId, UUID attachmentId, String actorId) {
-    store.requireById(workItemId);
+    WorkItem item = store.requireById(workItemId);
     int deleted = jdbc.update(
         "DELETE FROM work_item_attachment WHERE work_item_id = ? AND attachment_id = ?",
         workItemId,
@@ -135,6 +147,8 @@ public class WorkItemAttachmentService {
     if (deleted == 0) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment link not found");
     }
+    attachments.revokeSource(
+        attachmentId, item.requesterId(), "work-item", workItemId.toString());
 
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();

@@ -33,6 +33,13 @@ class AttachmentServiceTest {
       public Optional<Attachment> findById(UUID id) {
         return Optional.ofNullable(db.get(id));
       }
+
+      @Override public boolean canRead(UUID id, String subjectId) { return false; }
+      @Override public void grantRead(UUID id, String subjectId, String sourceType,
+                                      String sourceId, String grantedBy,
+                                      java.time.Instant createdAt) {}
+      @Override public void revokeSource(UUID id, String subjectId, String sourceType,
+                                         String sourceId) {}
     };
     service = new AttachmentService(storage, repo, new ContentSignatureMalwareScan());
   }

@@ -72,9 +72,7 @@ class AttachmentController {
   AttachmentResponse metadata(Authentication authentication, @PathVariable UUID id) {
     Attachment attachment = attachments.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
-    access.requireOwned(
-        authentication.getName(), "attachment.read", "attachment", id.toString(),
-        attachment.uploadedBy());
+    authorizeRead(authentication.getName(), attachment);
     return AttachmentResponse.from(attachment);
   }
 
@@ -83,9 +81,7 @@ class AttachmentController {
   ResponseEntity<InputStreamResource> content(Authentication authentication, @PathVariable UUID id) {
     Attachment attachment = attachments.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
-    access.requireOwned(
-        authentication.getName(), "attachment.read", "attachment", id.toString(),
-        attachment.uploadedBy());
+    authorizeRead(authentication.getName(), attachment);
 
     if (!attachment.isDownloadAllowed()) {
       throw new ResponseStatusException(
@@ -116,6 +112,17 @@ class AttachmentController {
     );
 
     return new ResponseEntity<>(new InputStreamResource(stream), headers, HttpStatus.OK);
+  }
+
+  private void authorizeRead(String actor, Attachment attachment) {
+    access.require(actor, "attachment.read", "attachment", attachment.id().toString());
+    if (actor.equals(attachment.uploadedBy())
+        || access.isAllowed(actor, "attachment.read.any", "attachment", attachment.id().toString())
+        || attachments.canRead(attachment.id(), actor)) {
+      return;
+    }
+    throw new org.springframework.security.access.AccessDeniedException(
+        "Permission denied: attachment parent access required");
   }
 
   record AttachmentResponse(

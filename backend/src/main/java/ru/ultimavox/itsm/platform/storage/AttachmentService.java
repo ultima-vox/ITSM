@@ -93,6 +93,19 @@ public class AttachmentService {
     return repository.findById(id);
   }
 
+  public boolean canRead(UUID id, String subjectId) {
+    return repository.canRead(id, subjectId);
+  }
+
+  public void grantRead(UUID id, String subjectId, String sourceType, String sourceId,
+                        String grantedBy, Instant createdAt) {
+    repository.grantRead(id, subjectId, sourceType, sourceId, grantedBy, createdAt);
+  }
+
+  public void revokeSource(UUID id, String subjectId, String sourceType, String sourceId) {
+    repository.revokeSource(id, subjectId, sourceType, sourceId);
+  }
+
   /**
    * Opens content stream when the storage backend holds bytes and scan allows download.
    * Caller must close the stream.

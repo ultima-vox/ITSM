@@ -403,8 +403,10 @@ class WorkItemController {
       Authentication authentication
   ) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.update", "work-item", id.toString());
-    access.require(actor, "attachment.read", "attachment", request.attachmentId().toString());
+    var item = requireRead(actor, id);
+    if (!actor.equals(item.requesterId())) {
+      access.require(actor, "work-item.update", "work-item", id.toString());
+    }
     return AttachmentLinkResponse.from(
         workItemAttachments.link(id, request.attachmentId(), actor)
     );
@@ -419,7 +421,10 @@ class WorkItemController {
       Authentication authentication
   ) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.update", "work-item", id.toString());
+    var item = requireRead(actor, id);
+    if (!actor.equals(item.requesterId())) {
+      access.require(actor, "work-item.update", "work-item", id.toString());
+    }
     workItemAttachments.unlink(id, attachmentId, actor);
   }
 
