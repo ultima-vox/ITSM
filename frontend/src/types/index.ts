@@ -235,6 +235,7 @@ export interface Asset {
 
 export interface Problem {
   id: string;
+  version?: number;
   number: string;
   title: string;
   status: WorkItemStatus;

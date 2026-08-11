@@ -2304,6 +2304,8 @@ export interface components {
             workaround?: string;
             resolution?: string;
             linkedWorkItems?: string[];
+            /** Format: int64 */
+            version?: number;
         };
         LinkWorkItemRequest: {
             /** Format: uuid */
@@ -2691,6 +2693,8 @@ export interface components {
             rootCause?: string;
             workaround?: string;
             resolution?: string;
+            /** Format: int64 */
+            expectedVersion?: number;
         };
         UpdateRelationRequest: {
             type?: string;
@@ -2827,6 +2831,8 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            /** Format: int64 */
+            version?: number;
         };
         NotificationListResponse: {
             items?: components["schemas"]["NotificationView"][];

@@ -22,7 +22,7 @@ class ProblemBulkTransitionTest {
         AccessControl access = mock(AccessControl.class);
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("operator");
-        when(commands.transition(any(), eq(Problem.Status.RESOLVED), any(), any(), any(), eq("operator")))
+        when(commands.transition(any(), eq(Problem.Status.RESOLVED), any(), any(), any(), any(), eq("operator")))
                 .thenThrow(new IllegalStateException("invalid"));
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();

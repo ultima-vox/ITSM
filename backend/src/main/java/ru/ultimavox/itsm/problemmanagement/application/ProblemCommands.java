@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
@@ -85,26 +86,30 @@ public class ProblemCommands {
       String rootCause,
       String workaround,
       String resolution,
+      long expectedVersion,
       String actor
   ) {
     Problem current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
+    requireVersion(current, expectedVersion);
     Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution);
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
-    jdbc.update(
+    int changed = jdbc.update(
         """
             UPDATE problem
-            SET root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
-            WHERE id = ? AND org_id = ?
+            SET root_cause = ?, workaround = ?, resolution = ?, version = version + 1, updated_at = ?
+            WHERE id = ? AND org_id = ? AND version = ?
             """,
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
         Timestamp.from(now),
         id,
-        OrganizationContext.current()
+        OrganizationContext.current(),
+        expectedVersion
     );
+    if (changed == 0) throw stale(expectedVersion);
     Map<String, Object> after = Map.of(
         "rootCause", String.valueOf(updated.rootCause()),
         "workaround", String.valueOf(updated.workaround()),
@@ -118,7 +123,7 @@ public class ProblemCommands {
         UUID.randomUUID(), "problem.notes-updated", 1, now, correlationId,
         "problem", id.toString(), after
     ));
-    return updated;
+    return query.findById(id).orElseThrow();
   }
 
   @Transactional
@@ -128,10 +133,13 @@ public class ProblemCommands {
       String rootCause,
       String workaround,
       String resolution,
+      Long expectedVersion,
       String actor
   ) {
     Problem current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
+    long version = expectedVersion == null ? current.version() : expectedVersion;
+    requireVersion(current, version);
     Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution).transition(target);
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
@@ -144,11 +152,11 @@ public class ProblemCommands {
         workflowFields, correlationId
     );
 
-    jdbc.update(
+    int changed = jdbc.update(
         """
             UPDATE problem
-            SET status = ?, root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
-            WHERE id = ? AND org_id = ?
+            SET status = ?, root_cause = ?, workaround = ?, resolution = ?, version = version + 1, updated_at = ?
+            WHERE id = ? AND org_id = ? AND version = ?
             """,
         updated.status().name(),
         updated.rootCause(),
@@ -156,8 +164,10 @@ public class ProblemCommands {
         updated.resolution(),
         Timestamp.from(now),
         id,
-        OrganizationContext.current()
+        OrganizationContext.current(),
+        version
     );
+    if (changed == 0) throw stale(version);
 
     Map<String, Object> before = Map.of("status", current.status().name());
     Map<String, Object> after = Map.of(
@@ -172,7 +182,15 @@ public class ProblemCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "problem.transitioned", 1, now, correlationId, "problem", id.toString(), after
     ));
-    return updated;
+    return query.findById(id).orElseThrow();
+  }
+
+  private static void requireVersion(Problem current, long expectedVersion) {
+    if (expectedVersion < 0 || current.version() != expectedVersion) throw stale(expectedVersion);
+  }
+
+  private static OptimisticLockingFailureException stale(long expectedVersion) {
+    return new OptimisticLockingFailureException("Problem changed since version " + expectedVersion);
   }
 
   @Transactional

@@ -23,7 +23,7 @@ public class ProblemQuery {
     String statusFilter = status == null || status.isBlank() ? null : status;
     return jdbc.query(
         """
-            SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at
+            SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at, version
             FROM problem
             WHERE org_id = ? AND (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
@@ -37,7 +37,8 @@ public class ProblemQuery {
             rs.getString("workaround"),
             rs.getString("resolution"),
             rs.getTimestamp("created_at").toInstant(),
-            rs.getTimestamp("updated_at").toInstant()
+            rs.getTimestamp("updated_at").toInstant(),
+            rs.getLong("version")
         ),
         OrganizationContext.current(), statusFilter, statusFilter
     );
@@ -45,7 +46,7 @@ public class ProblemQuery {
 
   public Optional<Problem> findById(UUID id) {
     List<Problem> rows = jdbc.query(
-        "SELECT id, number, title, status, root_cause, workaround, resolution FROM problem WHERE id = ? AND org_id = ?",
+        "SELECT id, number, title, status, root_cause, workaround, resolution, version FROM problem WHERE id = ? AND org_id = ?",
         (rs, i) -> new Problem(
             (UUID) rs.getObject("id"),
             rs.getString("number"),
@@ -54,7 +55,8 @@ public class ProblemQuery {
             rs.getString("root_cause"),
             rs.getString("workaround"),
             rs.getString("resolution"),
-            loadLinks((UUID) rs.getObject("id"))
+            loadLinks((UUID) rs.getObject("id")),
+            rs.getLong("version")
         ),
         id, OrganizationContext.current()
     );
@@ -79,6 +81,7 @@ public class ProblemQuery {
       String workaround,
       String resolution,
       Instant createdAt,
-      Instant updatedAt
+      Instant updatedAt,
+      long version
   ) {}
 }

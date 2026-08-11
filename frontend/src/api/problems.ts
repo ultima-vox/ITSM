@@ -69,6 +69,7 @@ export async function transitionProblemStatus(
     workaround?: string;
     resolution?: string;
     knownError?: boolean;
+    expectedVersion?: number;
   },
 ): Promise<{ ok: true; problem: Problem } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
@@ -85,6 +86,7 @@ export async function transitionProblemStatus(
           rootCause: opts?.rootCause,
           workaround: opts?.workaround,
           resolution: opts?.resolution,
+          expectedVersion: opts?.expectedVersion ?? 0,
         },
       },
     );
@@ -96,7 +98,7 @@ export async function transitionProblemStatus(
 
 export async function patchProblem(
   id: string,
-  patch: Parameters<typeof storeUpdateProblem>[1],
+  patch: Parameters<typeof storeUpdateProblem>[1] & { expectedVersion?: number },
 ): Promise<{ ok: true; problem: Problem } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
     await delay(100);
@@ -113,6 +115,7 @@ export async function patchProblem(
             rootCause: patch.rootCause,
             workaround: patch.workaround,
             resolution: (patch as { resolution?: string }).resolution,
+            expectedVersion: patch.expectedVersion ?? 0,
           },
         },
       );
@@ -128,6 +131,7 @@ export async function patchProblem(
             rootCause: patch.rootCause,
             workaround: patch.workaround,
             resolution: (patch as { resolution?: string }).resolution,
+            expectedVersion: patch.expectedVersion ?? 0,
           },
         },
       );
@@ -139,6 +143,7 @@ export async function patchProblem(
         rootCause: patch.rootCause,
         workaround: patch.workaround,
         resolution: (patch as { resolution?: string }).resolution,
+        expectedVersion: patch.expectedVersion ?? 0,
       },
     });
     return { ok: true, problem: mapProblem(dto) };

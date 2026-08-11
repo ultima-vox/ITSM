@@ -14,7 +14,8 @@ public record Problem(
     String rootCause,
     String workaround,
     String resolution,
-    Set<UUID> linkedWorkItems
+    Set<UUID> linkedWorkItems,
+    long version
 ) {
   public Problem {
     linkedWorkItems = linkedWorkItems == null ? Set.of() : Set.copyOf(linkedWorkItems);
@@ -30,7 +31,20 @@ public record Problem(
       String workaround,
       Set<UUID> linkedWorkItems
   ) {
-    this(id, number, title, status, rootCause, workaround, null, linkedWorkItems);
+    this(id, number, title, status, rootCause, workaround, null, linkedWorkItems, 0);
+  }
+
+  public Problem(
+      UUID id,
+      String number,
+      String title,
+      Status status,
+      String rootCause,
+      String workaround,
+      String resolution,
+      Set<UUID> linkedWorkItems
+  ) {
+    this(id, number, title, status, rootCause, workaround, resolution, linkedWorkItems, 0);
   }
 
   public Problem transition(Status target) {
@@ -51,7 +65,7 @@ public record Problem(
         throw new IllegalStateException("Resolution is required before RESOLVED");
       }
     }
-    return new Problem(id, number, title, target, rootCause, workaround, resolution, linkedWorkItems);
+    return new Problem(id, number, title, target, rootCause, workaround, resolution, linkedWorkItems, version);
   }
 
   public Problem withInvestigationNotes(String rootCause, String workaround) {
@@ -67,7 +81,8 @@ public record Problem(
         rootCause != null ? rootCause : this.rootCause,
         workaround != null ? workaround : this.workaround,
         resolution != null ? resolution : this.resolution,
-        linkedWorkItems
+        linkedWorkItems,
+        version
     );
   }
 
@@ -77,7 +92,7 @@ public record Problem(
     }
     var next = new java.util.HashSet<>(linkedWorkItems);
     next.add(workItemId);
-    return new Problem(id, number, title, status, rootCause, workaround, resolution, next);
+    return new Problem(id, number, title, status, rootCause, workaround, resolution, next, version);
   }
 
   private static boolean isBlank(String value) {

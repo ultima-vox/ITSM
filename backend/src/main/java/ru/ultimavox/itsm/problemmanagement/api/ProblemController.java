@@ -79,8 +79,10 @@ class ProblemController {
     access.require(authentication.getName(), "problem.write", "problem", id.toString());
     try {
       return commands.updateNotes(
-          id, body.rootCause(), body.workaround(), body.resolution(), authentication.getName()
+          id, body.rootCause(), body.workaround(), body.resolution(), body.expectedVersion(), authentication.getName()
       );
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
     }
@@ -101,10 +103,13 @@ class ProblemController {
           body.rootCause(),
           body.workaround(),
           body.resolution(),
+          body.expectedVersion(),
           authentication.getName()
       );
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -118,7 +123,7 @@ class ProblemController {
     List<BulkTransitionResult> results = body.ids().stream().map(id -> {
       access.require(actor, "problem.write", "problem", id.toString());
       try {
-        Problem changed = commands.transition(id, body.target(), null, null, null, actor);
+        Problem changed = commands.transition(id, body.target(), null, null, null, null, actor);
         return new BulkTransitionResult(id, true, changed.status().name(), null);
       } catch (IllegalArgumentException ex) {
         return new BulkTransitionResult(id, false, null, "NOT_FOUND");
@@ -154,13 +159,15 @@ class ProblemController {
       @NotNull Problem.Status target,
       @Size(max = 12000) String rootCause,
       @Size(max = 12000) String workaround,
-      @Size(max = 12000) String resolution
+      @Size(max = 12000) String resolution,
+      long expectedVersion
   ) {}
 
   record PatchNotesRequest(
       @Size(max = 12000) String rootCause,
       @Size(max = 12000) String workaround,
-      @Size(max = 12000) String resolution
+      @Size(max = 12000) String resolution,
+      long expectedVersion
   ) {}
 
   record LinkWorkItemRequest(@NotNull UUID workItemId) {}

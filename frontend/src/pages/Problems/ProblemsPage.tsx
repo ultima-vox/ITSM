@@ -332,6 +332,7 @@ export function ProblemsPage() {
       rootCause: rootCauseDraft,
       workaround: workaroundDraft,
       resolution: resolutionDraft,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -340,6 +341,7 @@ export function ProblemsPage() {
     }
     success(t('problems.transitionOk', { status: t(`status.${next}`) }));
     setSelectedId(result.problem.id);
+    await reload();
   };
 
   const toggleKnownError = async () => {
@@ -349,6 +351,7 @@ export function ProblemsPage() {
       knownError: !selected.knownError,
       rootCause: rootCauseDraft,
       workaround: workaroundDraft,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -360,6 +363,7 @@ export function ProblemsPage() {
         ? t('problems.knownErrorMarked')
         : t('problems.knownErrorCleared'),
     );
+    await reload();
   };
 
   /** Create a draft KB article from known-error RCA in mock or live API mode. */
@@ -409,12 +413,14 @@ export function ProblemsPage() {
     const result = await patchProblem(selected.id, {
       rootCause: rootCauseDraft,
       workaround: workaroundDraft,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
       return;
     }
     success(t('problems.rcaSaved'));
+    await reload();
   };
 
   const columns = useMemo<ModuleGridColumn<Problem>[]>(

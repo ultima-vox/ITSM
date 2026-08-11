@@ -2,6 +2,7 @@ import type { Priority, Problem, WorkItemStatus } from '@/types';
 
 export interface BackendProblemSummary {
   id: string;
+  version?: number;
   number: string;
   title: string;
   status: string;
@@ -38,6 +39,7 @@ export function mapProblem(dto: BackendProblemSummary): Problem {
 
   return {
     id: String(dto.id),
+    version: dto.version ?? 0,
     number: dto.number,
     title: dto.title,
     status: mapProblemStatus(dto.status),
