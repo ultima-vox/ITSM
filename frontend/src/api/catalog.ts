@@ -135,6 +135,7 @@ export async function submitCatalogRequest(
   }>(`/catalog/items/${itemId}/requests`, {
     method: 'POST',
     body: { formPayload: payload.formPayload ?? {} },
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
   return {
     id: String(result.id),

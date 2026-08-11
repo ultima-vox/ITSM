@@ -458,6 +458,7 @@ export async function createWorkItem(
   const created = await apiRequest<BackendCreated>('/work-items', {
     method: 'POST',
     body,
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
   // Create returns partial; fetch full WorkItemResponse
   const full = await apiRequest<BackendWorkItem>(`/work-items/${created.id}`);

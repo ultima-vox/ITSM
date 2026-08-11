@@ -1,6 +1,9 @@
 package ru.ultimavox.itsm.servicedesk.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,11 +23,13 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
+import ru.ultimavox.itsm.platform.idempotency.ApiIdempotencyService;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.ActivityResponse;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.AttachmentLinkResponse;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.CommentResponse;
@@ -82,6 +87,7 @@ class WorkItemController {
   private final MajorIncidentService majorIncidents;
   private final BulkWorkItemService bulkWorkItems;
   private final AccessControl access;
+  private final ApiIdempotencyService idempotency;
 
   WorkItemController(
       CreateWorkItem createWorkItem,
@@ -103,7 +109,8 @@ class WorkItemController {
       DuplicateWorkItemQuery duplicates,
       MajorIncidentService majorIncidents,
       BulkWorkItemService bulkWorkItems,
-      AccessControl access
+      AccessControl access,
+      ApiIdempotencyService idempotency
   ) {
     this.createWorkItem = createWorkItem;
     this.workItemQuery = workItemQuery;
@@ -125,30 +132,33 @@ class WorkItemController {
     this.majorIncidents = majorIncidents;
     this.bulkWorkItems = bulkWorkItems;
     this.access = access;
+    this.idempotency = idempotency;
   }
 
   @PostMapping
   @Operation(summary = "Create incident or service request")
+  @ApiResponse(responseCode = "201", description = "Created or replayed",
+      headers = @Header(name = "Idempotency-Replayed",
+          description = "True when stored response was replayed",
+          schema = @Schema(type = "boolean")))
   ResponseEntity<CreateWorkItem.Created> create(
       @Valid @RequestBody CreateRequest request,
+      @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
       Authentication authentication
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.create", "work-item", null);
-    CreateWorkItem.Created created = createWorkItem.create(
-        new CreateWorkItem.Command(
-            request.type(),
-            request.title(),
-            request.description(),
-            request.service(),
-            request.impact(),
-            request.urgency(),
-            request.assigneeId(),
-            request.teamId()
-        ),
-        actor
+    CreateWorkItem.Command command = new CreateWorkItem.Command(
+        request.type(), request.title(), request.description(), request.service(),
+        request.impact(), request.urgency(), request.assigneeId(), request.teamId()
     );
-    return ResponseEntity.created(URI.create("/api/v1/work-items/" + created.id())).body(created);
+    ApiIdempotencyService.Result<CreateWorkItem.Created> result = idempotency.execute(
+        idempotencyKey, "work-item.create", actor, command, CreateWorkItem.Created.class,
+        () -> createWorkItem.create(command, actor));
+    CreateWorkItem.Created created = result.value();
+    return ResponseEntity.created(URI.create("/api/v1/work-items/" + created.id()))
+        .header("Idempotency-Replayed", Boolean.toString(result.replayed()))
+        .body(created);
   }
 
   @GetMapping

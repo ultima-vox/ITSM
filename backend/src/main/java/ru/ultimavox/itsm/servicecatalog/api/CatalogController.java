@@ -1,6 +1,9 @@
 package ru.ultimavox.itsm.servicecatalog.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.access.AccessDeniedException;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
+import ru.ultimavox.itsm.platform.idempotency.ApiIdempotencyService;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogRequestQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogFulfillmentService;
@@ -37,15 +42,18 @@ class CatalogController {
   private final CatalogRequestQuery requests;
   private final CatalogFulfillmentService fulfillment;
   private final CatalogBundleAdminService bundleAdmin;
+  private final ApiIdempotencyService idempotency;
 
   CatalogController(CatalogQuery query, SubmitCatalogRequest submit, CatalogRequestQuery requests,
-                    CatalogFulfillmentService fulfillment, CatalogBundleAdminService bundleAdmin, AccessControl access) {
+                    CatalogFulfillmentService fulfillment, CatalogBundleAdminService bundleAdmin,
+                    AccessControl access, ApiIdempotencyService idempotency) {
     this.query = query;
     this.submit = submit;
     this.access = access;
     this.requests = requests;
     this.fulfillment = fulfillment;
     this.bundleAdmin = bundleAdmin;
+    this.idempotency = idempotency;
   }
 
   @GetMapping("/items")
@@ -74,21 +82,32 @@ class CatalogController {
 
   @PostMapping("/items/{id}/requests")
   @Operation(summary = "Submit a service request from a catalog item")
+  @ApiResponse(responseCode = "201", description = "Submitted or replayed",
+      headers = @Header(name = "Idempotency-Replayed",
+          description = "True when stored response was replayed",
+          schema = @Schema(type = "boolean")))
   ResponseEntity<SubmitCatalogRequest.Submitted> submitRequest(
       Authentication authentication,
       @PathVariable UUID id,
+      @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
       @Valid @RequestBody SubmitRequest body
   ) {
     access.require(authentication.getName(), "catalog.request", "catalog-item", id.toString());
-    SubmitCatalogRequest.Submitted result;
+    ApiIdempotencyService.Result<SubmitCatalogRequest.Submitted> idempotentResult;
     try {
-      result = submit.submit(new SubmitCatalogRequest.Command(id,
-          body.formPayload() == null ? Map.of() : body.formPayload(), subjectContext(authentication)),
-          authentication.getName());
+      SubmitCatalogRequest.Command command = new SubmitCatalogRequest.Command(id,
+          body.formPayload() == null ? Map.of() : body.formPayload(), subjectContext(authentication));
+      idempotentResult = idempotency.execute(
+          idempotencyKey, "catalog-request.submit", authentication.getName(), command,
+          SubmitCatalogRequest.Submitted.class,
+          () -> submit.submit(command, authentication.getName()));
     } catch (AccessDeniedException ex) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, ex.getMessage());
     }
-    return ResponseEntity.created(URI.create("/api/v1/catalog/requests/" + result.id())).body(result);
+    SubmitCatalogRequest.Submitted result = idempotentResult.value();
+    return ResponseEntity.created(URI.create("/api/v1/catalog/requests/" + result.id()))
+        .header("Idempotency-Replayed", Boolean.toString(idempotentResult.replayed()))
+        .body(result);
   }
 
   record SubmitRequest(Map<String, Object> formPayload) {}
