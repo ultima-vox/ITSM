@@ -1248,7 +1248,7 @@
   },
   "automation": {
     "title": "Automatisierungsregeln",
-    "subtitle": "Deklarative WHEN · IF · THEN-Regeln für Plattform-Ereignisse (Mock-Katalog).",
+    "subtitle": "Versionierte deklarative WHEN · IF · THEN-Regeln für Plattform-Ereignisse.",
     "rules": "Regeln",
     "ruleCount": "{n} Regeln",
     "enabledCount": "{n} aktiv",
@@ -1258,7 +1258,7 @@
     "statusDisabled": "Inaktiv",
     "enable": "Regel aktivieren",
     "disable": "Regel deaktivieren",
-    "toggleHint": "Nur in der Sitzung — nicht an die API gespeichert",
+    "toggleHint": "Für aktuelle Organisation mit Änderungsprotokoll gespeichert",
     "flow": "Regelfluss",
     "when": "WHEN Ereignis",
     "if": "IF Bedingungen",
@@ -1269,7 +1269,18 @@
     "emptyTitle": "Keine Automatisierungsregeln",
     "emptyHint": "Seed-Regeln erscheinen nach Laden des Mock-Katalogs.",
     "selectTitle": "Regel wählen",
-    "selectHint": "Wählen Sie links eine Regel, um Ereignis, Bedingungen und Aktionen zu prüfen."
+    "selectHint": "Wählen Sie links eine Regel, um Ereignis, Bedingungen und Aktionen zu prüfen.",
+    "newRule": "Neue Regel",
+    "editRule": "Regel bearbeiten",
+    "designer": "Regeldesigner",
+    "key": "Regelschlüssel",
+    "name": "Regelname",
+    "eventType": "Ereignistyp",
+    "conditionsJson": "Bedingungen (JSON)",
+    "actionsJson": "Erlaubte Aktionen (JSON)",
+    "designerHint": "Regeln verwenden optimistische Versionen. Aktionen sind auf notify, log und index beschränkt.",
+    "saved": "Automatisierungsregel gespeichert",
+    "saveFailed": "Regel ungültig oder von einem anderen Administrator geändert"
   },
   "workflowAdmin": {
     "title": "Workflow-Definitionen",

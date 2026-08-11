@@ -421,6 +421,7 @@ export interface AutomationRule {
   id: string;
   ruleKey: string;
   name: string;
+  version: number;
   enabled: boolean;
   trigger: { eventType: string };
   conditions: AutomationCondition[];

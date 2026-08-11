@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_2"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable or disable an automation rule for current organization */
+        patch: operations["setEnabled"];
+        trace?: never;
+    };
     "/api/v1/admin/translations": {
         parameters: {
             query?: never;
@@ -801,6 +818,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automation rules (admin read) */
+        get: operations["listRules"];
+        put?: never;
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/attachments": {
         parameters: {
             query?: never;
@@ -829,7 +863,7 @@ export interface paths {
         get: operations["list_8"];
         put?: never;
         /** Create an asset */
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -970,7 +1004,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update work item fields */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/sla/policies/{id}": {
@@ -1006,23 +1040,6 @@ export interface paths {
         head?: never;
         /** Update problem investigation notes without status change */
         patch: operations["patchNotes"];
-        trace?: never;
-    };
-    "/api/v1/automation/rules/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Enable or disable an automation rule for current organization */
-        patch: operations["setEnabled"];
         trace?: never;
     };
     "/api/v1/workflow/instances/{objectType}/{objectId}": {
@@ -1634,23 +1651,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/automation/rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List automation rules (admin read) */
-        get: operations["listRules"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -1901,6 +1901,52 @@ export interface components {
             quantity?: number;
             /** Format: int32 */
             position?: number;
+        };
+        Action: {
+            type?: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+        };
+        Command: {
+            ruleKey?: string;
+            name?: string;
+            enabled?: boolean;
+            trigger?: components["schemas"]["Trigger"];
+            conditions?: components["schemas"]["Condition"][];
+            actions?: components["schemas"]["Action"][];
+        };
+        Condition: {
+            field?: string;
+            /** @enum {string} */
+            operator?: "EQUALS" | "NOT_EQUALS" | "IN" | "CONTAINS" | "GREATER_THAN";
+            value?: string;
+        };
+        Trigger: {
+            eventType?: string;
+        };
+        ActionResponse: {
+            type?: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+        };
+        ConditionResponse: {
+            field?: string;
+            operator?: string;
+            value?: string;
+        };
+        RuleResponse: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            name?: string;
+            /** Format: int32 */
+            version?: number;
+            enabled?: boolean;
+            eventType?: string;
+            conditions?: components["schemas"]["ConditionResponse"][];
+            actions?: components["schemas"]["ActionResponse"][];
         };
         UpsertTranslation: {
             namespace: string;
@@ -2482,11 +2528,6 @@ export interface components {
             /** Format: int32 */
             quorum?: number;
         };
-        ConditionResponse: {
-            field?: string;
-            operator?: string;
-            value?: unknown;
-        };
         DefinitionResponse: {
             /** Format: uuid */
             id?: string;
@@ -2553,22 +2594,6 @@ export interface components {
         };
         SetEnabledRequest: {
             enabled?: boolean;
-        };
-        ActionResponse: {
-            type?: string;
-            parameters?: {
-                [key: string]: unknown;
-            };
-        };
-        RuleResponse: {
-            /** Format: uuid */
-            id?: string;
-            key?: string;
-            name?: string;
-            enabled?: boolean;
-            eventType?: string;
-            conditions?: components["schemas"]["ConditionResponse"][];
-            actions?: components["schemas"]["ActionResponse"][];
         };
         WorkItemPageResponse: {
             items?: components["schemas"]["WorkItemResponse"][];
@@ -3047,6 +3072,60 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Component"][];
+                };
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
+                };
+            };
+        };
+    };
+    setEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
                 };
             };
         };
@@ -4473,6 +4552,50 @@ export interface operations {
             };
         };
     };
+    listRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"][];
+                };
+            };
+        };
+    };
+    create_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Command"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
+                };
+            };
+        };
+    };
     upload: {
         parameters: {
             query?: never;
@@ -4524,7 +4647,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -4748,7 +4871,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4844,32 +4967,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    setEnabled: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetEnabledRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RuleResponse"];
                 };
             };
         };
@@ -5667,26 +5764,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CatalogItemDetail"];
-                };
-            };
-        };
-    };
-    listRules: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RuleResponse"][];
                 };
             };
         };

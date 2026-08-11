@@ -8,6 +8,7 @@ import org.mockito.Mockito;
 import org.springframework.security.core.Authentication;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleRepository;
+import ru.ultimavox.itsm.platform.automation.AutomationRuleAdminService;
 
 class AutomationAdminControllerWriteTest {
   @Test void toggleRequiresAutomationWrite() {
@@ -18,7 +19,7 @@ class AutomationAdminControllerWriteTest {
     UUID id = UUID.randomUUID();
 
     try {
-      new AutomationAdminController(rules, access)
+      new AutomationAdminController(rules, Mockito.mock(AutomationRuleAdminService.class), access)
           .setEnabled(auth, id, new AutomationAdminController.SetEnabledRequest(true));
     } catch (RuntimeException ignored) {
       // Empty repository intentionally returns 404 after authorization.

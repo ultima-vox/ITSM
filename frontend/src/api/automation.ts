@@ -24,6 +24,7 @@ interface BackendRule {
   id: string;
   key: string;
   name: string;
+  version: number;
   enabled: boolean;
   eventType: string;
   conditions: BackendCondition[];
@@ -35,6 +36,7 @@ function mapRule(dto: BackendRule): AutomationRule {
     id: dto.id,
     ruleKey: dto.key,
     name: dto.name ?? dto.key,
+    version: dto.version,
     enabled: dto.enabled,
     trigger: { eventType: dto.eventType },
     conditions: (dto.conditions ?? []).map((c) => ({
@@ -47,6 +49,17 @@ function mapRule(dto: BackendRule): AutomationRule {
       parameters: a.parameters ?? {},
     })),
   };
+}
+
+export async function saveAutomationRule(
+  rule: Omit<AutomationRule, 'id' | 'description'>,
+  id?: string,
+): Promise<AutomationRule> {
+  const changed = await apiRequest<BackendRule>(
+    id ? `/automation/rules/${encodeURIComponent(id)}?expectedVersion=${rule.version}` : '/automation/rules',
+    { method: id ? 'PUT' : 'POST', body: rule },
+  );
+  return mapRule(changed);
 }
 
 export async function fetchAutomationRules(): Promise<AutomationRule[]> {

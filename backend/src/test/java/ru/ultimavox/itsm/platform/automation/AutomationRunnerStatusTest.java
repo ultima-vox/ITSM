@@ -39,7 +39,7 @@ class AutomationRunnerStatusTest {
         AutomationActionLogRepository log = mock(AutomationActionLogRepository.class);
         DomainEvent event = new DomainEvent(UUID.randomUUID(), "work-item.created", 1, Instant.now(),
                 UUID.randomUUID(), "work_item", UUID.randomUUID().toString(), Map.of());
-        AutomationRule rule = new AutomationRule(UUID.randomUUID(), "rule", "Rule", true,
+        AutomationRule rule = new AutomationRule(UUID.randomUUID(), "rule", "Rule", 1, true,
                 new AutomationRule.Trigger("work-item.created"), List.of(),
                 List.of(new AutomationRule.Action("log", Map.of())));
         when(rules.findEnabledByEventType(event.type())).thenReturn(List.of(rule));

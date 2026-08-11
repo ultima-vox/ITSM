@@ -1248,7 +1248,7 @@
   },
   "automation": {
     "title": "Automation rules",
-    "subtitle": "Declarative WHEN · IF · THEN rules for platform events (mock catalog).",
+    "subtitle": "Versioned declarative WHEN · IF · THEN rules for platform events.",
     "rules": "Rules",
     "ruleCount": "{n} rules",
     "enabledCount": "{n} enabled",
@@ -1258,7 +1258,7 @@
     "statusDisabled": "Disabled",
     "enable": "Enable rule",
     "disable": "Disable rule",
-    "toggleHint": "Session only — not persisted to the API",
+    "toggleHint": "Persisted for current organization with audit history",
     "flow": "Rule flow",
     "when": "WHEN event",
     "if": "IF conditions",
@@ -1269,7 +1269,18 @@
     "emptyTitle": "No automation rules",
     "emptyHint": "Seed rules appear when the mock catalog is loaded.",
     "selectTitle": "Select a rule",
-    "selectHint": "Choose a rule on the left to inspect event, conditions and actions."
+    "selectHint": "Choose a rule on the left to inspect event, conditions and actions.",
+    "newRule": "New rule",
+    "editRule": "Edit rule",
+    "designer": "Rule designer",
+    "key": "Rule key",
+    "name": "Rule name",
+    "eventType": "Event type",
+    "conditionsJson": "Conditions (JSON)",
+    "actionsJson": "Allowlisted actions (JSON)",
+    "designerHint": "Rules use optimistic versions. Actions are limited to notify, log, and index.",
+    "saved": "Automation rule saved",
+    "saveFailed": "Rule invalid or changed by another administrator"
   },
   "workflowAdmin": {
     "title": "Workflow definitions",

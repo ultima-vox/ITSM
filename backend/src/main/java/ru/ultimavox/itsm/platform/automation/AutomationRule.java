@@ -12,6 +12,7 @@ public record AutomationRule(
         UUID id,
         String ruleKey,
         String name,
+        int version,
         boolean enabled,
         Trigger trigger,
         List<Condition> conditions,
@@ -21,6 +22,7 @@ public record AutomationRule(
         if (ruleKey == null || ruleKey.isBlank()) {
             throw new IllegalArgumentException("ruleKey is required");
         }
+        if (version < 1) throw new IllegalArgumentException("version must be positive");
         conditions = conditions == null ? List.of() : List.copyOf(conditions);
         actions = actions == null ? List.of() : List.copyOf(actions);
     }

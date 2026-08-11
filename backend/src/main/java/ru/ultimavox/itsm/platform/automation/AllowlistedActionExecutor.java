@@ -24,6 +24,10 @@ class AllowlistedActionExecutor {
 
     private static final Set<String> ALLOWED = Set.of("notify", "log", "index");
 
+    static boolean supports(String type) {
+        return ALLOWED.contains(type);
+    }
+
     private final NotificationService notifications;
     private final SearchIndexService searchIndex;
 

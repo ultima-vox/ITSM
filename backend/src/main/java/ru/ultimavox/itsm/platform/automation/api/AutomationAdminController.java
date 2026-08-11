@@ -8,12 +8,15 @@ import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.automation.AutomationRule;
+import ru.ultimavox.itsm.platform.automation.AutomationRuleAdminService;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleRepository;
 
 @RestController
@@ -23,9 +26,11 @@ class AutomationAdminController {
 
   private final AutomationRuleRepository rules;
   private final AccessControl access;
+  private final AutomationRuleAdminService admin;
 
-  AutomationAdminController(AutomationRuleRepository rules, AccessControl access) {
+  AutomationAdminController(AutomationRuleRepository rules, AutomationRuleAdminService admin, AccessControl access) {
     this.rules = rules;
+    this.admin = admin;
     this.access = access;
   }
 
@@ -46,10 +51,24 @@ class AutomationAdminController {
   ) {
     String actor = authentication != null ? authentication.getName() : null;
     access.require(actor, "automation.write", "automation_rule", id.toString());
-    return rules.setEnabled(id, body.enabled())
-        .map(RuleResponse::from)
-        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-            org.springframework.http.HttpStatus.NOT_FOUND, "Automation rule not found"));
+    return RuleResponse.from(admin.setEnabled(actor, id, body.enabled()));
+  }
+
+  @PostMapping("/rules")
+  @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+  RuleResponse create(Authentication authentication, @RequestBody AutomationRuleAdminService.Command body) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "automation.write", "automation_rule", body.ruleKey());
+    return RuleResponse.from(admin.create(actor, body));
+  }
+
+  @PutMapping("/rules/{id}")
+  RuleResponse update(Authentication authentication, @PathVariable UUID id,
+                      @org.springframework.web.bind.annotation.RequestParam int expectedVersion,
+                      @RequestBody AutomationRuleAdminService.Command body) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "automation.write", "automation_rule", id.toString());
+    return RuleResponse.from(admin.update(actor, id, expectedVersion, body));
   }
 
   record SetEnabledRequest(boolean enabled) {}
@@ -58,6 +77,7 @@ class AutomationAdminController {
       UUID id,
       String key,
       String name,
+      int version,
       boolean enabled,
       String eventType,
       List<ConditionResponse> conditions,
@@ -68,6 +88,7 @@ class AutomationAdminController {
           r.id(),
           r.ruleKey(),
           r.name(),
+          r.version(),
           r.enabled(),
           r.trigger() == null ? null : r.trigger().eventType(),
           r.conditions().stream()

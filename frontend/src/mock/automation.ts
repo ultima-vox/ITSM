@@ -13,6 +13,7 @@ const SEED_RULES: AutomationRule[] = [
   {
     id: 'ar-001',
     ruleKey: 'notify-on-critical-incident',
+    version: 1,
     name: 'Notify on critical incident',
     enabled: true,
     description:
@@ -35,6 +36,7 @@ const SEED_RULES: AutomationRule[] = [
   {
     id: 'ar-002',
     ruleKey: 'index-on-work-item-resolved',
+    version: 1,
     name: 'Index on resolve',
     enabled: true,
     description:
@@ -56,6 +58,7 @@ const SEED_RULES: AutomationRule[] = [
   {
     id: 'ar-003',
     ruleKey: 'escalate-on-sla-breach',
+    version: 1,
     name: 'Escalate on SLA breach',
     enabled: false,
     description:

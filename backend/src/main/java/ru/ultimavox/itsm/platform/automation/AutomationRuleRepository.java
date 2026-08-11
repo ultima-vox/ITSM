@@ -11,4 +11,8 @@ public interface AutomationRuleRepository {
     List<AutomationRule> listAll();
 
     Optional<AutomationRule> setEnabled(UUID id, boolean enabled);
+
+    AutomationRule create(AutomationRule rule, String definitionJson);
+
+    Optional<AutomationRule> update(UUID id, int expectedVersion, AutomationRule rule, String definitionJson);
 }

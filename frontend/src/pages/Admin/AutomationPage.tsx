@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bolt, Filter, Play, Zap } from 'lucide-react';
+import { Bolt, Filter, Play, Zap, X } from 'lucide-react';
 import { useT } from '@/i18n';
 import {
   automationRulesWritable,
@@ -7,9 +7,11 @@ import {
   setAutomationRuleEnabled,
   subscribeAutomationRules,
   isMockMode,
+  saveAutomationRule,
 } from '@/api';
 import type { AutomationAction, AutomationRule } from '@/types';
-import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
+import { Badge, Button, EmptyState, ErrorState, Input, Modal, Toggle } from '@/components/ui';
+import { useToast } from '@/hooks/useToast';
 
 function formatActionParams(action: AutomationAction): string {
   const entries = Object.entries(action.parameters ?? {});
@@ -24,6 +26,15 @@ export function AutomationPage() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [designerOpen, setDesignerOpen] = useState(false);
+  const [draftKey, setDraftKey] = useState('');
+  const [draftName, setDraftName] = useState('');
+  const [draftEvent, setDraftEvent] = useState('work-item.created');
+  const [draftConditions, setDraftConditions] = useState('[]');
+  const [draftActions, setDraftActions] = useState('[{"type":"log","parameters":{}}]');
+  const [editing, setEditing] = useState<AutomationRule | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { success, error: toastError } = useToast();
 
   const reload = useCallback(async () => {
     try {
@@ -55,6 +66,32 @@ export function AutomationPage() {
     void setAutomationRuleEnabled(rule.id, next).then(() => reload());
   };
 
+  const openDesigner = (source?: AutomationRule) => {
+    setEditing(source ?? null);
+    setDraftKey(source?.ruleKey ?? 'custom.rule');
+    setDraftName(source?.name ?? 'New automation rule');
+    setDraftEvent(source?.trigger.eventType ?? 'work-item.created');
+    setDraftConditions(JSON.stringify(source?.conditions ?? [], null, 2));
+    setDraftActions(JSON.stringify(source?.actions ?? [{ type: 'log', parameters: {} }], null, 2));
+    setDesignerOpen(true);
+  };
+
+  const saveRule = async () => {
+    setSaving(true);
+    try {
+      const saved = await saveAutomationRule({ ruleKey: draftKey.trim(), name: draftName.trim(),
+        version: editing?.version ?? 1, enabled: editing?.enabled ?? false,
+        trigger: { eventType: draftEvent.trim() },
+        conditions: JSON.parse(draftConditions) as AutomationRule['conditions'],
+        actions: JSON.parse(draftActions) as AutomationRule['actions'] }, editing?.id);
+      setDesignerOpen(false);
+      setSelectedId(saved.id);
+      await reload();
+      success(t('automation.saved'));
+    } catch { toastError(t('automation.saveFailed')); }
+    finally { setSaving(false); }
+  };
+
   if (loadError) {
     return (
       <section className="page page--automation">
@@ -77,6 +114,7 @@ export function AutomationPage() {
           <p className="page-subtitle">{t('automation.subtitle')}</p>
         </div>
         <div className="page-head__meta">
+          {liveMode && <Button size="sm" onClick={() => openDesigner()}>{t('automation.newRule')}</Button>}
           <span className="chip">
             <Zap size={14} aria-hidden />
             {t('automation.ruleCount', { n: rules.length })}
@@ -155,6 +193,10 @@ export function AutomationPage() {
                   )}
                 </div>
                 <div className="automation-detail__actions">
+                  {liveMode && <Button variant="secondary" size="sm" onClick={() => openDesigner(selected)}>
+                    {t('app.edit')}
+                  </Button>}
+                  <Badge tone="neutral">v{selected.version}</Badge>
                   <Badge tone={selected.enabled ? 'mint' : 'neutral'} dot>
                     {selected.enabled
                       ? t('automation.statusEnabled')
@@ -170,7 +212,7 @@ export function AutomationPage() {
                         ? t('automation.disable')
                         : t('automation.enable')
                     }
-                    description={t('automation.toggleHint')}
+                    description={liveMode ? t('automation.toggleHint') : t('automation.mockHint')}
                   />
                 </div>
               </div>
@@ -245,6 +287,24 @@ export function AutomationPage() {
           )}
         </div>
       </div>
+      <Modal open={designerOpen} onClose={() => setDesignerOpen(false)} size="lg" labelledBy="automation-designer-title">
+        <div className="dialog-head"><div><p className="eyebrow">{t('automation.designer')}</p>
+          <h2 id="automation-designer-title">{editing ? t('automation.editRule') : t('automation.newRule')}</h2></div>
+          <button type="button" className="icon-btn" aria-label={t('app.close')} onClick={() => setDesignerOpen(false)}><X size={18} /></button>
+        </div>
+        <div className="form-grid">
+          <Input label={t('automation.key')} value={draftKey} disabled={Boolean(editing)} onChange={(event) => setDraftKey(event.target.value)} />
+          <Input label={t('automation.name')} value={draftName} onChange={(event) => setDraftName(event.target.value)} />
+          <Input label={t('automation.eventType')} value={draftEvent} onChange={(event) => setDraftEvent(event.target.value)} />
+        </div>
+        <label className="field"><span className="field__label">{t('automation.conditionsJson')}</span>
+          <textarea className="input mono" rows={8} value={draftConditions} onChange={(event) => setDraftConditions(event.target.value)} /></label>
+        <label className="field"><span className="field__label">{t('automation.actionsJson')}</span>
+          <textarea className="input mono" rows={8} value={draftActions} onChange={(event) => setDraftActions(event.target.value)} /></label>
+        <p className="panel-hint">{t('automation.designerHint')}</p>
+        <div className="dialog-actions"><Button variant="secondary" onClick={() => setDesignerOpen(false)}>{t('app.cancel')}</Button>
+          <Button disabled={saving} onClick={() => void saveRule()}>{t('app.save')}</Button></div>
+      </Modal>
     </section>
   );
 }
