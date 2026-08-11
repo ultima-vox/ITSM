@@ -22,6 +22,7 @@ import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogRequestQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogFulfillmentService;
+import ru.ultimavox.itsm.servicecatalog.application.CatalogBundleAdminService;
 import ru.ultimavox.itsm.servicecatalog.application.SubmitCatalogRequest;
 
 @RestController
@@ -33,14 +34,16 @@ class CatalogController {
   private final AccessControl access;
   private final CatalogRequestQuery requests;
   private final CatalogFulfillmentService fulfillment;
+  private final CatalogBundleAdminService bundleAdmin;
 
   CatalogController(CatalogQuery query, SubmitCatalogRequest submit, CatalogRequestQuery requests,
-                    CatalogFulfillmentService fulfillment, AccessControl access) {
+                    CatalogFulfillmentService fulfillment, CatalogBundleAdminService bundleAdmin, AccessControl access) {
     this.query = query;
     this.submit = submit;
     this.access = access;
     this.requests = requests;
     this.fulfillment = fulfillment;
+    this.bundleAdmin = bundleAdmin;
   }
 
   @GetMapping("/items")
@@ -162,4 +165,13 @@ class CatalogController {
       @jakarta.validation.constraints.NotNull CatalogFulfillmentService.TaskState state,
       @jakarta.validation.constraints.Size(max=128) String assigneeId
   ) {}
+
+  @org.springframework.web.bind.annotation.PutMapping("/items/{id}/bundle")
+  List<CatalogBundleAdminService.Component> replaceBundle(Authentication authentication, @PathVariable UUID id,
+      @Valid @RequestBody BundleRequest request) {
+    String actor=authentication.getName();
+    access.require(actor,"catalog.admin","catalog-item",id.toString());
+    return bundleAdmin.replace(id,request.components(),actor);
+  }
+  record BundleRequest(@jakarta.validation.constraints.NotNull List<CatalogBundleAdminService.Component> components) {}
 }
