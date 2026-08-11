@@ -39,7 +39,7 @@ When OIDC is disabled, mock mode and backend `dev` profile still work without a 
 6. **401 interceptor** — `apiRequest` / `apiFetch` (attachments multipart):
    - on HTTP **401**, call registered `setAuthRefreshHandler` (wired by `AuthProvider`);
    - **single-flight**: concurrent 401s share one refresh promise;
-   - on success, **one retry** with new Bearer from `localStorage`;
+   - on success, **one retry** with new Bearer from the in-memory session;
    - on failure, original 401 surfaces; session cleared by refresh failure path;
    - skipped when `VITE_USE_MOCK=true`, or `skipAuthRefresh: true`.
 7. **Logout** — clears session + token; RP-initiated logout at Keycloak end-session when possible.
