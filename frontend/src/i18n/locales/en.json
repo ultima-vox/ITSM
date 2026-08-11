@@ -1282,7 +1282,16 @@
     "migrate": "Migrate instance",
     "migrationDone": "Workflow instance migrated",
     "migrationLoadFailed": "Workflow instance could not be loaded",
-    "migrationFailed": "Workflow migration was rejected"
+    "migrationFailed": "Workflow migration was rejected",
+    "transitionKey": "Transition key",
+    "requestApproval": "Request approval",
+    "approvalRequested": "Workflow approval requested",
+    "approvalFailed": "Workflow approval action was rejected",
+    "approvalMode": "Approval",
+    "approvers": "Voters",
+    "colStatus": "Status",
+    "approve": "Approve",
+    "reject": "Reject"
   },
   "slaAdmin": {
     "title": "SLA policies",

@@ -9,8 +9,11 @@ import {
   workflowDefinitionsWritable,
   fetchWorkflowInstance,
   migrateWorkflowInstance,
+  fetchWorkflowApprovals,
+  requestWorkflowApproval,
+  voteWorkflowApproval,
 } from '@/api';
-import type { WorkflowInstanceView } from '@/api';
+import type { WorkflowApprovalView, WorkflowInstanceView } from '@/api';
 import type { WorkflowDefinition } from '@/types';
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Toggle } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -27,6 +30,8 @@ export function WorkflowPage() {
   const [migrationObjectId, setMigrationObjectId] = useState('');
   const [migrationInstance, setMigrationInstance] = useState<WorkflowInstanceView | null>(null);
   const [migrationTarget, setMigrationTarget] = useState('');
+  const [approvalTransition, setApprovalTransition] = useState('');
+  const [approvalItems, setApprovalItems] = useState<WorkflowApprovalView[]>([]);
 
   const reload = useCallback(async () => {
     try {
@@ -64,13 +69,33 @@ export function WorkflowPage() {
 
   const loadMigrationInstance = async () => {
     try {
-      const instance = await fetchWorkflowInstance(migrationObjectType, migrationObjectId.trim());
+      const [instance, approvalList] = await Promise.all([
+        fetchWorkflowInstance(migrationObjectType, migrationObjectId.trim()),
+        fetchWorkflowApprovals(migrationObjectType, migrationObjectId.trim()),
+      ]);
       setMigrationInstance(instance);
+      setApprovalItems(approvalList);
       setMigrationTarget(String(instance.definitionVersion));
     } catch {
       setMigrationInstance(null);
       error(t('workflowAdmin.migrationLoadFailed'));
     }
+  };
+
+  const requestApproval = async () => {
+    if (!migrationInstance || !approvalTransition.trim()) return;
+    try {
+      await requestWorkflowApproval(migrationInstance.objectType, migrationInstance.objectId, approvalTransition.trim());
+      setApprovalItems(await fetchWorkflowApprovals(migrationInstance.objectType, migrationInstance.objectId));
+      success(t('workflowAdmin.approvalRequested'));
+    } catch { error(t('workflowAdmin.approvalFailed')); }
+  };
+
+  const voteApproval = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
+    try {
+      const changed = await voteWorkflowApproval(id, decision);
+      setApprovalItems((items) => items.map((item) => item.id === id ? changed : item));
+    } catch { error(t('workflowAdmin.approvalFailed')); }
   };
 
   const migrateInstance = async () => {
@@ -143,8 +168,23 @@ export function WorkflowPage() {
                 value={migrationTarget} onChange={(e) => setMigrationTarget(e.target.value)} />
               <Button disabled={!migrationTarget || Number(migrationTarget) === migrationInstance.definitionVersion}
                 onClick={() => void migrateInstance()}>{t('workflowAdmin.migrate')}</Button>
+              <Input label={t('workflowAdmin.transitionKey')} value={approvalTransition}
+                onChange={(e) => setApprovalTransition(e.target.value)} />
+              <Button disabled={!approvalTransition.trim()} onClick={() => void requestApproval()}>
+                {t('workflowAdmin.requestApproval')}
+              </Button>
             </>}
           </div>
+          {approvalItems.length > 0 && <div className="data-table-wrap mt-3"><table className="data-table data-table--dense">
+            <thead><tr><th>{t('workflowAdmin.transitionKey')}</th><th>{t('workflowAdmin.approvalMode')}</th>
+              <th>{t('workflowAdmin.colStatus')}</th><th>{t('workflowAdmin.approvers')}</th><th /></tr></thead>
+            <tbody>{approvalItems.map((approval) => <tr key={approval.id}>
+              <td><code>{approval.transitionKey}</code></td><td>{approval.mode}{approval.quorum ? ` · ${approval.quorum}` : ''}</td>
+              <td><Badge tone={approval.status === 'APPROVED' ? 'mint' : approval.status === 'REJECTED' ? 'rose' : 'neutral'}>{approval.status}</Badge></td>
+              <td>{approval.votes.map((vote) => `${vote.voterId}: ${vote.decision ?? 'PENDING'}`).join(', ')}</td>
+              <td>{approval.status === 'PENDING' && <><Button size="sm" onClick={() => void voteApproval(approval.id, 'APPROVED')}>{t('workflowAdmin.approve')}</Button>{' '}<Button size="sm" variant="danger" onClick={() => void voteApproval(approval.id, 'REJECTED')}>{t('workflowAdmin.reject')}</Button></>}</td>
+            </tr>)}</tbody>
+          </table></div>}
         </div>
       )}
 
@@ -316,6 +356,7 @@ export function WorkflowPage() {
                         <th scope="col">{t('workflowAdmin.colTo')}</th>
                         <th scope="col">{t('workflowAdmin.colRequiredFields')}</th>
                         <th scope="col">{t('workflowAdmin.colPermissions')}</th>
+                        <th scope="col">{t('workflowAdmin.approvalMode')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -348,6 +389,7 @@ export function WorkflowPage() {
                                 ))
                               : '—'}
                           </td>
+                          <td>{tr.approval ? `${tr.approval.mode} · ${tr.approval.voterRoles.join(', ')}${tr.approval.quorum ? ` · ${tr.approval.quorum}` : ''}` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>

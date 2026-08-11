@@ -125,6 +125,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow/instances/{objectType}/{objectId}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List parallel approval requests for a workflow instance */
+        get: operations["list_1"];
+        put?: never;
+        /** Request approval for a guarded transition */
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflow/approvals/{id}/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cast an assigned immutable workflow approval vote */
+        post: operations["vote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items": {
         parameters: {
             query?: never;
@@ -133,7 +168,7 @@ export interface paths {
             cookie?: never;
         };
         /** List work items with operator filters */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         /** Create incident or service request */
         post: operations["create"];
@@ -378,7 +413,7 @@ export interface paths {
             cookie?: never;
         };
         /** List available work item templates */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /** Create a reusable work item template */
         post: operations["create_1"];
@@ -414,7 +449,7 @@ export interface paths {
             cookie?: never;
         };
         /** List problems */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Create a problem */
         post: operations["create_2"];
@@ -500,7 +535,7 @@ export interface paths {
             cookie?: never;
         };
         /** List articles; publishedOnly=false for CMS (requires knowledge.write) */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         /** Create a draft knowledge article */
         post: operations["create_3"];
@@ -520,7 +555,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Record a helpfulness vote for an article revision */
-        post: operations["vote"];
+        post: operations["vote_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -588,7 +623,7 @@ export interface paths {
             cookie?: never;
         };
         /** List or search configuration items */
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         /** Create a configuration item */
         post: operations["create_4"];
@@ -606,7 +641,7 @@ export interface paths {
             cookie?: never;
         };
         /** List changes */
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         /** Create a change request (DRAFT) */
         post: operations["create_5"];
@@ -725,7 +760,7 @@ export interface paths {
             cookie?: never;
         };
         /** List assets */
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         /** Create an asset */
         post: operations["create_6"];
@@ -1153,7 +1188,7 @@ export interface paths {
             cookie?: never;
         };
         /** List in-app notifications for the authenticated actor */
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1170,7 +1205,7 @@ export interface paths {
             cookie?: never;
         };
         /** List active object definitions */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1440,7 +1475,7 @@ export interface paths {
             cookie?: never;
         };
         /** List or search published catalog items by category */
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1491,7 +1526,7 @@ export interface paths {
             cookie?: never;
         };
         /** List recent platform audit events (newest first) */
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1771,6 +1806,48 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
         };
+        RequestApproval: {
+            transitionKey?: string;
+        };
+        ApprovalView: {
+            /** Format: uuid */
+            id?: string;
+            transitionKey?: string;
+            /** Format: int32 */
+            definitionVersion?: number;
+            /** Format: int32 */
+            sourceInstanceVersion?: number;
+            /** Format: int32 */
+            attempt?: number;
+            /** @enum {string} */
+            mode?: "ANY" | "ALL" | "QUORUM";
+            /** Format: int32 */
+            quorum?: number;
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED" | "CONSUMED";
+            requestedBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            /** Format: date-time */
+            consumedAt?: string;
+            votes?: components["schemas"]["VoteView"][];
+        };
+        VoteView: {
+            voterId?: string;
+            voterRole?: string;
+            /** @enum {string} */
+            decision?: "APPROVED" | "REJECTED";
+            comment?: string;
+            /** Format: date-time */
+            decidedAt?: string;
+        };
+        VoteRequest: {
+            /** @enum {string} */
+            decision?: "APPROVED" | "REJECTED";
+            comment?: string;
+        };
         Created: {
             /** Format: uuid */
             id?: string;
@@ -1987,10 +2064,6 @@ export interface components {
             slug?: string;
             locale?: string;
         };
-        VoteRequest: {
-            helpful: boolean;
-            comment?: string;
-        };
         Voted: {
             /** Format: uuid */
             feedbackId?: string;
@@ -2100,18 +2173,6 @@ export interface components {
             decision: "APPROVED" | "REJECTED";
             comment?: string;
         };
-        ApprovalView: {
-            /** Format: uuid */
-            id?: string;
-            approverRole?: string;
-            state?: string;
-            decidedBy?: string;
-            /** Format: date-time */
-            decidedAt?: string;
-            comment?: string;
-            /** Format: date-time */
-            createdAt?: string;
-        };
         SubmitRequest: {
             formPayload?: {
                 [key: string]: unknown;
@@ -2185,6 +2246,12 @@ export interface components {
         SetActiveRequest: {
             active?: boolean;
         };
+        ApprovalResponse: {
+            mode?: string;
+            voterRoles?: string[];
+            /** Format: int32 */
+            quorum?: number;
+        };
         DefinitionResponse: {
             /** Format: uuid */
             id?: string;
@@ -2202,6 +2269,7 @@ export interface components {
             to?: string;
             requiredPermissions?: string[];
             requiredFields?: string[];
+            approval?: components["schemas"]["ApprovalResponse"];
         };
         UpdateRequest: {
             title?: string;
@@ -2850,6 +2918,82 @@ export interface operations {
     };
     list_1: {
         parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectType: string;
+                objectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApprovalView"][];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectType: string;
+                objectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestApproval"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApprovalView"];
+                };
+            };
+        };
+    };
+    vote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApprovalView"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
             query?: {
                 state?: "NEW" | "IN_PROGRESS" | "PENDING" | "RESOLVED" | "CLOSED" | "CANCELLED";
                 type?: "INCIDENT" | "SERVICE_REQUEST";
@@ -3358,7 +3502,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: {
                 includeInactive?: boolean;
@@ -3448,7 +3592,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: {
                 status?: string;
@@ -3586,7 +3730,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 q?: string;
@@ -3634,7 +3778,7 @@ export interface operations {
             };
         };
     };
-    vote: {
+    vote_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3774,7 +3918,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: {
                 classKey?: string;
@@ -3822,7 +3966,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: {
                 status?: string;
@@ -4053,7 +4197,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: {
                 status?: string;
@@ -4705,7 +4849,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: {
                 limit?: number;
@@ -4729,7 +4873,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -5087,7 +5231,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: {
                 category?: string;
@@ -5155,7 +5299,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: {
                 action?: string;

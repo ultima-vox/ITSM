@@ -15,6 +15,7 @@ interface BackendTransition {
   to: string;
   requiredPermissions?: string[];
   requiredFields?: string[];
+  approval?: { mode: 'ANY' | 'ALL' | 'QUORUM'; voterRoles: string[]; quorum?: number };
 }
 
 interface BackendDefinition {
@@ -37,6 +38,28 @@ export interface WorkflowInstanceView {
   updatedAt: string;
 }
 
+export interface WorkflowApprovalView {
+  id: string;
+  transitionKey: string;
+  definitionVersion: number;
+  sourceInstanceVersion: number;
+  attempt: number;
+  mode: 'ANY' | 'ALL' | 'QUORUM';
+  quorum?: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONSUMED';
+  requestedBy: string;
+  createdAt: string;
+  completedAt?: string;
+  consumedAt?: string;
+  votes: Array<{
+    voterId: string;
+    voterRole: string;
+    decision?: 'APPROVED' | 'REJECTED';
+    comment?: string;
+    decidedAt?: string;
+  }>;
+}
+
 function mapDef(dto: BackendDefinition): WorkflowDefinition {
   return {
     id: dto.id,
@@ -51,6 +74,7 @@ function mapDef(dto: BackendDefinition): WorkflowDefinition {
       to: t.to,
       requiredPermissions: t.requiredPermissions ?? [],
       requiredFields: t.requiredFields ?? [],
+      approval: t.approval,
     })),
     name: dto.objectKey,
   };
@@ -97,6 +121,28 @@ export async function migrateWorkflowInstance(
     `/workflow/instances/${encodeURIComponent(instance.objectType)}/${encodeURIComponent(instance.objectId)}/migrations`,
     { method: 'POST', body: { targetDefinitionVersion, expectedVersion: instance.version } },
   );
+}
+
+export async function fetchWorkflowApprovals(
+  objectType: string, objectId: string,
+): Promise<WorkflowApprovalView[]> {
+  return apiRequest<WorkflowApprovalView[]>(
+    `/workflow/instances/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}/approvals`);
+}
+
+export async function requestWorkflowApproval(
+  objectType: string, objectId: string, transitionKey: string,
+): Promise<WorkflowApprovalView> {
+  return apiRequest<WorkflowApprovalView>(
+    `/workflow/instances/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}/approvals`,
+    { method: 'POST', body: { transitionKey } });
+}
+
+export async function voteWorkflowApproval(
+  id: string, decision: 'APPROVED' | 'REJECTED', comment?: string,
+): Promise<WorkflowApprovalView> {
+  return apiRequest<WorkflowApprovalView>(`/workflow/approvals/${encodeURIComponent(id)}/votes`,
+    { method: 'POST', body: { decision, comment } });
 }
 
 export function workflowDefinitionsWritable(): boolean {

@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
+import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalMode;
+import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalRequirement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -162,7 +164,8 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                             node.path("from").asText(),
                             node.path("to").asText(),
                             readStringSet(node.get("requiredPermissions")),
-                            readStringSet(node.get("requiredFields"))
+                            readStringSet(node.get("requiredFields")),
+                            readApproval(node.get("approval"))
                     ));
                 }
             }
@@ -187,5 +190,12 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
             node.forEach(n -> result.add(n.asText()));
         }
         return result;
+    }
+
+    private ApprovalRequirement readApproval(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        ApprovalMode mode = ApprovalMode.valueOf(node.path("mode").asText());
+        Integer quorum = node.hasNonNull("quorum") ? node.get("quorum").asInt() : null;
+        return new ApprovalRequirement(mode, readStringSet(node.get("voterRoles")), quorum);
     }
 }

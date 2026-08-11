@@ -1282,7 +1282,16 @@
     "migrate": "Instanz migrieren",
     "migrationDone": "Workflow-Instanz migriert",
     "migrationLoadFailed": "Workflow-Instanz konnte nicht geladen werden",
-    "migrationFailed": "Workflow-Migration wurde abgelehnt"
+    "migrationFailed": "Workflow-Migration wurde abgelehnt",
+    "transitionKey": "Übergangsschlüssel",
+    "requestApproval": "Genehmigung anfordern",
+    "approvalRequested": "Workflow-Genehmigung angefordert",
+    "approvalFailed": "Workflow-Genehmigungsaktion wurde abgelehnt",
+    "approvalMode": "Genehmigung",
+    "approvers": "Abstimmende",
+    "colStatus": "Status",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen"
   },
   "slaAdmin": {
     "title": "SLA-Richtlinien",

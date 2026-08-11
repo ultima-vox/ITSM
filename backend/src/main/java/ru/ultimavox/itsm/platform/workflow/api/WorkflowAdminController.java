@@ -116,7 +116,9 @@ class WorkflowAdminController {
                   t.from(),
                   t.to(),
                   List.copyOf(t.requiredPermissions()),
-                  List.copyOf(t.requiredFields())
+                  List.copyOf(t.requiredFields()),
+                  t.approval() == null ? null : new ApprovalResponse(
+                      t.approval().mode().name(), List.copyOf(t.approval().voterRoles()), t.approval().quorum())
               ))
               .toList()
       );
@@ -128,6 +130,9 @@ class WorkflowAdminController {
       String from,
       String to,
       List<String> requiredPermissions,
-      List<String> requiredFields
+      List<String> requiredFields,
+      ApprovalResponse approval
   ) {}
+
+  record ApprovalResponse(String mode, List<String> voterRoles, Integer quorum) {}
 }

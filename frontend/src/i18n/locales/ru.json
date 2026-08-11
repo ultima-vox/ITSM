@@ -1282,7 +1282,16 @@
     "migrate": "Мигрировать процесс",
     "migrationDone": "Процесс workflow мигрирован",
     "migrationLoadFailed": "Не удалось загрузить процесс workflow",
-    "migrationFailed": "Миграция workflow отклонена"
+    "migrationFailed": "Миграция workflow отклонена",
+    "transitionKey": "Ключ перехода",
+    "requestApproval": "Запросить согласование",
+    "approvalRequested": "Согласование workflow запрошено",
+    "approvalFailed": "Действие согласования workflow отклонено",
+    "approvalMode": "Согласование",
+    "approvers": "Участники",
+    "colStatus": "Статус",
+    "approve": "Согласовать",
+    "reject": "Отклонить"
   },
   "slaAdmin": {
     "title": "Политики SLA",

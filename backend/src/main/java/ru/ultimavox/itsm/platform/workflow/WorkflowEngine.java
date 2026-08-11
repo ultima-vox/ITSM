@@ -1,6 +1,7 @@
 package ru.ultimavox.itsm.platform.workflow;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.authorization.PermissionChecker;
@@ -27,19 +28,28 @@ public class WorkflowEngine {
     private final PermissionChecker permissions;
     private final AuditTrail audit;
     private final IntegrationEventOutbox outbox;
+    private final WorkflowApprovalService approvals;
 
+    @Autowired
     public WorkflowEngine(
             WorkflowDefinitionRepository definitions,
             WorkflowInstanceRepository instances,
             PermissionChecker permissions,
             AuditTrail audit,
-            IntegrationEventOutbox outbox
+            IntegrationEventOutbox outbox,
+            WorkflowApprovalService approvals
     ) {
         this.definitions = definitions;
         this.instances = instances;
         this.permissions = permissions;
         this.audit = audit;
         this.outbox = outbox;
+        this.approvals = approvals;
+    }
+
+    public WorkflowEngine(WorkflowDefinitionRepository definitions, WorkflowInstanceRepository instances,
+                          PermissionChecker permissions, AuditTrail audit, IntegrationEventOutbox outbox) {
+        this(definitions, instances, permissions, audit, outbox, null);
     }
 
     @Transactional(readOnly = true)
@@ -107,8 +117,11 @@ public class WorkflowEngine {
                 command.fields()
         );
 
+        UUID approvalId = transition.approval() == null ? null : approvalService().requireApproved(current, transition);
+
         String fromState = current.state();
         WorkflowInstance updated = instances.updateState(current, transition.to(), current.version());
+        if (approvalId != null) approvalService().consume(approvalId);
 
         Instant now = Instant.now();
         UUID correlationId = command.correlationId() != null ? command.correlationId() : UUID.randomUUID();
@@ -269,6 +282,11 @@ public class WorkflowEngine {
         public TransitionCommand(String subject, String objectType, String objectId, String transitionKey, Map<String, Object> fields) {
             this(subject, objectType, objectId, transitionKey, fields, null);
         }
+    }
+
+    private WorkflowApprovalService approvalService() {
+        if (approvals == null) throw new WorkflowTransitionException("Workflow approval service unavailable");
+        return approvals;
     }
 
     public record MigrationCommand(String subject, String objectType, String objectId,

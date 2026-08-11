@@ -44,8 +44,14 @@ public record WorkflowDefinition(
             String from,
             String to,
             Set<String> requiredPermissions,
-            Set<String> requiredFields
+            Set<String> requiredFields,
+            ApprovalRequirement approval
     ) {
+        public Transition(String key, String from, String to,
+                          Set<String> requiredPermissions, Set<String> requiredFields) {
+            this(key, from, to, requiredPermissions, requiredFields, null);
+        }
+
         public Transition {
             if (key == null || key.isBlank()) {
                 throw new IllegalArgumentException("Transition key is required");
@@ -54,4 +60,18 @@ public record WorkflowDefinition(
             requiredFields = requiredFields == null ? Set.of() : Set.copyOf(requiredFields);
         }
     }
+
+    public record ApprovalRequirement(ApprovalMode mode, Set<String> voterRoles, Integer quorum) {
+        public ApprovalRequirement {
+            if (mode == null) throw new IllegalArgumentException("Approval mode is required");
+            voterRoles = voterRoles == null ? Set.of() : Set.copyOf(voterRoles);
+            if (voterRoles.isEmpty()) throw new IllegalArgumentException("Approval voterRoles are required");
+            if (mode == ApprovalMode.QUORUM && (quorum == null || quorum < 1)) {
+                throw new IllegalArgumentException("Positive quorum is required for QUORUM approval");
+            }
+            if (mode != ApprovalMode.QUORUM) quorum = null;
+        }
+    }
+
+    public enum ApprovalMode { ANY, ALL, QUORUM }
 }
