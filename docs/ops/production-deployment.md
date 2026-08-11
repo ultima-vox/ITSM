@@ -34,6 +34,9 @@ S3_ENDPOINT=https://s3.example
 S3_BUCKET=itsm-attachments
 S3_ACCESS_KEY=<secret reference>
 S3_SECRET_KEY=<secret reference>
+OTEL_EXPORTER_OTLP_ENABLED=true
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+OTEL_TRACES_SAMPLER_ARG=0.1
 ```
 
 Use TLS for every network hop. Provide CA certificates through platform trust stores.

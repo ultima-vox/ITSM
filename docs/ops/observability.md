@@ -5,6 +5,16 @@ Scrape backend `/actuator/prometheus` over internal authenticated networking. Im
 `deploy/observability/prometheus-rules.yml` into Prometheus-compatible ruler. Route
 `critical` alerts to paging and `warning` alerts to service owners.
 
+Backend uses Micrometer Tracing over OpenTelemetry. Production enables W3C propagation and
+exports OTLP/HTTP spans to `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`; local environments keep
+export disabled while still generating trace/span correlation in-process. Set
+`OTEL_TRACES_SAMPLER_ARG` between `0.0` and `1.0` based on traffic and retention budget.
+Production console logs use ECS JSON and include trace/span IDs plus `X-Correlation-ID`.
+
+Collector must receive OTLP on HTTP port 4318 and export to organization trace storage.
+Alert when collector export failures or dropped spans increase; never put ticket bodies,
+attachment names, tokens, or user-entered values into span tags.
+
 ## Backend unavailable
 
 Check deployment readiness, recent rollout, pod events, PostgreSQL reachability, and ingress.

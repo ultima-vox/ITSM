@@ -4,6 +4,12 @@ springdoc:
   swagger-ui:
     enabled: false
 
+logging:
+  structured:
+    format:
+      console: ecs
+  include-application-name: false
+
 management:
   endpoint:
     health:

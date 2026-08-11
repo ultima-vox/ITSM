@@ -25,6 +25,20 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 management:
+  tracing:
+    enabled: ${OTEL_TRACING_ENABLED:true}
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:0.1}
+    propagation:
+      produce: W3C
+      consume: W3C,B3,B3_MULTI
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+      export:
+        enabled: ${OTEL_EXPORTER_OTLP_ENABLED:false}
+      connect-timeout: ${OTEL_EXPORTER_OTLP_CONNECT_TIMEOUT:3s}
+      timeout: ${OTEL_EXPORTER_OTLP_TIMEOUT:10s}
   endpoints:
     web:
       exposure:

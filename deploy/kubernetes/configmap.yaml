@@ -17,3 +17,7 @@ data:
   S3_REGION: eu-central-1
   S3_PATH_STYLE: "false"
   ITSM_CORS_ORIGINS: https://itsm.example.com
+  OTEL_TRACING_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
