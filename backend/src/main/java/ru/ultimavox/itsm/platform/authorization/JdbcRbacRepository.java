@@ -32,14 +32,15 @@ class JdbcRbacRepository implements RbacRepository {
             FROM principal_role pr
             JOIN role_permission rp ON rp.role_id = pr.role_id
             JOIN permission p ON p.id = rp.permission_id
-            WHERE pr.subject_id = ?
+            WHERE pr.org_id = ? AND pr.subject_id = ?
             UNION
             SELECT g.permission
             FROM rbac_grant g
-            WHERE g.subject_type = 'USER' AND g.subject_id = ?
+            WHERE g.org_id = ? AND g.subject_type = 'USER' AND g.subject_id = ?
             """,
         (rs, i) -> rs.getString(1),
-        subjectId, subjectId
+        OrganizationContext.current(), subjectId,
+        OrganizationContext.current(), subjectId
     );
     return new HashSet<>(rows);
   }
@@ -51,10 +52,10 @@ class JdbcRbacRepository implements RbacRepository {
             SELECT r.role_key
             FROM principal_role pr
             JOIN role r ON r.id = pr.role_id
-            WHERE pr.subject_id = ?
+            WHERE pr.org_id = ? AND pr.subject_id = ?
             """,
         (rs, i) -> rs.getString(1),
-        subjectId
+        OrganizationContext.current(), subjectId
     );
     return new HashSet<>(rows);
   }
@@ -68,24 +69,24 @@ class JdbcRbacRepository implements RbacRepository {
               FROM principal_role pr
               JOIN role_permission rp ON rp.role_id = pr.role_id
               JOIN permission p ON p.id = rp.permission_id
-              WHERE pr.subject_id = ? AND p.permission_key = ?
+              WHERE pr.org_id = ? AND pr.subject_id = ? AND p.permission_key = ?
               UNION ALL
               SELECT 1
               FROM rbac_grant g
-              WHERE g.subject_type = 'USER' AND g.subject_id = ? AND g.permission = ?
+              WHERE g.org_id = ? AND g.subject_type = 'USER' AND g.subject_id = ? AND g.permission = ?
               UNION ALL
               SELECT 1
               FROM principal_role pr
               JOIN role r ON r.id = pr.role_id
               JOIN role_permission rp ON rp.role_id = r.id
               JOIN permission p ON p.id = rp.permission_id
-              WHERE pr.subject_id = ? AND p.permission_key = 'admin.full'
+              WHERE pr.org_id = ? AND pr.subject_id = ? AND p.permission_key = 'admin.full'
             ) grants
             """,
         Integer.class,
-        subjectId, permissionKey,
-        subjectId, permissionKey,
-        subjectId
+        OrganizationContext.current(), subjectId, permissionKey,
+        OrganizationContext.current(), subjectId, permissionKey,
+        OrganizationContext.current(), subjectId
     );
     return count != null && count > 0;
   }
@@ -155,13 +156,14 @@ class JdbcRbacRepository implements RbacRepository {
             SELECT pr.subject_id, r.role_key
             FROM principal_role pr
             JOIN role r ON r.id = pr.role_id
+            WHERE pr.org_id = ?
             ORDER BY pr.subject_id, r.role_key
             """,
         (rs) -> {
           String subject = rs.getString("subject_id");
           bySubject.computeIfAbsent(subject, k -> new ArrayList<>())
               .add(rs.getString("role_key"));
-        }
+        }, OrganizationContext.current()
     );
     List<PrincipalAssignment> out = new ArrayList<>();
     for (Map.Entry<String, List<String>> e : bySubject.entrySet()) {
