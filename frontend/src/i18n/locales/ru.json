@@ -1295,7 +1295,8 @@
     "timer": "Таймер",
     "timerDue": "Срок",
     "timerAttempts": "Попытки",
-    "timerError": "Последняя ошибка"
+    "timerError": "Последняя ошибка",
+    "conditions": "Условия"
   },
   "slaAdmin": {
     "title": "Политики SLA",

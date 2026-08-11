@@ -448,8 +448,13 @@ export interface WorkflowTransition {
   key: string;
   from: string;
   to: string;
-  requiredPermissions: string[];
-  requiredFields: string[];
+    requiredPermissions: string[];
+    requiredFields: string[];
+    conditions?: Array<{
+      field: string;
+      operator: 'EQUALS' | 'NOT_EQUALS' | 'IN' | 'CONTAINS' | 'EXISTS' | 'GT' | 'GTE' | 'LT' | 'LTE';
+      value: unknown;
+    }>;
     approval?: {
     mode: 'ANY' | 'ALL' | 'QUORUM';
     voterRoles: string[];

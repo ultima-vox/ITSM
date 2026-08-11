@@ -10,6 +10,8 @@ import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalMode;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalRequirement;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.TimerRequirement;
+import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Condition;
+import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ConditionOperator;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -166,6 +168,7 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                             node.path("to").asText(),
                             readStringSet(node.get("requiredPermissions")),
                             readStringSet(node.get("requiredFields")),
+                            readConditions(node.get("conditions")),
                             readApproval(node.get("approval")),
                             readTimer(node.get("timer"))
                     ));
@@ -204,5 +207,15 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
     private TimerRequirement readTimer(JsonNode node) {
         if (node == null || node.isNull()) return null;
         return new TimerRequirement(node.path("delaySeconds").asLong(), node.path("maxAttempts").asInt(5));
+    }
+
+    private List<Condition> readConditions(JsonNode node) {
+        if (node == null || !node.isArray()) return List.of();
+        List<Condition> result = new ArrayList<>();
+        node.forEach(item -> result.add(new Condition(
+                item.path("field").asText(),
+                ConditionOperator.valueOf(item.path("operator").asText()),
+                json.convertValue(item.get("value"), Object.class))));
+        return List.copyOf(result);
     }
 }

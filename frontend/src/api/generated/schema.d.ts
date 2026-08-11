@@ -2269,6 +2269,11 @@ export interface components {
             /** Format: int32 */
             quorum?: number;
         };
+        ConditionResponse: {
+            field?: string;
+            operator?: string;
+            value?: unknown;
+        };
         DefinitionResponse: {
             /** Format: uuid */
             id?: string;
@@ -2292,6 +2297,7 @@ export interface components {
             to?: string;
             requiredPermissions?: string[];
             requiredFields?: string[];
+            conditions?: components["schemas"]["ConditionResponse"][];
             approval?: components["schemas"]["ApprovalResponse"];
             timer?: components["schemas"]["TimerResponse"];
         };
@@ -2340,11 +2346,6 @@ export interface components {
             parameters?: {
                 [key: string]: unknown;
             };
-        };
-        ConditionResponse: {
-            field?: string;
-            operator?: string;
-            value?: string;
         };
         RuleResponse: {
             /** Format: uuid */

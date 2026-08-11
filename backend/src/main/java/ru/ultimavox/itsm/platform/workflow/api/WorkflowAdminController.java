@@ -117,6 +117,8 @@ class WorkflowAdminController {
                   t.to(),
                   List.copyOf(t.requiredPermissions()),
                   List.copyOf(t.requiredFields()),
+                  t.conditions().stream().map(c -> new ConditionResponse(
+                      c.field(), c.operator().name(), c.value())).toList(),
                   t.approval() == null ? null : new ApprovalResponse(
                       t.approval().mode().name(), List.copyOf(t.approval().voterRoles()), t.approval().quorum()),
                   t.timer() == null ? null : new TimerResponse(
@@ -133,10 +135,12 @@ class WorkflowAdminController {
       String to,
       List<String> requiredPermissions,
       List<String> requiredFields,
+      List<ConditionResponse> conditions,
       ApprovalResponse approval,
       TimerResponse timer
   ) {}
 
   record ApprovalResponse(String mode, List<String> voterRoles, Integer quorum) {}
+  record ConditionResponse(String field, String operator, Object value) {}
   record TimerResponse(long delaySeconds, int maxAttempts) {}
 }

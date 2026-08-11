@@ -369,6 +369,7 @@ export function WorkflowPage() {
                         <th scope="col">{t('workflowAdmin.colTo')}</th>
                         <th scope="col">{t('workflowAdmin.colRequiredFields')}</th>
                         <th scope="col">{t('workflowAdmin.colPermissions')}</th>
+                        <th scope="col">{t('workflowAdmin.conditions')}</th>
                         <th scope="col">{t('workflowAdmin.approvalMode')}</th>
                         <th scope="col">{t('workflowAdmin.timer')}</th>
                       </tr>
@@ -403,6 +404,9 @@ export function WorkflowPage() {
                                 ))
                               : '—'}
                           </td>
+                          <td>{tr.conditions?.length
+                            ? tr.conditions.map((condition) => `${condition.field} ${condition.operator} ${JSON.stringify(condition.value)}`).join(', ')
+                            : '—'}</td>
                           <td>{tr.approval ? `${tr.approval.mode} · ${tr.approval.voterRoles.join(', ')}${tr.approval.quorum ? ` · ${tr.approval.quorum}` : ''}` : '—'}</td>
                           <td>{tr.timer ? `${tr.timer.delaySeconds}s · ${tr.timer.maxAttempts}×` : '—'}</td>
                         </tr>

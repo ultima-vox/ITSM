@@ -30,6 +30,7 @@ public class WorkflowEngine {
     private final IntegrationEventOutbox outbox;
     private final WorkflowApprovalService approvals;
     private final WorkflowTimerService timers;
+    private final WorkflowConditionEvaluator conditionEvaluator = new WorkflowConditionEvaluator();
 
     @Autowired
     public WorkflowEngine(
@@ -279,6 +280,8 @@ public class WorkflowEngine {
                         "Required field '%s' is missing for transition '%s'".formatted(requiredField, transitionKey));
             }
         }
+
+        conditionEvaluator.requireMatches(transition.conditions(), payload, transitionKey);
 
         return transition;
     }

@@ -1295,7 +1295,8 @@
     "timer": "Timer",
     "timerDue": "Due",
     "timerAttempts": "Attempts",
-    "timerError": "Last error"
+    "timerError": "Last error",
+    "conditions": "Conditions"
   },
   "slaAdmin": {
     "title": "SLA policies",

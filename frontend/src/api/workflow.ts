@@ -15,6 +15,7 @@ interface BackendTransition {
   to: string;
   requiredPermissions?: string[];
   requiredFields?: string[];
+  conditions?: Array<{ field: string; operator: 'EQUALS' | 'NOT_EQUALS' | 'IN' | 'CONTAINS' | 'EXISTS' | 'GT' | 'GTE' | 'LT' | 'LTE'; value: unknown }>;
   approval?: { mode: 'ANY' | 'ALL' | 'QUORUM'; voterRoles: string[]; quorum?: number };
   timer?: { delaySeconds: number; maxAttempts: number };
 }
@@ -87,6 +88,7 @@ function mapDef(dto: BackendDefinition): WorkflowDefinition {
       to: t.to,
       requiredPermissions: t.requiredPermissions ?? [],
       requiredFields: t.requiredFields ?? [],
+      conditions: t.conditions ?? [],
       approval: t.approval,
       timer: t.timer,
     })),

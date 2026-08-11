@@ -45,18 +45,25 @@ public record WorkflowDefinition(
             String to,
             Set<String> requiredPermissions,
             Set<String> requiredFields,
+            List<Condition> conditions,
             ApprovalRequirement approval,
             TimerRequirement timer
     ) {
         public Transition(String key, String from, String to,
                           Set<String> requiredPermissions, Set<String> requiredFields) {
-            this(key, from, to, requiredPermissions, requiredFields, null, null);
+            this(key, from, to, requiredPermissions, requiredFields, List.of(), null, null);
         }
 
         public Transition(String key, String from, String to,
                           Set<String> requiredPermissions, Set<String> requiredFields,
                           ApprovalRequirement approval) {
-            this(key, from, to, requiredPermissions, requiredFields, approval, null);
+            this(key, from, to, requiredPermissions, requiredFields, List.of(), approval, null);
+        }
+
+        public Transition(String key, String from, String to,
+                          Set<String> requiredPermissions, Set<String> requiredFields,
+                          ApprovalRequirement approval, TimerRequirement timer) {
+            this(key, from, to, requiredPermissions, requiredFields, List.of(), approval, timer);
         }
 
         public Transition {
@@ -65,9 +72,11 @@ public record WorkflowDefinition(
             }
             requiredPermissions = requiredPermissions == null ? Set.of() : Set.copyOf(requiredPermissions);
             requiredFields = requiredFields == null ? Set.of() : Set.copyOf(requiredFields);
-            if (timer != null && (approval != null || !requiredPermissions.isEmpty() || !requiredFields.isEmpty())) {
+            conditions = conditions == null ? List.of() : List.copyOf(conditions);
+            if (timer != null && (approval != null || !requiredPermissions.isEmpty()
+                    || !requiredFields.isEmpty() || !conditions.isEmpty())) {
                 throw new IllegalArgumentException(
-                        "Timer transition cannot require actor permissions, fields, or approval");
+                        "Timer transition cannot require actor permissions, fields, conditions, or approval");
             }
         }
     }
@@ -85,6 +94,23 @@ public record WorkflowDefinition(
     }
 
     public enum ApprovalMode { ANY, ALL, QUORUM }
+
+    public record Condition(String field, ConditionOperator operator, Object value) {
+        public Condition {
+            if (field == null || !field.matches("[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z][A-Za-z0-9_-]*){0,7}")) {
+                throw new IllegalArgumentException("Invalid workflow condition field: " + field);
+            }
+            if (operator == null) throw new IllegalArgumentException("Workflow condition operator is required");
+            if (operator == ConditionOperator.EXISTS && !(value instanceof Boolean)) {
+                throw new IllegalArgumentException("EXISTS condition requires boolean value");
+            }
+            if (operator != ConditionOperator.EXISTS && value == null) {
+                throw new IllegalArgumentException("Workflow condition value is required");
+            }
+        }
+    }
+
+    public enum ConditionOperator { EQUALS, NOT_EQUALS, IN, CONTAINS, EXISTS, GT, GTE, LT, LTE }
 
     public record TimerRequirement(long delaySeconds, int maxAttempts) {
         public TimerRequirement {
