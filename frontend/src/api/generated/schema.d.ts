@@ -852,6 +852,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find likely duplicate active work items */
+        get: operations["duplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sla/policies": {
         parameters: {
             query?: never;
@@ -2008,6 +2025,17 @@ export interface components {
             breached?: number;
             /** Format: double */
             csat?: number;
+        };
+        Match: {
+            /** Format: uuid */
+            id?: string;
+            number?: string;
+            title?: string;
+            state?: string;
+            priority?: string;
+            /** Format: double */
+            score?: number;
+            reason?: string;
         };
         SearchHit: {
             id?: string;
@@ -3915,6 +3943,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StatsResponse"];
+                };
+            };
+        };
+    };
+    duplicates: {
+        parameters: {
+            query: {
+                title: string;
+                description?: string;
+                excludeId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Match"][];
                 };
             };
         };
