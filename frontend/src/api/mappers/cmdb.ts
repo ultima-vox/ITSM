@@ -17,6 +17,7 @@ export interface BackendCiRelationship {
 
 export interface BackendCi {
   id: string;
+  version?: number;
   name: string;
   classKey?: string;
   status?: string;
@@ -106,6 +107,7 @@ export function mapConfigurationItem(dto: BackendCi): ConfigurationItem {
 
   return {
     id,
+    version: dto.version ?? 0,
     name: dto.name,
     kindKey: dto.classKey ?? 'ci',
     status: mapCiStatus(dto.status),

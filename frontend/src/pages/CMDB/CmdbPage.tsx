@@ -13,6 +13,7 @@ import {
   Cloud,
   Download,
   Network,
+  Pencil,
   Plus,
   Search,
   Server,
@@ -33,6 +34,7 @@ import {
   fetchConfigurationItems,
   subscribeConfigurationItems,
   updateCiRelation,
+  updateConfigurationItem,
 } from '@/api';
 import {
   Button,
@@ -302,6 +304,7 @@ export function CmdbPage() {
   const [q, setQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(ciFromQuery);
   const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [showImpact, setShowImpact] = useState(false);
   const [localItems, setLocalItems] = useState<ConfigurationItem[] | null>(
     null,
@@ -590,6 +593,29 @@ export function CmdbPage() {
     }
   };
 
+  const handleEdit = async (payload: {
+    name: string;
+    kindKey: string;
+    status: CiStatus;
+  }) => {
+    if (!selected) return;
+    try {
+      const updated = await updateConfigurationItem(selected.id, {
+        ...payload,
+        expectedVersion: selected.version ?? 0,
+        owner: selected.owner === 'вЂ”' ? '' : selected.owner,
+      });
+      setLocalItems((prev) =>
+        (prev ?? data ?? []).map((ci) => (ci.id === updated.id ? updated : ci)),
+      );
+      setShowEdit(false);
+      success(t('workItem.savedToast'));
+    } catch {
+      toastError(t('app.error'));
+      void itemsAsync.reload();
+    }
+  };
+
   if (error && !loading && !data) {
     return (
       <section className="page page--cmdb">
@@ -844,7 +870,17 @@ export function CmdbPage() {
                     <h3>{selected.name}</h3>
                     <p>{t(selected.kindKey)}</p>
                   </div>
-                  <StatusChip status={selected.status} />
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={<Pencil size={14} />}
+                      onClick={() => setShowEdit(true)}
+                    >
+                      {t('app.edit')}
+                    </Button>
+                    <StatusChip status={selected.status} />
+                  </div>
                 </div>
                 <dl className="ci-detail__dl">
                   <div>
@@ -1037,6 +1073,14 @@ export function CmdbPage() {
 
       {showAdd && (
         <AddCiModal onClose={() => setShowAdd(false)} onSubmit={handleAdd} />
+      )}
+
+      {showEdit && selected && (
+        <AddCiModal
+          initial={selected}
+          onClose={() => setShowEdit(false)}
+          onSubmit={handleEdit}
+        />
       )}
 
       {showImpact && selected && (
@@ -1260,8 +1304,10 @@ function DependencyGraph({
 function AddCiModal({
   onClose,
   onSubmit,
+  initial,
 }: {
   onClose: () => void;
+  initial?: ConfigurationItem;
   onSubmit: (payload: {
     name: string;
     kindKey: string;
@@ -1269,9 +1315,9 @@ function AddCiModal({
   }) => Promise<void>;
 }) {
   const t = useT();
-  const [name, setName] = useState('');
-  const [kindKey, setKindKey] = useState<string>(KIND_OPTIONS[0]);
-  const [status, setStatus] = useState<CiStatus>('operational');
+  const [name, setName] = useState(initial?.name ?? '');
+  const [kindKey, setKindKey] = useState<string>(initial?.kindKey ?? KIND_OPTIONS[0]);
+  const [status, setStatus] = useState<CiStatus>(initial?.status ?? 'operational');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -1293,7 +1339,7 @@ function AddCiModal({
     <Modal
       open
       onClose={onClose}
-      title={t('cmdb.addCiTitle')}
+      title={initial ? `${t('app.edit')}: ${initial.name}` : t('cmdb.addCiTitle')}
       labelledBy="add-ci-title"
     >
       <div className="cmdb-add-form">
@@ -1331,7 +1377,7 @@ function AddCiModal({
             {t('app.cancel')}
           </Button>
           <Button variant="primary" onClick={() => void submit()} disabled={busy}>
-            {busy ? t('app.saving') : t('cmdb.formSubmit')}
+            {busy ? t('app.saving') : initial ? t('app.save') : t('cmdb.formSubmit')}
           </Button>
         </div>
       </div>

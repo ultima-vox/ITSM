@@ -179,6 +179,7 @@ export type CiRelationType =
 
 export interface ConfigurationItem {
   id: string;
+  version?: number;
   name: string;
   kindKey: string;
   status: CiStatus;

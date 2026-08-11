@@ -89,6 +89,33 @@ class CmdbController {
       @Size(max = 128) String owner
   ) {}
 
+  @PatchMapping("/cis/{id}")
+  @Operation(summary = "Update a configuration item with optimistic locking")
+  ConfigurationItem update(
+      Authentication authentication, @PathVariable UUID id, @Valid @RequestBody UpdateCiRequest body) {
+    access.require(authentication.getName(), "cmdb.write", "configuration-item", id.toString());
+    try {
+      return commands.update(id, new CmdbCommands.UpdateCommand(
+          body.expectedVersion(), body.name(), body.classKey(), body.status(), body.owner(), body.attributes()),
+          authentication.getName());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    } catch (IllegalArgumentException ex) {
+      HttpStatus status = ex.getMessage() != null && ex.getMessage().startsWith("Configuration item not found")
+          ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+      throw new ResponseStatusException(status, ex.getMessage());
+    }
+  }
+
+  record UpdateCiRequest(
+      long expectedVersion,
+      @Size(max = 240) String name,
+      @Size(max = 100) String classKey,
+      ConfigurationItem.Status status,
+      @Size(max = 128) String owner,
+      java.util.Map<String, Object> attributes
+  ) {}
+
   @GetMapping("/cis/{id}")
   @Operation(summary = "Get configuration item by id")
   ConfigurationItem get(Authentication authentication, @PathVariable UUID id) {

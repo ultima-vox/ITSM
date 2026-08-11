@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -64,6 +65,27 @@ class CmdbRelationshipIntegrationTest {
         commands.updateRelationship(relationId, CiRelationship.Type.CONNECTED_TO, "mallory")))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Relationship not found");
+  }
+
+  @Test
+  void updatesConfigurationItemWithOptimisticVersion() {
+    OrganizationContext.runAs("cmdb-update", () -> {
+      var created = createCi("editable");
+      assertThat(created.version()).isZero();
+
+      var updated = commands.update(created.id(), new CmdbCommands.UpdateCommand(
+          0, "renamed", "application", ConfigurationItem.Status.MAINTENANCE,
+          "owner-2", Map.of("criticality", "high")), "alice");
+
+      assertThat(updated.version()).isEqualTo(1);
+      assertThat(updated.name()).isEqualTo("renamed");
+      assertThat(updated.attributes()).containsEntry("owner", "owner-2")
+          .containsEntry("criticality", "high");
+      assertThatThrownBy(() -> commands.update(created.id(), new CmdbCommands.UpdateCommand(
+          0, "stale", null, null, null, null), "alice"))
+          .isInstanceOf(OptimisticLockingFailureException.class);
+      return null;
+    });
   }
 
   private static ConfigurationItem createCi(String name) {

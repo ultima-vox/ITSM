@@ -29,7 +29,7 @@ public class CmdbQuery {
     String q = blankToNull(query);
     return jdbc.query(
         """
-            SELECT id, name, class_key, status, attributes::text AS attributes
+            SELECT id, name, class_key, status, attributes::text AS attributes, version
             FROM configuration_item
             WHERE org_id = ?
               AND (?::text IS NULL OR class_key = ?)
@@ -42,7 +42,7 @@ public class CmdbQuery {
             rs.getString("name"),
             rs.getString("class_key"),
             rs.getString("status"),
-            rs.getString("attributes")
+            rs.getString("attributes"), rs.getLong("version")
         ),
         OrganizationContext.current(), classFilter, classFilter, statusFilter, statusFilter, q, q
     );
@@ -50,13 +50,13 @@ public class CmdbQuery {
 
   public Optional<ConfigurationItem> findById(UUID id) {
     List<ConfigurationItem> rows = jdbc.query(
-        "SELECT id, name, class_key, status, attributes::text AS attributes FROM configuration_item WHERE id = ? AND org_id = ?",
+        "SELECT id, name, class_key, status, attributes::text AS attributes, version FROM configuration_item WHERE id = ? AND org_id = ?",
         (rs, i) -> mapCi(
             (UUID) rs.getObject("id"),
             rs.getString("name"),
             rs.getString("class_key"),
             rs.getString("status"),
-            rs.getString("attributes")
+            rs.getString("attributes"), rs.getLong("version")
         ),
         id, OrganizationContext.current()
     );
@@ -109,7 +109,7 @@ public class CmdbQuery {
     int cap = Math.min(Math.max(limit, 1), 500);
     return jdbc.query(
         """
-            SELECT ci.id, ci.name, ci.class_key, ci.status, ci.attributes::text AS attributes
+            SELECT ci.id, ci.name, ci.class_key, ci.status, ci.attributes::text AS attributes, ci.version
             FROM configuration_item ci
             WHERE ci.org_id = ? AND NOT EXISTS (
               SELECT 1 FROM ci_relationship r
@@ -123,7 +123,7 @@ public class CmdbQuery {
             rs.getString("name"),
             rs.getString("class_key"),
             rs.getString("status"),
-            rs.getString("attributes")
+            rs.getString("attributes"), rs.getLong("version")
         ),
         OrganizationContext.current(), cap
     );
@@ -153,14 +153,14 @@ public class CmdbQuery {
     return new ImpactResult(root.id(), root.name(), maxHops, impacted);
   }
 
-  private ConfigurationItem mapCi(UUID id, String name, String classKey, String status, String attributesJson) {
+  private ConfigurationItem mapCi(UUID id, String name, String classKey, String status, String attributesJson, long version) {
     Map<String, Object> attributes;
     try {
       attributes = json.readValue(attributesJson == null ? "{}" : attributesJson, new TypeReference<>() {});
     } catch (Exception ex) {
       attributes = Map.of();
     }
-    return new ConfigurationItem(id, name, classKey, ConfigurationItem.Status.valueOf(status), attributes);
+    return new ConfigurationItem(id, name, classKey, ConfigurationItem.Status.valueOf(status), attributes, version);
   }
 
   private static String blankToNull(String value) {

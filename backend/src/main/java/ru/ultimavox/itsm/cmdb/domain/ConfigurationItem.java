@@ -9,7 +9,8 @@ public record ConfigurationItem(
     String name,
     String classKey,
     Status status,
-    Map<String, Object> attributes
+    Map<String, Object> attributes,
+    long version
 ) {
   public ConfigurationItem {
     attributes = attributes == null ? Map.of() : Map.copyOf(attributes);

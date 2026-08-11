@@ -1128,6 +1128,24 @@ export interface paths {
         patch: operations["updateRelationship_1"];
         trace?: never;
     };
+    "/api/v1/cmdb/cis/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get configuration item by id */
+        get: operations["get_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a configuration item with optimistic locking */
+        patch: operations["update_4"];
+        trace?: never;
+    };
     "/api/v1/workflow/instances/{objectType}/{objectId}": {
         parameters: {
             query?: never;
@@ -1425,7 +1443,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active object definition by key */
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1475,7 +1493,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1492,7 +1510,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1509,7 +1527,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get article by id or slug */
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1527,23 +1545,6 @@ export interface paths {
         };
         /** List configuration items with no relationships (orphan detection) */
         get: operations["orphans"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/cmdb/cis/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get configuration item by id */
-        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2483,6 +2484,8 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+            /** Format: int64 */
+            version?: number;
         };
         Change: {
             /** Format: uuid */
@@ -2689,6 +2692,18 @@ export interface components {
         };
         UpdateRelationRequest: {
             type?: string;
+        };
+        UpdateCiRequest: {
+            /** Format: int64 */
+            expectedVersion?: number;
+            name?: string;
+            classKey?: string;
+            /** @enum {string} */
+            status?: "OPERATIONAL" | "DEGRADED" | "MAINTENANCE" | "RETIRED";
+            owner?: string;
+            attributes?: {
+                [key: string]: unknown;
+            };
         };
         SetEnabledRequest: {
             enabled?: boolean;
@@ -5258,6 +5273,54 @@ export interface operations {
             };
         };
     };
+    get_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigurationItem"];
+                };
+            };
+        };
+    };
+    update_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCiRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConfigurationItem"];
+                };
+            };
+        };
+    };
     getInstance: {
         parameters: {
             query?: never;
@@ -5623,7 +5686,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -5689,28 +5752,6 @@ export interface operations {
             };
         };
     };
-    get_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                objectKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["FormRenderModel"];
-                };
-            };
-        };
-    };
     get_6: {
         parameters: {
             query?: never;
@@ -5734,6 +5775,28 @@ export interface operations {
         };
     };
     get_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormRenderModel"];
+                };
+            };
+        };
+    };
+    get_8: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5775,28 +5838,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigurationItem"][];
-                };
-            };
-        };
-    };
-    get_8: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ConfigurationItem"];
                 };
             };
         };

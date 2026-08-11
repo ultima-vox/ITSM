@@ -683,6 +683,25 @@ export function addConfigurationItem(input: {
   return cloneCi(item);
 }
 
+export function updateConfigurationItem(
+  id: string,
+  patch: Pick<ConfigurationItem, 'name' | 'kindKey' | 'status'> & { owner?: string },
+): ConfigurationItem {
+  const current = cis.find((ci) => ci.id === id);
+  if (!current) throw new Error(`Configuration item not found: ${id}`);
+  const updated: ConfigurationItem = {
+    ...current,
+    name: patch.name.trim(),
+    kindKey: patch.kindKey,
+    status: patch.status,
+    owner: patch.owner?.trim() || current.owner,
+    version: (current.version ?? 0) + 1,
+  };
+  cis = cis.map((ci) => (ci.id === id ? updated : ci));
+  notifyCis();
+  return cloneCi(updated);
+}
+
 // ── Secondary modules: Assets / Problems / Changes ───────────────────
 
 function cloneAsset(a: Asset): Asset {

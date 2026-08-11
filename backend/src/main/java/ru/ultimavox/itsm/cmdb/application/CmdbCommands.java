@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.cmdb.domain.CiRelationship;
@@ -140,6 +141,58 @@ public class CmdbCommands {
   }
 
   @Transactional
+  public ConfigurationItem update(UUID id, UpdateCommand command, String actor) {
+    if (command.expectedVersion() < 0) {
+      throw new IllegalArgumentException("expectedVersion must not be negative");
+    }
+    ConfigurationItem existing = query.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Configuration item not found: " + id));
+    String name = command.name() == null ? existing.name() : command.name().trim();
+    if (name.isBlank()) throw new IllegalArgumentException("name is required");
+    String classKey = command.classKey() == null ? existing.classKey() : command.classKey().trim();
+    if (classKey.isBlank()) throw new IllegalArgumentException("classKey is required");
+    ConfigurationItem.Status status = command.status() == null ? existing.status() : command.status();
+    Map<String, Object> attrs = new java.util.HashMap<>(existing.attributes());
+    if (command.owner() != null) {
+      if (command.owner().isBlank()) attrs.remove("owner");
+      else attrs.put("owner", command.owner().trim());
+    }
+    if (command.attributes() != null) attrs.putAll(command.attributes());
+    String attrsJson;
+    try {
+      attrsJson = json.writeValueAsString(attrs);
+    } catch (JsonProcessingException ex) {
+      throw new IllegalStateException("Cannot serialize CI attributes", ex);
+    }
+    Instant now = Instant.now();
+    int changed = jdbc.update(
+        """
+        UPDATE configuration_item
+        SET name=?, class_key=?, status=?, attributes=?::jsonb, version=version+1, updated_at=?
+        WHERE id=? AND org_id=? AND version=?
+        """,
+        name, classKey, status.name(), attrsJson, Timestamp.from(now), id,
+        OrganizationContext.current(), command.expectedVersion()
+    );
+    if (changed == 0) {
+      throw new OptimisticLockingFailureException(
+          "Configuration item changed since version " + command.expectedVersion());
+    }
+    UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
+    Map<String, Object> before = Map.of(
+        "name", existing.name(), "classKey", existing.classKey(),
+        "status", existing.status().name(), "version", existing.version());
+    Map<String, Object> after = Map.of(
+        "name", name, "classKey", classKey, "status", status.name(),
+        "version", command.expectedVersion() + 1);
+    audit.append(new AuditTrail.Entry(actor, "cmdb.ci-updated", "configuration-item", id.toString(),
+        before, after, correlationId, now));
+    outbox.record(new DomainEvent(UUID.randomUUID(), "cmdb.ci-updated", 1, now, correlationId,
+        "configuration-item", id.toString(), after));
+    return query.findById(id).orElseThrow();
+  }
+
+  @Transactional
   public void deleteRelationship(UUID relationshipId, String actor) {
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
@@ -218,6 +271,15 @@ public class CmdbCommands {
   }
 
   public record CreateCommand(
+      String name,
+      String classKey,
+      ConfigurationItem.Status status,
+      String owner,
+      Map<String, Object> attributes
+  ) {}
+
+  public record UpdateCommand(
+      long expectedVersion,
       String name,
       String classKey,
       ConfigurationItem.Status status,

@@ -12,6 +12,7 @@ import {
   addAsset as storeAddAsset,
   addCiRelation as storeAddCiRelation,
   addConfigurationItem,
+  updateConfigurationItem as storeUpdateConfigurationItem,
   bulkAssignAssets as storeBulkAssignAssets,
   bulkSetAssetStatus as storeBulkSetAssetStatus,
   getAssetTransitions,
@@ -206,6 +207,27 @@ export async function createConfigurationItem(input: {
     },
   });
   return mapConfigurationItem(created);
+}
+
+export async function updateConfigurationItem(
+  id: string,
+  input: { expectedVersion: number; name: string; kindKey: string; status: CiStatus; owner?: string },
+): Promise<ConfigurationItem> {
+  if (isMockMode()) {
+    await delay(120);
+    return storeUpdateConfigurationItem(id, input);
+  }
+  const updated = await apiRequest<BackendCi>(`/cmdb/cis/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: {
+      expectedVersion: input.expectedVersion,
+      name: input.name,
+      classKey: input.kindKey,
+      status: input.status.toUpperCase(),
+      owner: input.owner,
+    },
+  });
+  return mapConfigurationItem(updated);
 }
 
 export { subscribeConfigurationItems };
