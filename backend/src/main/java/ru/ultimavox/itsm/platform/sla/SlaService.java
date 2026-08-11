@@ -84,6 +84,7 @@ public class SlaService {
                     now,
                     dueAt,
                     warningAt,
+                    null,
                     SlaClock.State.RUNNING
             );
             clocks.insert(clock);
@@ -103,7 +104,9 @@ public class SlaService {
         if (clock.state() != SlaClock.State.RUNNING) {
             throw new IllegalStateException("Only RUNNING clocks can be paused, was " + clock.state());
         }
-        SlaClock paused = withState(clock, SlaClock.State.PAUSED);
+        Instant now = Instant.now();
+        SlaClock paused = withTiming(
+                clock, clock.dueAt(), clock.warningAt(), now, SlaClock.State.PAUSED);
         clocks.update(paused);
         clocks.appendHistory(clockId, "PAUSE", actorId, "{}");
         return paused;
@@ -133,11 +136,25 @@ public class SlaService {
         if (clock.state() != SlaClock.State.PAUSED) {
             throw new IllegalStateException("Only PAUSED clocks can be resumed, was " + clock.state());
         }
-        // Recalculate remaining business time from now using original target window left.
-        // Simplified: keep dueAt as absolute wall; production may recompute remaining minutes.
-        SlaClock resumed = withState(clock, SlaClock.State.RUNNING);
+        Instant now = Instant.now();
+        SlaPolicy policy = policies.findByKey(clock.policyKey())
+                .orElseThrow(() -> new IllegalArgumentException("Unknown SLA policy: " + clock.policyKey()));
+        WorkingCalendar calendar = calendars.require(policy.calendarKey());
+        Instant pausedAt = clock.pausedAt();
+        Instant dueAt = calculator.deadline(
+                now, calculator.businessDuration(pausedAt, clock.dueAt(), calendar), calendar);
+        Instant warningAt = clock.warningAt();
+        if (warningAt != null && warningAt.isAfter(pausedAt)) {
+            warningAt = calculator.deadline(
+                    now, calculator.businessDuration(pausedAt, warningAt, calendar), calendar);
+        }
+        SlaClock resumed = withTiming(clock, dueAt, warningAt, null, SlaClock.State.RUNNING);
         clocks.update(resumed);
-        clocks.appendHistory(clockId, "RESUME", actorId, "{}");
+        clocks.appendHistory(clockId, "RESUME", actorId, writeDetails(Map.of(
+                "pausedAt", pausedAt.toString(),
+                "resumedAt", now.toString(),
+                "dueAt", dueAt.toString()
+        )));
         return resumed;
     }
 
@@ -225,7 +242,21 @@ public class SlaService {
                 clock.startedAt(),
                 clock.dueAt(),
                 clock.warningAt(),
+                null,
                 state
+        );
+    }
+
+    private static SlaClock withTiming(
+            SlaClock clock,
+            Instant dueAt,
+            Instant warningAt,
+            Instant pausedAt,
+            SlaClock.State state
+    ) {
+        return new SlaClock(
+                clock.id(), clock.policyKey(), clock.aggregateId(), clock.metric(),
+                clock.startedAt(), dueAt, warningAt, pausedAt, state
         );
     }
 

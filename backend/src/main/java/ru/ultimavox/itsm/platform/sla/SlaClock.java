@@ -12,6 +12,7 @@ public record SlaClock(
         Instant startedAt,
         Instant dueAt,
         Instant warningAt,
+        Instant pausedAt,
         State state
 ) {
     public enum State {

@@ -46,6 +46,25 @@ public class SlaDeadlineCalculator {
         return cursor;
     }
 
+    /** Business time contained in [from, to), excluding closed days and hours. */
+    public Duration businessDuration(Instant from, Instant to, WorkingCalendar calendar) {
+        if (!to.isAfter(from)) return Duration.ZERO;
+        Duration total = Duration.ZERO;
+        LocalDate day = from.atZone(calendar.zone()).toLocalDate();
+        LocalDate last = to.atZone(calendar.zone()).toLocalDate();
+        while (!day.isAfter(last)) {
+            if (calendar.isWorkingDate(day)) {
+                Instant open = day.atTime(calendar.startsAt()).atZone(calendar.zone()).toInstant();
+                Instant close = day.atTime(calendar.endsAt()).atZone(calendar.zone()).toInstant();
+                Instant start = from.isAfter(open) ? from : open;
+                Instant end = to.isBefore(close) ? to : close;
+                if (end.isAfter(start)) total = total.plus(Duration.between(start, end));
+            }
+            day = day.plusDays(1);
+        }
+        return total;
+    }
+
     private Instant nextStart(LocalDate date, WorkingCalendar calendar) {
         LocalDate candidate = date;
         for (int guard = 0; guard < 370; guard++, candidate = candidate.plusDays(1)) {

@@ -23,8 +23,8 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public SlaClock insert(SlaClock clock) {
         jdbc.update(
                 """
-                INSERT INTO sla_clock (id, org_id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+                INSERT INTO sla_clock (id, org_id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                 """,
                 clock.id(),
                 OrganizationContext.current(),
@@ -34,6 +34,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 Timestamp.from(clock.startedAt()),
                 Timestamp.from(clock.dueAt()),
                 clock.warningAt() == null ? null : Timestamp.from(clock.warningAt()),
+                clock.pausedAt() == null ? null : Timestamp.from(clock.pausedAt()),
                 clock.state().name()
         );
         return clock;
@@ -43,7 +44,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public Optional<SlaClock> findById(UUID id) {
         List<SlaClock> rows = jdbc.query(
                 """
-                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
                 FROM sla_clock WHERE id = ? AND org_id = ?
                 """,
                 (rs, i) -> map(rs),
@@ -56,7 +57,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public List<SlaClock> findActiveByAggregate(UUID aggregateId) {
         return jdbc.query(
                 """
-                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
                 FROM sla_clock
                 WHERE org_id = ? AND aggregate_id = ? AND state IN ('RUNNING', 'PAUSED')
                 """,
@@ -69,7 +70,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public Optional<SlaClock> findActive(UUID aggregateId, String policyKey, String metric) {
         List<SlaClock> rows = jdbc.query(
                 """
-                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
                 FROM sla_clock
                 WHERE org_id = ? AND aggregate_id = ? AND policy_key = ? AND metric = ?
                   AND state IN ('RUNNING', 'PAUSED')
@@ -87,11 +88,12 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         jdbc.update(
                 """
                 UPDATE sla_clock
-                SET due_at = ?, warning_at = ?, state = ?, updated_at = now()
+                SET due_at = ?, warning_at = ?, paused_at = ?, state = ?, updated_at = now()
                 WHERE id = ? AND org_id = ?
                 """,
                 Timestamp.from(clock.dueAt()),
                 clock.warningAt() == null ? null : Timestamp.from(clock.warningAt()),
+                clock.pausedAt() == null ? null : Timestamp.from(clock.pausedAt()),
                 clock.state().name(),
                 clock.id(), OrganizationContext.current()
         );
@@ -116,7 +118,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
     public List<SlaClock> findDueRunning(int limit) {
         return jdbc.query(
                 """
-                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, state
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
                 FROM sla_clock
                 WHERE org_id = ? AND state = 'RUNNING' AND due_at <= now()
                 ORDER BY due_at
@@ -129,6 +131,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
 
     private SlaClock map(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp warning = rs.getTimestamp("warning_at");
+        Timestamp paused = rs.getTimestamp("paused_at");
         return new SlaClock(
                 rs.getObject("id", UUID.class),
                 rs.getString("policy_key"),
@@ -137,6 +140,7 @@ class JdbcSlaClockRepository implements SlaClockRepository {
                 rs.getTimestamp("started_at").toInstant(),
                 rs.getTimestamp("due_at").toInstant(),
                 warning == null ? null : warning.toInstant(),
+                paused == null ? null : paused.toInstant(),
                 SlaClock.State.valueOf(rs.getString("state"))
         );
     }
