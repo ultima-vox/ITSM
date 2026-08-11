@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
@@ -33,6 +36,23 @@ class WorkflowAdminController {
     access.require(actor, "workflow.read", "workflow_definition", null);
     return definitions.listAll().stream().map(DefinitionResponse::from).toList();
   }
+
+  @PatchMapping("/definitions/{id}")
+  @Operation(summary = "Activate or deactivate a workflow version for current organization")
+  DefinitionResponse setActive(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @RequestBody SetActiveRequest body
+  ) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "workflow.write", "workflow_definition", id.toString());
+    return definitions.setActive(id, body.active())
+        .map(DefinitionResponse::from)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Workflow definition not found"));
+  }
+
+  record SetActiveRequest(boolean active) {}
 
   record DefinitionResponse(
       UUID id,

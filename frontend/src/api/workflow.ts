@@ -63,11 +63,15 @@ export async function setWorkflowActiveVersion(
     await delay(80);
     return mockSetActive(id, active);
   }
-  throw new Error('module.errors.bulkLiveUnsupported');
+  const changed = await apiRequest<BackendDefinition>(
+    `/workflow/definitions/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: { active } },
+  );
+  return mapDef(changed);
 }
 
 export function workflowDefinitionsWritable(): boolean {
-  return isMockMode();
+  return true;
 }
 
 export function subscribeWorkflowDefinitions(listener: () => void): () => void {

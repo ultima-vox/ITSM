@@ -26,7 +26,25 @@ class JdbcWorkflowDefinitionOrganizationTest {
     ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
     verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
     assertThat(sql.getValue()).contains("org_id IN (?, 'default')").contains("ORDER BY (org_id = ?) DESC");
-    assertThat(args.getValue()).containsExactly("org-red", "change", "org-red");
+    assertThat(args.getValue()).containsExactly("org-red", "change", "org-red", "org-red");
+  }
+
+  @Test void activationCopiesDefaultIntoTenantAndDeactivatesSiblingVersions() {
+    JdbcTemplate jdbc = Mockito.mock(JdbcTemplate.class);
+    authenticate("org-red");
+    java.util.UUID id = java.util.UUID.randomUUID();
+
+    new JdbcWorkflowDefinitionRepository(jdbc, new ObjectMapper()).setActive(id, true);
+
+    ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+    verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
+    assertThat(sql.getValue())
+        .contains("UPDATE workflow_definition")
+        .contains("org_id = ?")
+        .contains("ON CONFLICT (org_id, object_key, version)");
+    assertThat(args.getValue()).containsExactly(
+        id, "org-red", "org-red", "org-red", true, "org-red", true);
   }
 
   private void authenticate(String org) {

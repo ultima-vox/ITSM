@@ -615,6 +615,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow/definitions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Activate or deactivate a workflow version for current organization */
+        patch: operations["setActive"];
+        trace?: never;
+    };
     "/api/v1/work-items/{id}": {
         parameters: {
             query?: never;
@@ -1628,6 +1645,27 @@ export interface components {
             citations?: string[];
             requiresHumanReview?: boolean;
         };
+        SetActiveRequest: {
+            active?: boolean;
+        };
+        DefinitionResponse: {
+            /** Format: uuid */
+            id?: string;
+            objectKey?: string;
+            /** Format: int32 */
+            version?: number;
+            active?: boolean;
+            initialState?: string;
+            states?: string[];
+            transitions?: components["schemas"]["TransitionResponse"][];
+        };
+        TransitionResponse: {
+            key?: string;
+            from?: string;
+            to?: string;
+            requiredPermissions?: string[];
+            requiredFields?: string[];
+        };
         UpdateRequest: {
             title?: string;
             description?: string;
@@ -1665,24 +1703,6 @@ export interface components {
             eventType?: string;
             conditions?: components["schemas"]["ConditionResponse"][];
             actions?: components["schemas"]["ActionResponse"][];
-        };
-        DefinitionResponse: {
-            /** Format: uuid */
-            id?: string;
-            objectKey?: string;
-            /** Format: int32 */
-            version?: number;
-            active?: boolean;
-            initialState?: string;
-            states?: string[];
-            transitions?: components["schemas"]["TransitionResponse"][];
-        };
-        TransitionResponse: {
-            key?: string;
-            from?: string;
-            to?: string;
-            requiredPermissions?: string[];
-            requiredFields?: string[];
         };
         WorkItemPageResponse: {
             items?: components["schemas"]["WorkItemResponse"][];
@@ -3232,6 +3252,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Suggestion"];
+                };
+            };
+        };
+    };
+    setActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetActiveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DefinitionResponse"];
                 };
             };
         };

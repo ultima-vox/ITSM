@@ -224,6 +224,14 @@ class WorkflowEngineTest {
                 .map(d -> new WorkflowDefinitionView(d, true))
                 .toList();
         }
+
+        @Override
+        public Optional<WorkflowDefinitionView> setActive(UUID id, boolean active) {
+            return byKey.values().stream()
+                .filter(d -> d.id().equals(id))
+                .findFirst()
+                .map(d -> new WorkflowDefinitionView(d, active));
+        }
     }
 
     static final class InMemoryInstanceRepository implements WorkflowInstanceRepository {
