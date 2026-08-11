@@ -431,6 +431,13 @@
         "meta": "Согласование · 2–5 дней"
       }
     },
+    "myRequests": "Мои запросы",
+    "myRequestsHint": "Отслеживайте согласование и исполнение.",
+    "noRequests": "Запросов услуг пока нет.",
+    "requestNumber": "Запрос",
+    "service": "Услуга",
+    "requestStatus": "Статус",
+    "requestUpdated": "Обновлено",
     "categoriesHeading": "Категории"
   },
   "knowledge": {

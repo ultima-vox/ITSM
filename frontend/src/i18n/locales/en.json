@@ -431,6 +431,13 @@
         "meta": "Approval · 2–5 days"
       }
     },
+    "myRequests": "My requests",
+    "myRequestsHint": "Track approval and fulfillment progress.",
+    "noRequests": "No service requests yet.",
+    "requestNumber": "Request",
+    "service": "Service",
+    "requestStatus": "Status",
+    "requestUpdated": "Updated",
     "categoriesHeading": "Categories"
   },
   "knowledge": {

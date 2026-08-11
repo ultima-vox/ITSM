@@ -46,6 +46,42 @@ export interface SubmittedCatalogRequest {
   number?: string;
 }
 
+export interface CatalogRequestView {
+  id: string;
+  number: string;
+  catalogItemId: string;
+  catalogItemKey: string;
+  status: string;
+  formPayload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogApprovalView {
+  id: string; approverRole: string; state: string; decidedBy?: string | null;
+  decidedAt?: string | null; comment?: string | null; createdAt: string;
+}
+
+export interface CatalogTaskView {
+  id: string; title: string; state: string; assigneeId?: string | null;
+  createdAt: string; completedAt?: string | null;
+}
+
+export async function fetchMyCatalogRequests(): Promise<CatalogRequestView[]> {
+  if (isMockMode()) return [];
+  return apiRequest<CatalogRequestView[]>('/catalog/requests?page=0&size=100');
+}
+
+export async function fetchCatalogRequestApprovals(id: string): Promise<CatalogApprovalView[]> {
+  if (isMockMode()) return [];
+  return apiRequest<CatalogApprovalView[]>(`/catalog/requests/${id}/approvals`);
+}
+
+export async function fetchCatalogRequestTasks(id: string): Promise<CatalogTaskView[]> {
+  if (isMockMode()) return [];
+  return apiRequest<CatalogTaskView[]>(`/catalog/requests/${id}/tasks`);
+}
+
 /**
  * Live catalog request: POST /catalog/items/{id}/requests.
  * Mock mode is not used — callers should prefer createWorkItem for mock.

@@ -22,6 +22,7 @@ import {
   createWorkItem,
   fetchCatalogCategories,
   fetchCatalogServices,
+  fetchMyCatalogRequests,
   fetchFormDefinition,
   submitCatalogRequest,
   isMockMode,
@@ -73,6 +74,7 @@ export function CatalogPage() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const categories = useAsync(() => fetchCatalogCategories(), []);
   const services = useAsync(() => fetchCatalogServices(), []);
+  const requests = useAsync(() => fetchMyCatalogRequests(), []);
 
   const allServices = useMemo(() => services.data ?? [], [services.data]);
   const cats = useMemo(() => categories.data ?? [], [categories.data]);
@@ -185,6 +187,39 @@ export function CatalogPage() {
           </button>
         ))}
       </div>
+
+      {!isMockMode() && (
+        <section className="panel mt-4" aria-labelledby="catalog-requests-heading">
+          <div className="section-head">
+            <div>
+              <h2 id="catalog-requests-heading">{t('catalog.myRequests')}</h2>
+              <p>{t('catalog.myRequestsHint')}</p>
+            </div>
+            <span className="chip">{requests.data?.length ?? 0}</span>
+          </div>
+          {requests.loading ? (
+            <Skeleton height={72} />
+          ) : requests.error ? (
+            <ErrorState onRetry={requests.reload} />
+          ) : !requests.data?.length ? (
+            <p className="text-muted">{t('catalog.noRequests')}</p>
+          ) : (
+            <div className="audit-table-wrap">
+              <table className="audit-table">
+                <thead><tr><th>{t('catalog.requestNumber')}</th><th>{t('catalog.service')}</th><th>{t('catalog.requestStatus')}</th><th>{t('catalog.requestUpdated')}</th></tr></thead>
+                <tbody>{requests.data.map((request) => (
+                  <tr key={request.id}>
+                    <td className="mono">{request.number}</td>
+                    <td>{request.catalogItemKey}</td>
+                    <td><span className="chip">{request.status}</span></td>
+                    <td>{new Date(request.updatedAt).toLocaleString()}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="catalog-layout">
         <section>
