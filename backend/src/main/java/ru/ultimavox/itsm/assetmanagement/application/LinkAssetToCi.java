@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
@@ -36,9 +37,12 @@ public class LinkAssetToCi {
   }
 
   @Transactional
-  public Asset link(UUID assetId, UUID configurationItemId, String actor) {
+  public Asset link(UUID assetId, UUID configurationItemId, long expectedVersion, String actor) {
     Asset current = assetQuery.findById(assetId)
         .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + assetId));
+    if (expectedVersion < 0 || current.version() != expectedVersion) {
+      throw new OptimisticLockingFailureException("Asset changed since version " + expectedVersion);
+    }
 
     if (!cmdb.exists(configurationItemId)) {
       throw new IllegalArgumentException("Configuration item not found: " + configurationItemId);
@@ -48,10 +52,11 @@ public class LinkAssetToCi {
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
 
-    jdbc.update(
-        "UPDATE asset SET configuration_item_id = ?, updated_at = ? WHERE id = ? AND org_id = ?",
-        linked.configurationItemId(), java.sql.Timestamp.from(now), linked.id(), OrganizationContext.current()
+    int changed = jdbc.update(
+        "UPDATE asset SET configuration_item_id = ?, version = version + 1, updated_at = ? WHERE id = ? AND org_id = ? AND version = ?",
+        linked.configurationItemId(), java.sql.Timestamp.from(now), linked.id(), OrganizationContext.current(), current.version()
     );
+    if (changed == 0) throw new OptimisticLockingFailureException("Asset changed since version " + expectedVersion);
     jdbc.update(
         """
             INSERT INTO asset_lifecycle_history (asset_id, occurred_at, actor_id, from_status, to_status, owner_subject, details)

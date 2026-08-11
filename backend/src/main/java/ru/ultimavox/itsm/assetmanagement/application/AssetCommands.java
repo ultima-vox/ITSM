@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.assetmanagement.domain.Asset;
@@ -33,18 +34,20 @@ public class AssetCommands {
   }
 
   @Transactional
-  public Asset assign(UUID id, String ownerSubject, String actor) {
+  public Asset assign(UUID id, String ownerSubject, long expectedVersion, String actor) {
     Asset current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + id));
+    requireVersion(current, expectedVersion);
     Asset updated = current.assignTo(ownerSubject);
     persist(updated, current, actor, "asset.assigned");
     return updated;
   }
 
   @Transactional
-  public Asset transition(UUID id, Asset.Status target, String actor) {
+  public Asset transition(UUID id, Asset.Status target, long expectedVersion, String actor) {
     Asset current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + id));
+    requireVersion(current, expectedVersion);
     Asset updated = current.transitionTo(target);
     persist(updated, current, actor, "asset.transitioned");
     return updated;
@@ -53,19 +56,21 @@ public class AssetCommands {
   private void persist(Asset updated, Asset before, String actor, String action) {
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
-    jdbc.update(
+    int changed = jdbc.update(
         """
         UPDATE asset
-        SET status = ?, owner_subject = ?, configuration_item_id = ?, updated_at = ?
-        WHERE id = ? AND org_id = ?
+        SET status = ?, owner_subject = ?, configuration_item_id = ?, version = version + 1, updated_at = ?
+        WHERE id = ? AND org_id = ? AND version = ?
         """,
         updated.status().name(),
         updated.ownerSubject(),
         updated.configurationItemId(),
         Timestamp.from(now),
         updated.id(),
-        OrganizationContext.current()
+        OrganizationContext.current(),
+        before.version()
     );
+    if (changed == 0) throw new OptimisticLockingFailureException("Asset changed since version " + before.version());
     jdbc.update(
         """
         INSERT INTO asset_lifecycle_history (asset_id, occurred_at, actor_id, from_status, to_status, owner_subject, details)
@@ -91,5 +96,11 @@ public class AssetCommands {
         UUID.randomUUID(), action, 1, now, correlationId,
         "asset", updated.id().toString(), after
     ));
+  }
+
+  private static void requireVersion(Asset asset, long expectedVersion) {
+    if (expectedVersion < 0 || asset.version() != expectedVersion) {
+      throw new OptimisticLockingFailureException("Asset changed since version " + expectedVersion);
+    }
   }
 }

@@ -119,9 +119,11 @@ class AssetController {
   ) {
     access.require(authentication.getName(), "asset.write", "asset", id.toString());
     try {
-      return linkAssetToCi.link(id, body.configurationItemId(), authentication.getName());
+      return linkAssetToCi.link(id, body.configurationItemId(), body.expectedVersion(), authentication.getName());
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -136,9 +138,11 @@ class AssetController {
   ) {
     access.require(authentication.getName(), "asset.write", "asset", id.toString());
     try {
-      return commands.assign(id, body.ownerSubject(), authentication.getName());
+      return commands.assign(id, body.ownerSubject(), body.expectedVersion(), authentication.getName());
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -153,17 +157,19 @@ class AssetController {
   ) {
     access.require(authentication.getName(), "asset.write", "asset", id.toString());
     try {
-      return commands.transition(id, body.status(), authentication.getName());
+      return commands.transition(id, body.status(), body.expectedVersion(), authentication.getName());
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
   }
 
-  record LinkCiRequest(@NotNull UUID configurationItemId) {}
+  record LinkCiRequest(@NotNull UUID configurationItemId, long expectedVersion) {}
 
-  record AssignRequest(@NotBlank String ownerSubject) {}
+  record AssignRequest(@NotBlank String ownerSubject, long expectedVersion) {}
 
-  record TransitionRequest(@NotNull Asset.Status status) {}
+  record TransitionRequest(@NotNull Asset.Status status, long expectedVersion) {}
 }

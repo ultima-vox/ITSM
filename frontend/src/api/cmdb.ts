@@ -274,7 +274,7 @@ function mapFrontendAssetKind(typeKey?: string): string {
 export async function transitionAssetStatus(
   id: string,
   next: AssetStatus,
-  opts?: { assignedTo?: string | null },
+  opts?: { assignedTo?: string | null; expectedVersion?: number },
 ): Promise<{ ok: true; asset: Asset } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
     await delay(120);
@@ -283,7 +283,7 @@ export async function transitionAssetStatus(
   try {
     const dto = await apiRequest<BackendAsset>(`/assets/${id}/transition`, {
       method: 'POST',
-      body: { status: next, ...opts },
+      body: { status: next, expectedVersion: opts?.expectedVersion ?? 0 },
     });
     return { ok: true, asset: mapAsset(dto) };
   } catch {
@@ -299,12 +299,13 @@ export async function bulkAssignAssets(ids: string[]): Promise<number> {
     return storeBulkAssignAssets(ids);
   }
   const actor = getApiActorId();
+  const versions = new Map((await fetchAssets()).map((asset) => [asset.id, asset.version ?? 0]));
   const settled = await Promise.all(
     ids.map(async (id) => {
       try {
         await apiRequest(`/assets/${id}/assign`, {
           method: 'POST',
-          body: { ownerSubject: actor },
+          body: { ownerSubject: actor, expectedVersion: versions.get(id) ?? 0 },
         });
         return true;
       } catch {
@@ -324,12 +325,13 @@ export async function bulkSetAssetStatus(
     return storeBulkSetAssetStatus(ids, status);
   }
   const backendStatus = mapAssetStatusToBackend(status);
+  const versions = new Map((await fetchAssets()).map((asset) => [asset.id, asset.version ?? 0]));
   const settled = await Promise.all(
     ids.map(async (id) => {
       try {
         await apiRequest(`/assets/${id}/transition`, {
           method: 'POST',
-          body: { status: backendStatus },
+          body: { status: backendStatus, expectedVersion: versions.get(id) ?? 0 },
         });
         return true;
       } catch {

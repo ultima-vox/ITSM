@@ -216,6 +216,7 @@ export type AssetTypeKey =
 
 export interface Asset {
   id: string;
+  version?: number;
   tag: string;
   name: string;
   typeKey: string;

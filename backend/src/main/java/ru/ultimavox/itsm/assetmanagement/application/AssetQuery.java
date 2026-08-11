@@ -24,7 +24,7 @@ public class AssetQuery {
     String ownerFilter = blankToNull(owner);
     return jdbc.query(
         """
-            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until
+            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, version
             FROM asset
             WHERE org_id = ?
               AND (?::text IS NULL OR status = ?)
@@ -39,7 +39,7 @@ public class AssetQuery {
             rs.getString("owner_subject"),
             rs.getObject("configuration_item_id", UUID.class),
             rs.getDate("acquired_on"),
-            rs.getDate("warranty_until")),
+            rs.getDate("warranty_until"), rs.getLong("version")),
         OrganizationContext.current(), statusFilter, statusFilter, kindFilter, kindFilter, ownerFilter, ownerFilter
     );
   }
@@ -47,7 +47,7 @@ public class AssetQuery {
   public Optional<Asset> findById(UUID id) {
     List<Asset> rows = jdbc.query(
         """
-            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until
+            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, version
             FROM asset WHERE id = ? AND org_id = ?
             """,
         (rs, i) -> map(rs.getObject("id", UUID.class),
@@ -57,7 +57,7 @@ public class AssetQuery {
             rs.getString("owner_subject"),
             rs.getObject("configuration_item_id", UUID.class),
             rs.getDate("acquired_on"),
-            rs.getDate("warranty_until")),
+            rs.getDate("warranty_until"), rs.getLong("version")),
         id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
@@ -71,7 +71,8 @@ public class AssetQuery {
       String owner,
       UUID ciId,
       Date acquired,
-      Date warranty
+      Date warranty,
+      long version
   ) {
     return new Asset(
         id,
@@ -81,7 +82,8 @@ public class AssetQuery {
         owner,
         ciId,
         toLocalDate(acquired),
-        toLocalDate(warranty)
+        toLocalDate(warranty),
+        version
     );
   }
 

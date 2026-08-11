@@ -2601,6 +2601,8 @@ export interface components {
             acquiredOn?: string;
             /** Format: date */
             warrantyUntil?: string;
+            /** Format: int64 */
+            version?: number;
         };
         PromptRequest: {
             content: string;

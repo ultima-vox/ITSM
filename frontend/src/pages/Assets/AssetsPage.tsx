@@ -134,6 +134,7 @@ export function AssetsPage() {
     try {
       const ids = [...selectedIds];
       const n = await bulkAssignAssets(ids);
+      await reload();
       success(t('module.bulk.assigned', { n }));
       setSelectedIds(new Set());
     } catch (err) {
@@ -149,6 +150,7 @@ export function AssetsPage() {
     try {
       const ids = [...selectedIds];
       const n = await bulkSetAssetStatus(ids, next);
+      await reload();
       success(t('module.bulk.statusChanged', { n, status: t(`status.${next}`) }));
       setSelectedIds(new Set());
     } catch (err) {
@@ -195,6 +197,7 @@ export function AssetsPage() {
     setValidation(null);
     const result = await transitionAssetStatus(selected.id, next, {
       assignedTo: assignName.trim() || selected.assignedTo,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -203,6 +206,7 @@ export function AssetsPage() {
     }
     success(t('assets.transitionOk', { status: t(`status.${next}`) }));
     setSelectedId(result.asset.id);
+    await reload();
   };
 
   const columns = useMemo<ModuleGridColumn<Asset>[]>(

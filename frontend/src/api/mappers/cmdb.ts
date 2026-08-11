@@ -26,6 +26,7 @@ export interface BackendCi {
 
 export interface BackendAsset {
   id: string;
+  version?: number;
   assetTag?: string;
   kind?: string;
   status?: string;
@@ -122,6 +123,7 @@ export function mapConfigurationItem(dto: BackendCi): ConfigurationItem {
 export function mapAsset(dto: BackendAsset): Asset {
   return {
     id: String(dto.id),
+    version: dto.version ?? 0,
     tag: dto.assetTag ?? String(dto.id),
     name: dto.assetTag ?? String(dto.id),
     typeKey: dto.kind ?? 'OTHER',
