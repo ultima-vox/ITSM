@@ -62,6 +62,9 @@ springdoc:
 itsm:
   outbox:
     poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
+  workflow:
+    timers:
+      poll-interval: ${WORKFLOW_TIMER_POLL_INTERVAL:PT5S}
   cors:
     # Vite default dev server; override for additional frontends.
     allowed-origins: ${ITSM_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}

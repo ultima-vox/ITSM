@@ -450,11 +450,12 @@ export interface WorkflowTransition {
   to: string;
   requiredPermissions: string[];
   requiredFields: string[];
-  approval?: {
+    approval?: {
     mode: 'ANY' | 'ALL' | 'QUORUM';
     voterRoles: string[];
-    quorum?: number;
-  };
+      quorum?: number;
+    };
+    timer?: { delaySeconds: number; maxAttempts: number };
 }
 
 export interface WorkflowDefinition {

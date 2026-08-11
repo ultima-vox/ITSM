@@ -29,6 +29,7 @@ public class WorkflowEngine {
     private final AuditTrail audit;
     private final IntegrationEventOutbox outbox;
     private final WorkflowApprovalService approvals;
+    private final WorkflowTimerService timers;
 
     @Autowired
     public WorkflowEngine(
@@ -37,7 +38,8 @@ public class WorkflowEngine {
             PermissionChecker permissions,
             AuditTrail audit,
             IntegrationEventOutbox outbox,
-            WorkflowApprovalService approvals
+            WorkflowApprovalService approvals,
+            WorkflowTimerService timers
     ) {
         this.definitions = definitions;
         this.instances = instances;
@@ -45,11 +47,18 @@ public class WorkflowEngine {
         this.audit = audit;
         this.outbox = outbox;
         this.approvals = approvals;
+        this.timers = timers;
     }
 
     public WorkflowEngine(WorkflowDefinitionRepository definitions, WorkflowInstanceRepository instances,
                           PermissionChecker permissions, AuditTrail audit, IntegrationEventOutbox outbox) {
-        this(definitions, instances, permissions, audit, outbox, null);
+        this(definitions, instances, permissions, audit, outbox, null, null);
+    }
+
+    public WorkflowEngine(WorkflowDefinitionRepository definitions, WorkflowInstanceRepository instances,
+                          PermissionChecker permissions, AuditTrail audit, IntegrationEventOutbox outbox,
+                          WorkflowApprovalService approvals) {
+        this(definitions, instances, permissions, audit, outbox, approvals, null);
     }
 
     @Transactional(readOnly = true)
@@ -122,6 +131,7 @@ public class WorkflowEngine {
         String fromState = current.state();
         WorkflowInstance updated = instances.updateState(current, transition.to(), current.version());
         if (approvalId != null) approvalService().consume(approvalId);
+        if (timers != null) timers.replaceForState(updated, definition);
 
         Instant now = Instant.now();
         UUID correlationId = command.correlationId() != null ? command.correlationId() : UUID.randomUUID();
@@ -221,7 +231,9 @@ public class WorkflowEngine {
                 1,
                 Instant.now()
         );
-        return instances.insert(created);
+        WorkflowInstance started = instances.insert(created);
+        if (timers != null) timers.replaceForState(started, definition);
+        return started;
     }
 
     private Transition resolveAndGuard(

@@ -9,6 +9,7 @@ import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalMode;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.ApprovalRequirement;
+import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.TimerRequirement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -165,7 +166,8 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                             node.path("to").asText(),
                             readStringSet(node.get("requiredPermissions")),
                             readStringSet(node.get("requiredFields")),
-                            readApproval(node.get("approval"))
+                            readApproval(node.get("approval")),
+                            readTimer(node.get("timer"))
                     ));
                 }
             }
@@ -197,5 +199,10 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
         ApprovalMode mode = ApprovalMode.valueOf(node.path("mode").asText());
         Integer quorum = node.hasNonNull("quorum") ? node.get("quorum").asInt() : null;
         return new ApprovalRequirement(mode, readStringSet(node.get("voterRoles")), quorum);
+    }
+
+    private TimerRequirement readTimer(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        return new TimerRequirement(node.path("delaySeconds").asLong(), node.path("maxAttempts").asInt(5));
     }
 }

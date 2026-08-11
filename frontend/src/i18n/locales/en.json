@@ -1291,7 +1291,11 @@
     "approvers": "Voters",
     "colStatus": "Status",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "timer": "Timer",
+    "timerDue": "Due",
+    "timerAttempts": "Attempts",
+    "timerError": "Last error"
   },
   "slaAdmin": {
     "title": "SLA policies",

@@ -1291,7 +1291,11 @@
     "approvers": "Abstimmende",
     "colStatus": "Status",
     "approve": "Genehmigen",
-    "reject": "Ablehnen"
+    "reject": "Ablehnen",
+    "timer": "Timer",
+    "timerDue": "Fällig",
+    "timerAttempts": "Versuche",
+    "timerError": "Letzter Fehler"
   },
   "slaAdmin": {
     "title": "SLA-Richtlinien",

@@ -976,6 +976,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow/instances/{objectType}/{objectId}/timers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List durable timer history for a workflow instance */
+        get: operations["list_9"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workflow/definitions": {
         parameters: {
             query?: never;
@@ -1188,7 +1205,7 @@ export interface paths {
             cookie?: never;
         };
         /** List in-app notifications for the authenticated actor */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1205,7 +1222,7 @@ export interface paths {
             cookie?: never;
         };
         /** List active object definitions */
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1475,7 +1492,7 @@ export interface paths {
             cookie?: never;
         };
         /** List or search published catalog items by category */
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1526,7 +1543,7 @@ export interface paths {
             cookie?: never;
         };
         /** List recent platform audit events (newest first) */
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2263,6 +2280,12 @@ export interface components {
             states?: string[];
             transitions?: components["schemas"]["TransitionResponse"][];
         };
+        TimerResponse: {
+            /** Format: int64 */
+            delaySeconds?: number;
+            /** Format: int32 */
+            maxAttempts?: number;
+        };
         TransitionResponse: {
             key?: string;
             from?: string;
@@ -2270,6 +2293,7 @@ export interface components {
             requiredPermissions?: string[];
             requiredFields?: string[];
             approval?: components["schemas"]["ApprovalResponse"];
+            timer?: components["schemas"]["TimerResponse"];
         };
         UpdateRequest: {
             title?: string;
@@ -4594,6 +4618,29 @@ export interface operations {
             };
         };
     };
+    list_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectType: string;
+                objectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimerResponse"][];
+                };
+            };
+        };
+    };
     listDefinitions: {
         parameters: {
             query?: never;
@@ -4849,7 +4896,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 limit?: number;
@@ -4873,7 +4920,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -5231,7 +5278,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: {
                 category?: string;
@@ -5299,7 +5346,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: {
                 action?: string;

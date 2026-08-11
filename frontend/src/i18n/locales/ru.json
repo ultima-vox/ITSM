@@ -1291,7 +1291,11 @@
     "approvers": "Участники",
     "colStatus": "Статус",
     "approve": "Согласовать",
-    "reject": "Отклонить"
+    "reject": "Отклонить",
+    "timer": "Таймер",
+    "timerDue": "Срок",
+    "timerAttempts": "Попытки",
+    "timerError": "Последняя ошибка"
   },
   "slaAdmin": {
     "title": "Политики SLA",

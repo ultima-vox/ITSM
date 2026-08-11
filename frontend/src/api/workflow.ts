@@ -16,6 +16,7 @@ interface BackendTransition {
   requiredPermissions?: string[];
   requiredFields?: string[];
   approval?: { mode: 'ANY' | 'ALL' | 'QUORUM'; voterRoles: string[]; quorum?: number };
+  timer?: { delaySeconds: number; maxAttempts: number };
 }
 
 interface BackendDefinition {
@@ -60,6 +61,18 @@ export interface WorkflowApprovalView {
   }>;
 }
 
+export interface WorkflowTimerView {
+  id: string;
+  transitionKey: string;
+  definitionVersion: number;
+  sourceInstanceVersion: number;
+  dueAt: string;
+  status: 'PENDING' | 'PROCESSING' | 'RETRY' | 'COMPLETED' | 'CANCELLED' | 'DEAD';
+  attempts: number;
+  maxAttempts: number;
+  lastError?: string;
+}
+
 function mapDef(dto: BackendDefinition): WorkflowDefinition {
   return {
     id: dto.id,
@@ -75,6 +88,7 @@ function mapDef(dto: BackendDefinition): WorkflowDefinition {
       requiredPermissions: t.requiredPermissions ?? [],
       requiredFields: t.requiredFields ?? [],
       approval: t.approval,
+      timer: t.timer,
     })),
     name: dto.objectKey,
   };
@@ -128,6 +142,13 @@ export async function fetchWorkflowApprovals(
 ): Promise<WorkflowApprovalView[]> {
   return apiRequest<WorkflowApprovalView[]>(
     `/workflow/instances/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}/approvals`);
+}
+
+export async function fetchWorkflowTimers(
+  objectType: string, objectId: string,
+): Promise<WorkflowTimerView[]> {
+  return apiRequest<WorkflowTimerView[]>(
+    `/workflow/instances/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}/timers`);
 }
 
 export async function requestWorkflowApproval(

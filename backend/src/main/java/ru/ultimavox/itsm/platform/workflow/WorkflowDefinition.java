@@ -45,11 +45,18 @@ public record WorkflowDefinition(
             String to,
             Set<String> requiredPermissions,
             Set<String> requiredFields,
-            ApprovalRequirement approval
+            ApprovalRequirement approval,
+            TimerRequirement timer
     ) {
         public Transition(String key, String from, String to,
                           Set<String> requiredPermissions, Set<String> requiredFields) {
-            this(key, from, to, requiredPermissions, requiredFields, null);
+            this(key, from, to, requiredPermissions, requiredFields, null, null);
+        }
+
+        public Transition(String key, String from, String to,
+                          Set<String> requiredPermissions, Set<String> requiredFields,
+                          ApprovalRequirement approval) {
+            this(key, from, to, requiredPermissions, requiredFields, approval, null);
         }
 
         public Transition {
@@ -58,6 +65,10 @@ public record WorkflowDefinition(
             }
             requiredPermissions = requiredPermissions == null ? Set.of() : Set.copyOf(requiredPermissions);
             requiredFields = requiredFields == null ? Set.of() : Set.copyOf(requiredFields);
+            if (timer != null && (approval != null || !requiredPermissions.isEmpty() || !requiredFields.isEmpty())) {
+                throw new IllegalArgumentException(
+                        "Timer transition cannot require actor permissions, fields, or approval");
+            }
         }
     }
 
@@ -74,4 +85,13 @@ public record WorkflowDefinition(
     }
 
     public enum ApprovalMode { ANY, ALL, QUORUM }
+
+    public record TimerRequirement(long delaySeconds, int maxAttempts) {
+        public TimerRequirement {
+            if (delaySeconds < 1) throw new IllegalArgumentException("Timer delaySeconds must be positive");
+            if (maxAttempts < 1 || maxAttempts > 20) {
+                throw new IllegalArgumentException("Timer maxAttempts must be between 1 and 20");
+            }
+        }
+    }
 }

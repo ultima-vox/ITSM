@@ -12,8 +12,9 @@ import {
   fetchWorkflowApprovals,
   requestWorkflowApproval,
   voteWorkflowApproval,
+  fetchWorkflowTimers,
 } from '@/api';
-import type { WorkflowApprovalView, WorkflowInstanceView } from '@/api';
+import type { WorkflowApprovalView, WorkflowInstanceView, WorkflowTimerView } from '@/api';
 import type { WorkflowDefinition } from '@/types';
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Toggle } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -32,6 +33,7 @@ export function WorkflowPage() {
   const [migrationTarget, setMigrationTarget] = useState('');
   const [approvalTransition, setApprovalTransition] = useState('');
   const [approvalItems, setApprovalItems] = useState<WorkflowApprovalView[]>([]);
+  const [timerItems, setTimerItems] = useState<WorkflowTimerView[]>([]);
 
   const reload = useCallback(async () => {
     try {
@@ -69,12 +71,14 @@ export function WorkflowPage() {
 
   const loadMigrationInstance = async () => {
     try {
-      const [instance, approvalList] = await Promise.all([
+      const [instance, approvalList, timerList] = await Promise.all([
         fetchWorkflowInstance(migrationObjectType, migrationObjectId.trim()),
         fetchWorkflowApprovals(migrationObjectType, migrationObjectId.trim()),
+        fetchWorkflowTimers(migrationObjectType, migrationObjectId.trim()),
       ]);
       setMigrationInstance(instance);
       setApprovalItems(approvalList);
+      setTimerItems(timerList);
       setMigrationTarget(String(instance.definitionVersion));
     } catch {
       setMigrationInstance(null);
@@ -183,6 +187,15 @@ export function WorkflowPage() {
               <td><Badge tone={approval.status === 'APPROVED' ? 'mint' : approval.status === 'REJECTED' ? 'rose' : 'neutral'}>{approval.status}</Badge></td>
               <td>{approval.votes.map((vote) => `${vote.voterId}: ${vote.decision ?? 'PENDING'}`).join(', ')}</td>
               <td>{approval.status === 'PENDING' && <><Button size="sm" onClick={() => void voteApproval(approval.id, 'APPROVED')}>{t('workflowAdmin.approve')}</Button>{' '}<Button size="sm" variant="danger" onClick={() => void voteApproval(approval.id, 'REJECTED')}>{t('workflowAdmin.reject')}</Button></>}</td>
+            </tr>)}</tbody>
+          </table></div>}
+          {timerItems.length > 0 && <div className="data-table-wrap mt-3"><table className="data-table data-table--dense">
+            <thead><tr><th>{t('workflowAdmin.transitionKey')}</th><th>{t('workflowAdmin.timerDue')}</th>
+              <th>{t('workflowAdmin.colStatus')}</th><th>{t('workflowAdmin.timerAttempts')}</th><th>{t('workflowAdmin.timerError')}</th></tr></thead>
+            <tbody>{timerItems.map((timer) => <tr key={timer.id}>
+              <td><code>{timer.transitionKey}</code></td><td>{new Date(timer.dueAt).toLocaleString()}</td>
+              <td><Badge tone={timer.status === 'COMPLETED' ? 'mint' : timer.status === 'DEAD' ? 'rose' : 'neutral'}>{timer.status}</Badge></td>
+              <td>{timer.attempts}/{timer.maxAttempts}</td><td>{timer.lastError ?? '—'}</td>
             </tr>)}</tbody>
           </table></div>}
         </div>
@@ -357,6 +370,7 @@ export function WorkflowPage() {
                         <th scope="col">{t('workflowAdmin.colRequiredFields')}</th>
                         <th scope="col">{t('workflowAdmin.colPermissions')}</th>
                         <th scope="col">{t('workflowAdmin.approvalMode')}</th>
+                        <th scope="col">{t('workflowAdmin.timer')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -390,6 +404,7 @@ export function WorkflowPage() {
                               : '—'}
                           </td>
                           <td>{tr.approval ? `${tr.approval.mode} · ${tr.approval.voterRoles.join(', ')}${tr.approval.quorum ? ` · ${tr.approval.quorum}` : ''}` : '—'}</td>
+                          <td>{tr.timer ? `${tr.timer.delaySeconds}s · ${tr.timer.maxAttempts}×` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
