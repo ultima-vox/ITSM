@@ -23,6 +23,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
+import { useAuth } from '@/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useToast } from '@/hooks/useToast';
@@ -47,6 +48,7 @@ import {
   unlinkWorkItemAttachment,
   getContentUrl,
   formatBytes,
+  submitWorkItemSurvey,
   type AttachmentMeta,
   type FormDefinition,
 } from '@/api';
@@ -268,6 +270,7 @@ const MORE_INFO_TEMPLATE =
   'Need more information to continue. Please provide: reproduction steps, screenshots, and business impact.';
 
 export function WorkItemDetailPage() {
+  const { user: authUser } = useAuth();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const t = useT();
@@ -277,6 +280,10 @@ export function WorkItemDetailPage() {
   const [internal, setInternal] = useState(true);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
+  const [surveyRating, setSurveyRating] = useState('5');
+  const [surveyComment, setSurveyComment] = useState('');
+  const [surveySubmitting, setSurveySubmitting] = useState(false);
+  const [surveySubmitted, setSurveySubmitted] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -452,6 +459,17 @@ export function WorkItemDetailPage() {
     flash(t('workItem.commentSent'));
   };
 
+  const submitSurvey = async () => {
+    setSurveySubmitting(true);
+    try {
+      await submitWorkItemSurvey(id, Number(surveyRating), surveyComment);
+      setSurveySubmitted(true);
+      flash(t('workItem.surveyThanks'));
+    } finally {
+      setSurveySubmitting(false);
+    }
+  };
+
   const onCommentKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -572,6 +590,7 @@ export function WorkItemDetailPage() {
 
   const assigned = wi.assignee?.id === currentUser.id;
   const resolved = wi.status === 'resolved' || wi.status === 'closed';
+  const canSubmitSurvey = resolved && (authUser?.sub ?? currentUser.id) === wi.requester.id;
   const displayStatus: WorkItemStatus = wi.status;
 
   // Principal grants from mock RBAC role (u-anna → SERVICE_DESK_AGENT by default).
@@ -991,6 +1010,35 @@ export function WorkItemDetailPage() {
               <div className="resolution-notes">
                 <span className="field__label">{t('workItem.resolutionNotes')}</span>
                 <p>{wi.resolutionNotes}</p>
+              </div>
+            )}
+
+            {canSubmitSurvey && (
+              <div className="resolution-notes" aria-labelledby="csat-heading">
+                <h2 id="csat-heading">{t('workItem.surveyTitle')}</h2>
+                {surveySubmitted ? (
+                  <p>{t('workItem.surveyThanks')}</p>
+                ) : (
+                  <>
+                    <Select
+                      label={t('workItem.surveyRating')}
+                      value={surveyRating}
+                      onChange={(event) => setSurveyRating(event.target.value)}
+                      options={[1, 2, 3, 4, 5].map((rating) => ({
+                        value: String(rating), label: t('workItem.surveyScore', { rating }),
+                      }))}
+                    />
+                    <Textarea
+                      label={t('workItem.surveyComment')}
+                      value={surveyComment}
+                      maxLength={2000}
+                      onChange={(event) => setSurveyComment(event.target.value)}
+                    />
+                    <Button onClick={() => void submitSurvey()} disabled={surveySubmitting}>
+                      {surveySubmitting ? t('app.saving') : t('workItem.surveySubmit')}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 

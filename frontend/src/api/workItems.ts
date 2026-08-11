@@ -629,3 +629,24 @@ export async function transitionWorkItem(
   });
   return mapWorkItem(dto);
 }
+
+export interface WorkItemSurveyResult {
+  workItemId: string;
+  rating: number;
+  comment?: string | null;
+  submittedAt: string;
+}
+
+export async function submitWorkItemSurvey(
+  id: string,
+  rating: number,
+  comment?: string,
+): Promise<WorkItemSurveyResult> {
+  if (isMockMode()) {
+    await delay(120);
+    return { workItemId: id, rating, comment: comment?.trim() || null, submittedAt: new Date().toISOString() };
+  }
+  return apiRequest<WorkItemSurveyResult>(`/work-items/${id}/survey`, {
+    method: 'POST', body: { rating, comment: comment?.trim() || null },
+  });
+}
