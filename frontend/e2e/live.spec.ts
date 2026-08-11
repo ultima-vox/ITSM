@@ -48,4 +48,27 @@ test.describe('live backend', () => {
     expect(body.total).toBeGreaterThan(0);
     expect(body.items).toHaveLength(body.total);
   });
+
+  test('creates and publishes a knowledge article through live API', async ({ request }) => {
+    const marker = `Live KB ${Date.now()}`;
+    const created = await request.post('/api/v1/knowledge/articles', {
+      data: {
+        title: marker,
+        body: 'Verified live knowledge authoring body',
+        summary: 'Live E2E',
+        locale: 'ru',
+      },
+    });
+    expect(created.status()).toBe(201);
+    const draft = (await created.json()) as { id: string; status: string };
+    expect(draft.status).toBe('DRAFT');
+
+    const published = await request.post(
+      `/api/v1/knowledge/articles/${draft.id}/publish`,
+    );
+    expect(published.ok()).toBeTruthy();
+    const article = (await published.json()) as { status: string; title: string };
+    expect(article.status).toBe('PUBLISHED');
+    expect(article.title).toBe(marker);
+  });
 });

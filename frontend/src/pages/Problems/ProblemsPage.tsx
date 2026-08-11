@@ -20,7 +20,6 @@ import {
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
-  isMockMode,
 } from '@/api';
 import {
   Avatar,
@@ -363,16 +362,12 @@ export function ProblemsPage() {
     );
   };
 
-  /** S10: mint pending KB article from known-error RCA (mock CMS). */
+  /** Create a draft KB article from known-error RCA in mock or live API mode. */
   const publishKnownErrorToKb = async () => {
     if (!selected?.knownError) return;
     const cause = rootCauseDraft.trim() || selected.rootCause?.trim() || '';
     if (!cause) {
       toastError(t('problems.validation.knownErrorNeedsCause'));
-      return;
-    }
-    if (!isMockMode()) {
-      toastError(t('knowledge.cmsLiveUnsupported'));
       return;
     }
     const workaround =
