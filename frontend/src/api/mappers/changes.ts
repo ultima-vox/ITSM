@@ -71,7 +71,7 @@ export function mapChange(dto: BackendChange): Change {
     title: dto.title,
     type: mapChangeType(dto.type),
     status: mapChangeStatus(dto.status),
-    risk: mapRisk(dto.risk),
+    risk: mapRisk(dto.cabRiskLevel ?? dto.risk),
     plannedStart: dto.plannedStart ?? new Date().toISOString(),
     plannedEnd: dto.plannedEnd ?? new Date().toISOString(),
     assignee: null,
@@ -79,5 +79,6 @@ export function mapChange(dto: BackendChange): Change {
     description: dto.businessJustification ?? undefined,
     implementationPlan: dto.implementationPlan ?? undefined,
     backoutPlan: dto.rollbackPlan ?? undefined,
+    cabNotes: dto.cabNotes ?? undefined,
   };
 }

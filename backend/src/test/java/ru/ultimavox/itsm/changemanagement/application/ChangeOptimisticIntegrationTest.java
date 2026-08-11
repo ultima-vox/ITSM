@@ -43,10 +43,18 @@ class ChangeOptimisticIntegrationTest {
           Change.Type.NORMAL, Change.Risk.MEDIUM, "Deploy gateway", start, start.plusSeconds(3600),
           "Deploy", "Rollback", "Reliability", null, null), "alice");
       assertThat(created.version()).isZero();
-      Change submitted = commands.transition(created.id(), Change.Status.SUBMITTED, null, null, 0L, "alice");
-      assertThat(submitted.version()).isEqualTo(1);
+      Change edited = commands.update(created.id(), new ChangeCommands.UpdateCommand(
+          0, null, null, "Deploy safely", "Rollback safely", null,
+          "CAB reviewed", Change.Risk.HIGH), "alice");
+      assertThat(edited.version()).isEqualTo(1);
+      assertThat(edited.cabRiskLevel()).isEqualTo(Change.Risk.HIGH);
+      assertThatThrownBy(() -> commands.update(created.id(), new ChangeCommands.UpdateCommand(
+          0, null, null, "stale", "stale", null, null, null), "alice"))
+          .isInstanceOf(OptimisticLockingFailureException.class);
+      Change submitted = commands.transition(created.id(), Change.Status.SUBMITTED, null, null, 1L, "alice");
+      assertThat(submitted.version()).isEqualTo(2);
       assertThatThrownBy(() -> commands.transition(
-          created.id(), Change.Status.CAB_REVIEW, null, null, 0L, "alice"))
+          created.id(), Change.Status.CAB_REVIEW, null, null, 1L, "alice"))
           .isInstanceOf(OptimisticLockingFailureException.class);
       return null;
     });

@@ -143,13 +143,32 @@ export async function transitionChangeStatus(
 
 export async function patchChange(
   id: string,
-  patch: Parameters<typeof storeUpdateChange>[1],
+  patch: Parameters<typeof storeUpdateChange>[1] & { expectedVersion?: number },
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
     await delay(100);
-    return storeUpdateChange(id, patch);
+    const mockPatch = { ...patch };
+    delete mockPatch.expectedVersion;
+    return storeUpdateChange(id, mockPatch);
   }
-  return { ok: false, errorKey: 'module.errors.notFound' };
+  try {
+    const dto = await apiRequest<BackendChange>(`/changes/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: {
+        expectedVersion: patch.expectedVersion ?? 0,
+        plannedStart: patch.plannedStart,
+        plannedEnd: patch.plannedEnd,
+        implementationPlan: patch.implementationPlan,
+        rollbackPlan: patch.backoutPlan,
+        businessJustification: patch.description,
+        cabNotes: patch.cabNotes,
+        cabRiskLevel: patch.risk ? toBackendRisk(patch.risk) : undefined,
+      },
+    });
+    return { ok: true, change: mapChange(dto) };
+  } catch {
+    return { ok: false, errorKey: 'module.errors.invalidTransition' };
+  }
 }
 
 export async function setChangeCabDecision(

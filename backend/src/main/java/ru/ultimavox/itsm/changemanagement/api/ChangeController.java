@@ -136,6 +136,27 @@ class ChangeController {
     }
   }
 
+  @org.springframework.web.bind.annotation.PatchMapping("/{id}")
+  @Operation(summary = "Update change plans and CAB assessment with optimistic locking")
+  Change update(Authentication authentication, @PathVariable UUID id,
+                @Valid @RequestBody UpdateRequest body) {
+    access.require(authentication.getName(), "change.write", "change", id.toString());
+    try {
+      return commands.update(id, new ChangeCommands.UpdateCommand(
+          body.expectedVersion(), body.plannedStart(), body.plannedEnd(), body.implementationPlan(),
+          body.rollbackPlan(), body.businessJustification(), body.cabNotes(), body.cabRiskLevel()),
+          authentication.getName());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    } catch (IllegalArgumentException ex) {
+      HttpStatus status = ex.getMessage() != null && ex.getMessage().startsWith("Change not found")
+          ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+      throw new ResponseStatusException(status, ex.getMessage());
+    }
+  }
+
   @PostMapping("/bulk/transitions")
   @Operation(summary = "Transition up to 100 changes with explicit per-item results")
   BulkTransitionResponse bulkTransition(Authentication authentication,
@@ -217,6 +238,17 @@ class ChangeController {
       List<CabVoteService.CabVote> votes,
       long approveCount,
       int quorum
+  ) {}
+
+  record UpdateRequest(
+      long expectedVersion,
+      java.time.Instant plannedStart,
+      java.time.Instant plannedEnd,
+      @Size(max = 20000) String implementationPlan,
+      @Size(max = 20000) String rollbackPlan,
+      @Size(max = 8000) String businessJustification,
+      @Size(max = 8000) String cabNotes,
+      Change.Risk cabRiskLevel
   ) {}
 
   record BulkTransitionRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids,

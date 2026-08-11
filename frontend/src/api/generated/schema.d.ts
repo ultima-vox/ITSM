@@ -1146,6 +1146,24 @@ export interface paths {
         patch: operations["update_4"];
         trace?: never;
     };
+    "/api/v1/changes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get change by id */
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update change plans and CAB assessment with optimistic locking */
+        patch: operations["update_5"];
+        trace?: never;
+    };
     "/api/v1/workflow/instances/{objectType}/{objectId}": {
         parameters: {
             query?: never;
@@ -1443,7 +1461,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active object definition by key */
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1493,7 +1511,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1510,7 +1528,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1527,7 +1545,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get article by id or slug */
-        get: operations["get_8"];
+        get: operations["get_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1579,23 +1597,6 @@ export interface paths {
         };
         /** Impact analysis (BFS over CI relationships, up to 8 hops) */
         get: operations["impact"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/changes/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get change by id */
-        get: operations["get_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5331,6 +5332,54 @@ export interface operations {
             };
         };
     };
+    get_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Change"];
+                };
+            };
+        };
+    };
+    update_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Change"];
+                };
+            };
+        };
+    };
     getInstance: {
         parameters: {
             query?: never;
@@ -5696,7 +5745,7 @@ export interface operations {
             };
         };
     };
-    get_5: {
+    get_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -5762,28 +5811,6 @@ export interface operations {
             };
         };
     };
-    get_6: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                objectKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["FormRenderModel"];
-                };
-            };
-        };
-    };
     get_7: {
         parameters: {
             query?: never;
@@ -5807,6 +5834,28 @@ export interface operations {
         };
     };
     get_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormRenderModel"];
+                };
+            };
+        };
+    };
+    get_9: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5894,28 +5943,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ImpactResult"];
-                };
-            };
-        };
-    };
-    get_9: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["Change"];
                 };
             };
         };

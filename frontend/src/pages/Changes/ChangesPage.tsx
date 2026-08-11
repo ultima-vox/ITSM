@@ -563,12 +563,14 @@ export function ChangesPage() {
     const result = await patchChange(selected.id, {
       implementationPlan: planDraft,
       backoutPlan: backoutDraft,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
       return;
     }
     success(t('changes.plansSaved'));
+    await reload();
   };
 
   const saveCabFields = async () => {
@@ -576,31 +578,40 @@ export function ChangesPage() {
     const result = await patchChange(selected.id, {
       risk: riskDraft,
       cabNotes: cabNotesDraft,
+      expectedVersion: selected.version ?? 0,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
       return;
     }
     success(t('changes.cab.fieldsSaved'));
+    await reload();
   };
 
   const runCabDecision = async (decision: 'approve' | 'reject') => {
     if (!selected) return;
     setValidation(null);
+    let expectedVersion = selected.version ?? 0;
     if (
       riskDraft !== selected.risk ||
       cabNotesDraft !== (selected.cabNotes ?? '')
     ) {
-      await patchChange(selected.id, {
+      const patched = await patchChange(selected.id, {
         risk: riskDraft,
         cabNotes: cabNotesDraft,
+        expectedVersion,
       });
+      if (!patched.ok) {
+        setValidation(t(patched.errorKey));
+        return;
+      }
+      expectedVersion = patched.change.version ?? expectedVersion + 1;
     }
     const result = await setChangeCabDecision(
       selected.id,
       decision,
       cabNotesDraft,
-      selected.version ?? 0,
+      expectedVersion,
     );
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -631,17 +642,24 @@ export function ChangesPage() {
     if (!selected) return;
     setValidation(null);
     // Persist plans before transition so validation sees them
+    let expectedVersion = selected.version ?? 0;
     if (
       planDraft !== selected.implementationPlan ||
       backoutDraft !== selected.backoutPlan
     ) {
-      await patchChange(selected.id, {
+      const patched = await patchChange(selected.id, {
         implementationPlan: planDraft,
         backoutPlan: backoutDraft,
+        expectedVersion,
       });
+      if (!patched.ok) {
+        setValidation(t(patched.errorKey));
+        return;
+      }
+      expectedVersion = patched.change.version ?? expectedVersion + 1;
     }
     const result = await transitionChangeStatus(
-      selected.id, next, selected.version ?? 0,
+      selected.id, next, expectedVersion,
     );
     if (!result.ok) {
       setValidation(t(result.errorKey));

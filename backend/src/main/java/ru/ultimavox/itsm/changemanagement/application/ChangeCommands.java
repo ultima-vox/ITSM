@@ -163,10 +163,76 @@ public class ChangeCommands {
     return query.findById(id).orElseThrow();
   }
 
+  @Transactional
+  public Change update(UUID id, UpdateCommand command, String actor) {
+    Change current = query.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Change not found: " + id));
+    if (command.expectedVersion() < 0 || current.version() != command.expectedVersion()) {
+      throw new OptimisticLockingFailureException(
+          "Change changed since version " + command.expectedVersion());
+    }
+    if (current.status() == Change.Status.CLOSED || current.status() == Change.Status.REJECTED) {
+      throw new IllegalStateException("Terminal change cannot be edited");
+    }
+    Instant plannedStart = command.plannedStart() == null ? current.plannedStart() : command.plannedStart();
+    Instant plannedEnd = command.plannedEnd() == null ? current.plannedEnd() : command.plannedEnd();
+    if (plannedStart != null && plannedEnd != null && !plannedEnd.isAfter(plannedStart)) {
+      throw new IllegalArgumentException("plannedEnd must be after plannedStart");
+    }
+    String implementationPlan = command.implementationPlan() == null
+        ? current.implementationPlan() : command.implementationPlan().trim();
+    String rollbackPlan = command.rollbackPlan() == null
+        ? current.rollbackPlan() : command.rollbackPlan().trim();
+    if (implementationPlan == null || implementationPlan.isBlank()
+        || rollbackPlan == null || rollbackPlan.isBlank()) {
+      throw new IllegalArgumentException("implementationPlan and rollbackPlan are required");
+    }
+    String justification = command.businessJustification() == null
+        ? current.businessJustification() : command.businessJustification().trim();
+    String cabNotes = command.cabNotes() == null ? current.cabNotes() : command.cabNotes().trim();
+    Change.Risk cabRisk = command.cabRiskLevel() == null ? current.cabRiskLevel() : command.cabRiskLevel();
+    Instant now = Instant.now();
+    int changed = jdbc.update(
+        """
+        UPDATE change_request SET planned_start=?, planned_end=?, implementation_plan=?, rollback_plan=?,
+          business_justification=?, cab_notes=?, cab_risk_level=?, version=version+1, updated_at=?
+        WHERE id=? AND org_id=? AND version=?
+        """,
+        plannedStart == null ? null : java.sql.Timestamp.from(plannedStart),
+        plannedEnd == null ? null : java.sql.Timestamp.from(plannedEnd),
+        implementationPlan, rollbackPlan, justification, cabNotes,
+        cabRisk == null ? null : cabRisk.name(), java.sql.Timestamp.from(now),
+        id, OrganizationContext.current(), command.expectedVersion());
+    if (changed == 0) throw new OptimisticLockingFailureException(
+        "Change changed since version " + command.expectedVersion());
+    UUID correlation = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
+    Map<String, Object> before = Map.of("version", current.version(), "status", current.status().name());
+    Map<String, Object> after = Map.of(
+        "version", current.version() + 1,
+        "status", current.status().name(),
+        "cabRiskLevel", String.valueOf(cabRisk));
+    audit.append(new AuditTrail.Entry(actor, "change.fields-updated", "change", id.toString(),
+        before, after, correlation, now));
+    outbox.record(new DomainEvent(UUID.randomUUID(), "change.fields-updated", 1, now, correlation,
+        "change", id.toString(), after));
+    return query.findById(id).orElseThrow();
+  }
+
   public record CreateCommand(
       Change.Type type,
       Change.Risk risk,
       String title,
+      Instant plannedStart,
+      Instant plannedEnd,
+      String implementationPlan,
+      String rollbackPlan,
+      String businessJustification,
+      String cabNotes,
+      Change.Risk cabRiskLevel
+  ) {}
+
+  public record UpdateCommand(
+      long expectedVersion,
       Instant plannedStart,
       Instant plannedEnd,
       String implementationPlan,
