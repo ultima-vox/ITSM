@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.idempotency.ApiIdempotencyService;
+import ru.ultimavox.itsm.platform.authorization.FieldAccessControl;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.ActivityResponse;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.AttachmentLinkResponse;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.CommentResponse;
@@ -88,6 +89,7 @@ class WorkItemController {
   private final BulkWorkItemService bulkWorkItems;
   private final AccessControl access;
   private final ApiIdempotencyService idempotency;
+  private final FieldAccessControl fieldAccess;
 
   WorkItemController(
       CreateWorkItem createWorkItem,
@@ -110,7 +112,8 @@ class WorkItemController {
       MajorIncidentService majorIncidents,
       BulkWorkItemService bulkWorkItems,
       AccessControl access,
-      ApiIdempotencyService idempotency
+      ApiIdempotencyService idempotency,
+      FieldAccessControl fieldAccess
   ) {
     this.createWorkItem = createWorkItem;
     this.workItemQuery = workItemQuery;
@@ -133,6 +136,7 @@ class WorkItemController {
     this.bulkWorkItems = bulkWorkItems;
     this.access = access;
     this.idempotency = idempotency;
+    this.fieldAccess = fieldAccess;
   }
 
   @PostMapping
@@ -254,6 +258,13 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.transition", "work-item", id.toString());
+    String targetState = request.targetState().name();
+    if (request.resolutionCode() != null) {
+      fieldAccess.requireWrite(actor, "work-item", id.toString(), "resolutionCode", targetState);
+    }
+    if (request.resolutionNotes() != null) {
+      fieldAccess.requireWrite(actor, "work-item", id.toString(), "resolutionNotes", targetState);
+    }
     return WorkItemResponse.from(transitionWorkItem.transition(
         id,
         new TransitionWorkItem.Command(
