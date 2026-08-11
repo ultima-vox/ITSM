@@ -23,6 +23,8 @@ public interface RbacRepository {
 
     List<PrincipalAssignment> listPrincipalAssignments();
 
+    PrincipalAssignment replacePrincipalRole(String subjectId, String roleKey);
+
     record RoleCatalogEntry(
         UUID id,
         String roleKey,

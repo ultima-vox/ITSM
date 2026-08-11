@@ -96,7 +96,11 @@ export async function assignUserRole(
     await delay(80);
     return mockAssign(userId, roleKey);
   }
-  throw new Error('module.errors.bulkLiveUnsupported');
+  const changed = await apiRequest<BackendPrincipal>(
+    `/rbac/principals/${encodeURIComponent(userId)}/role`,
+    { method: 'PUT', body: { roleKey } },
+  );
+  return mapPrincipal(changed);
 }
 
 export function getPermissionDescription(key: string): string {
@@ -105,7 +109,7 @@ export function getPermissionDescription(key: string): string {
 }
 
 export function rbacWritable(): boolean {
-  return isMockMode();
+  return true;
 }
 
 export function subscribeRbac(listener: () => void): () => void {

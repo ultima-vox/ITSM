@@ -7,6 +7,11 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
@@ -53,6 +58,27 @@ class RbacAdminController {
         .toList();
   }
 
+  @PutMapping("/principals/{subjectId}/role")
+  @Operation(summary = "Replace principal role assignment in current organization")
+  PrincipalResponse replaceRole(
+      Authentication authentication,
+      @PathVariable String subjectId,
+      @RequestBody ReplaceRoleRequest body
+  ) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "rbac.write", "principal_role", subjectId);
+    if (subjectId == null || subjectId.isBlank() || body.roleKey() == null || body.roleKey().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subjectId and roleKey are required");
+    }
+    try {
+      return PrincipalResponse.from(rbac.replacePrincipalRole(subjectId, body.roleKey()));
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+  }
+
+  record ReplaceRoleRequest(String roleKey) {}
+
   private void requireRead(Authentication authentication) {
     String actor = authentication != null ? authentication.getName() : null;
     access.require(actor, "rbac.read", "role", null);
@@ -78,5 +104,9 @@ class RbacAdminController {
 
   record PermissionResponse(String key, String description) {}
 
-  record PrincipalResponse(String subjectId, List<String> roleKeys) {}
+  record PrincipalResponse(String subjectId, List<String> roleKeys) {
+    static PrincipalResponse from(PrincipalAssignment assignment) {
+      return new PrincipalResponse(assignment.subjectId(), assignment.roleKeys());
+    }
+  }
 }

@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 class JdbcRbacRepository implements RbacRepository {
@@ -170,6 +171,32 @@ class JdbcRbacRepository implements RbacRepository {
       out.add(new PrincipalAssignment(e.getKey(), List.copyOf(e.getValue())));
     }
     return out;
+  }
+
+  @Override
+  @Transactional
+  public PrincipalAssignment replacePrincipalRole(String subjectId, String roleKey) {
+    List<UUID> roleIds = jdbc.query(
+        "SELECT id FROM role WHERE role_key = ?",
+        (rs, i) -> rs.getObject("id", UUID.class),
+        roleKey
+    );
+    if (roleIds.isEmpty()) {
+      throw new IllegalArgumentException("Unknown role: " + roleKey);
+    }
+    String organization = OrganizationContext.current();
+    jdbc.update(
+        "DELETE FROM principal_role WHERE org_id = ? AND subject_id = ?",
+        organization, subjectId
+    );
+    jdbc.update(
+        """
+        INSERT INTO principal_role (org_id, subject_id, role_id)
+        VALUES (?, ?, ?)
+        """,
+        organization, subjectId, roleIds.getFirst()
+    );
+    return new PrincipalAssignment(subjectId, List.of(roleKey));
   }
 
   private Map<String, String> parseLabels(String labelsJson) {
