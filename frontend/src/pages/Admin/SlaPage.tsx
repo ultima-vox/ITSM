@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast';
 import {
   fetchSlaPolicies,
   fetchWorkingCalendars,
+  updateWorkingCalendar,
   setSlaPolicyEnabled,
   slaPoliciesWritable,
   subscribeSlaPolicies,
@@ -21,6 +22,10 @@ function dayLabel(day: string, t: (k: string) => string): string {
   return translated === key ? day : translated;
 }
 
+const CALENDAR_DAYS = [
+  'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+];
+
 export function SlaPage() {
   const t = useT();
   const { success } = useToast();
@@ -32,6 +37,8 @@ export function SlaPage() {
   const [draftTargets, setDraftTargets] = useState<SlaTarget[]>([]);
   const [dirty, setDirty] = useState(false);
   const [calendars, setCalendars] = useState<WorkingCalendarMock[]>([]);
+  const [calendarDraft, setCalendarDraft] = useState<WorkingCalendarMock | null>(null);
+  const [calendarDirty, setCalendarDirty] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -81,6 +88,27 @@ export function SlaPage() {
   const calendar: WorkingCalendarMock | null = selected
     ? calendars.find((candidate) => candidate.key === selected.calendarKey) ?? calendars[0] ?? null
     : calendars[0] ?? null;
+
+  const calendarFingerprint = calendar
+    ? `${calendar.id}:${calendar.version}:${calendar.zone}:${calendar.startsAt}:${calendar.endsAt}`
+    : '';
+  useEffect(() => {
+    setCalendarDraft(calendar ? { ...calendar } : null);
+    setCalendarDirty(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- server version fingerprints saved state
+  }, [calendarFingerprint]);
+
+  const handleCalendarSave = async () => {
+    if (!calendarDraft?.id || !writable) return;
+    try {
+      const updated = await updateWorkingCalendar(calendarDraft);
+      setCalendars((current) => current.map((row) => row.id === updated.id ? updated : row));
+      setCalendarDirty(false);
+      success(t('slaAdmin.savedReseedToast'));
+    } catch {
+      setLoadError(true);
+    }
+  };
 
   const handleTargetChange = (
     index: number,
@@ -256,34 +284,91 @@ export function SlaPage() {
                 </div>
               </div>
 
-              {calendar && (
+              {calendarDraft && (
                 <div className="sla-admin-calendar" aria-label={t('slaAdmin.calendar')}>
                   <div className="sla-admin-calendar__head">
                     <CalendarClock size={15} aria-hidden />
                     <h3>{t('slaAdmin.calendar')}</h3>
-                    <code className="mono sla-admin-calendar__key">{calendar.key}</code>
+                    <code className="mono sla-admin-calendar__key">{calendarDraft.key}</code>
+                    {liveMode && calendarDraft.id && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={<Save size={14} />}
+                        onClick={() => void handleCalendarSave()}
+                        disabled={!calendarDirty || !writable}
+                      >
+                        {t('slaAdmin.save')}
+                      </Button>
+                    )}
                   </div>
                   <div className="sla-admin-calendar__grid">
                     <div className="sla-admin-calendar__cell">
                       <span className="sla-admin-calendar__label">{t('slaAdmin.zone')}</span>
-                      <strong className="mono">{calendar.zone}</strong>
+                      <Input
+                        name="sla-calendar-zone"
+                        value={calendarDraft.zone}
+                        disabled={!liveMode || !writable}
+                        onChange={(event) => {
+                          setCalendarDraft({ ...calendarDraft, zone: event.target.value });
+                          setCalendarDirty(true);
+                        }}
+                        aria-label={t('slaAdmin.zone')}
+                      />
                     </div>
                     <div className="sla-admin-calendar__cell">
                       <span className="sla-admin-calendar__label">{t('slaAdmin.window')}</span>
-                      <strong className="mono">
-                        {calendar.startsAt} – {calendar.endsAt}
-                      </strong>
+                      <div className="sla-admin-calendar__days">
+                        <Input
+                          name="sla-calendar-start"
+                          type="time"
+                          value={calendarDraft.startsAt}
+                          disabled={!liveMode || !writable}
+                          onChange={(event) => {
+                            setCalendarDraft({ ...calendarDraft, startsAt: event.target.value });
+                            setCalendarDirty(true);
+                          }}
+                          aria-label={t('slaAdmin.window')}
+                        />
+                        <Input
+                          name="sla-calendar-end"
+                          type="time"
+                          value={calendarDraft.endsAt}
+                          disabled={!liveMode || !writable}
+                          onChange={(event) => {
+                            setCalendarDraft({ ...calendarDraft, endsAt: event.target.value });
+                            setCalendarDirty(true);
+                          }}
+                          aria-label={t('slaAdmin.window')}
+                        />
+                      </div>
                     </div>
                     <div className="sla-admin-calendar__cell sla-admin-calendar__cell--wide">
                       <span className="sla-admin-calendar__label">
                         {t('slaAdmin.workingDays')}
                       </span>
                       <div className="sla-admin-calendar__days">
-                        {calendar.workingDays.map((d) => (
-                          <span key={d} className="sla-admin-calendar__day">
-                            {dayLabel(d, t)}
-                          </span>
-                        ))}
+                        {CALENDAR_DAYS.map((day) => {
+                          const enabled = calendarDraft.workingDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              className={`sla-admin-calendar__day${enabled ? ' is-active' : ''}`}
+                              aria-pressed={enabled}
+                              disabled={!liveMode || !writable}
+                              onClick={() => {
+                                const workingDays = enabled
+                                  ? calendarDraft.workingDays.filter((value) => value !== day)
+                                  : [...calendarDraft.workingDays, day];
+                                setCalendarDraft({ ...calendarDraft, workingDays });
+                                setCalendarDirty(true);
+                              }}
+                            >
+                              {dayLabel(day, t)}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

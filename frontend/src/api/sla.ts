@@ -79,6 +79,28 @@ export async function fetchWorkingCalendars(): Promise<WorkingCalendarMock[]> {
   return (list ?? []).map(mapCalendar);
 }
 
+export async function updateWorkingCalendar(
+  calendar: WorkingCalendarMock,
+): Promise<WorkingCalendarMock> {
+  if (isMockMode() || !calendar.id) return calendar;
+  const changed = await apiRequest<BackendWorkingCalendar>(
+    `/sla/calendars/${encodeURIComponent(calendar.id)}`,
+    {
+      method: 'PATCH',
+      body: {
+        expectedVersion: calendar.version ?? 0,
+        key: calendar.key,
+        zone: calendar.zone,
+        workingDays: calendar.workingDays,
+        startsAt: calendar.startsAt,
+        endsAt: calendar.endsAt,
+        holidays: calendar.holidays,
+      },
+    },
+  );
+  return mapCalendar(changed);
+}
+
 export function slaPoliciesWritable(): boolean {
   return true;
 }

@@ -5237,6 +5237,17 @@ html[data-theme='high-contrast'] .map-footer__label {
   color: #1f7a52;
   font-size: 11px;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.sla-admin-calendar__day:not(.is-active) {
+  background: var(--vox-surface-muted, #f4f6f9);
+  border-color: var(--vox-border, #d9dee8);
+  color: var(--vox-text-muted, #5f687b);
+}
+
+.sla-admin-calendar__day:disabled {
+  cursor: default;
 }
 
 .sla-admin-calendar__note {
