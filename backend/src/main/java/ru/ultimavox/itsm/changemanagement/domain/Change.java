@@ -20,7 +20,8 @@ public record Change(
     String rollbackPlan,
     String businessJustification,
     String cabNotes,
-    Risk cabRiskLevel
+    Risk cabRiskLevel,
+    long version
 ) {
   public Change transition(Status target) {
     if (!allowed(status, target)) {
@@ -31,7 +32,7 @@ public record Change(
     }
     return new Change(
         id, number, type, risk, target, title, plannedStart, plannedEnd,
-        implementationPlan, rollbackPlan, businessJustification, cabNotes, cabRiskLevel
+        implementationPlan, rollbackPlan, businessJustification, cabNotes, cabRiskLevel, version
     );
   }
 
@@ -41,8 +42,17 @@ public record Change(
     }
     return new Change(
         id, number, type, risk, status, title, plannedStart, plannedEnd,
-        implementationPlan, rollbackPlan, businessJustification, notes, assessedRisk
+        implementationPlan, rollbackPlan, businessJustification, notes, assessedRisk, version
     );
+  }
+
+  public Change(
+      UUID id, String number, Type type, Risk risk, Status status, String title,
+      Instant plannedStart, Instant plannedEnd, String implementationPlan, String rollbackPlan,
+      String businessJustification, String cabNotes, Risk cabRiskLevel
+  ) {
+    this(id, number, type, risk, status, title, plannedStart, plannedEnd, implementationPlan,
+        rollbackPlan, businessJustification, cabNotes, cabRiskLevel, 0);
   }
 
   private static boolean allowed(Status from, Status to) {

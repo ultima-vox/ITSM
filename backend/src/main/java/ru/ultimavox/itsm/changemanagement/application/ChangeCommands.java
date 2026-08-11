@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.changemanagement.domain.Change;
@@ -95,9 +96,14 @@ public class ChangeCommands {
   }
 
   @Transactional
-  public Change transition(UUID id, Change.Status target, String cabNotes, Change.Risk cabRiskLevel, String actor) {
+  public Change transition(UUID id, Change.Status target, String cabNotes, Change.Risk cabRiskLevel,
+                           Long expectedVersion, String actor) {
     Change current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Change not found: " + id));
+    long version = expectedVersion == null ? current.version() : expectedVersion;
+    if (version < 0 || current.version() != version) {
+      throw new OptimisticLockingFailureException("Change changed since version " + version);
+    }
 
     Change withCab = cabNotes != null || cabRiskLevel != null
         ? current.withCabAssessment(
@@ -116,19 +122,21 @@ public class ChangeCommands {
         workflowFields, correlationId
     );
 
-    jdbc.update(
+    int changed = jdbc.update(
         """
             UPDATE change_request
-            SET status = ?, cab_notes = ?, cab_risk_level = ?, updated_at = ?
-            WHERE id = ? AND org_id = ?
+            SET status = ?, cab_notes = ?, cab_risk_level = ?, version = version + 1, updated_at = ?
+            WHERE id = ? AND org_id = ? AND version = ?
             """,
         updated.status().name(),
         updated.cabNotes(),
         updated.cabRiskLevel() == null ? null : updated.cabRiskLevel().name(),
         java.sql.Timestamp.from(now),
         id,
-        OrganizationContext.current()
+        OrganizationContext.current(),
+        version
     );
+    if (changed == 0) throw new OptimisticLockingFailureException("Change changed since version " + version);
 
     if (target == Change.Status.APPROVED || target == Change.Status.REJECTED) {
       jdbc.update(
@@ -152,7 +160,7 @@ public class ChangeCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "change.transitioned", 1, now, correlationId, "change", id.toString(), after
     ));
-    return updated;
+    return query.findById(id).orElseThrow();
   }
 
   public record CreateCommand(

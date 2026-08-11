@@ -276,6 +276,7 @@ export interface CabVote {
 
 export interface Change {
   id: string;
+  version?: number;
   number: string;
   title: string;
   type: ChangeType;

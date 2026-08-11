@@ -124,6 +124,7 @@ export async function createChange(
 export async function transitionChangeStatus(
   id: string,
   next: ChangeStatus,
+  expectedVersion = 0,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
     await delay(120);
@@ -132,7 +133,7 @@ export async function transitionChangeStatus(
   try {
     const dto = await apiRequest<BackendChange>(`/changes/${id}/transitions`, {
       method: 'POST',
-      body: { target: toBackendChangeTarget(next) },
+      body: { target: toBackendChangeTarget(next), expectedVersion },
     });
     return { ok: true, change: mapChange(dto) };
   } catch {
@@ -155,6 +156,7 @@ export async function setChangeCabDecision(
   id: string,
   decision: 'approve' | 'reject',
   notes?: string,
+  expectedVersion = 0,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
   if (isMockMode()) {
     await delay(120);
@@ -168,6 +170,7 @@ export async function setChangeCabDecision(
       body: {
         target,
         cabNotes: notes,
+        expectedVersion,
       },
     });
     return { ok: true, change: mapChange(dto) };

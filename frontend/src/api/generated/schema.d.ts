@@ -2510,6 +2510,8 @@ export interface components {
             cabNotes?: string;
             /** @enum {string} */
             cabRiskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** Format: int64 */
+            version?: number;
         };
         CabVoteRequest: {
             decision: string;

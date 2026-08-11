@@ -2,6 +2,7 @@ import type { Change, Priority } from '@/types';
 
 export interface BackendChange {
   id: string;
+  version?: number;
   number: string;
   type: string;
   risk: string;
@@ -65,6 +66,7 @@ function mapRisk(risk: string): Priority {
 export function mapChange(dto: BackendChange): Change {
   return {
     id: String(dto.id),
+    version: dto.version ?? 0,
     number: dto.number,
     title: dto.title,
     type: mapChangeType(dto.type),

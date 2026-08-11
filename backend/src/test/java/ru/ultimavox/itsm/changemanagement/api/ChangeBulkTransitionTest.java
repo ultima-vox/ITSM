@@ -23,7 +23,7 @@ class ChangeBulkTransitionTest {
         AccessControl access = mock(AccessControl.class);
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("operator");
-        when(commands.transition(any(), eq(Change.Status.APPROVED), any(), any(), eq("operator")))
+        when(commands.transition(any(), eq(Change.Status.APPROVED), any(), any(), any(), eq("operator")))
                 .thenThrow(new IllegalStateException("invalid"));
         UUID id = UUID.randomUUID();
 

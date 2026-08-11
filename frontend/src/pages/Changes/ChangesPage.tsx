@@ -524,7 +524,10 @@ export function ChangesPage() {
   ) => {
     setCabBusyId(changeId);
     try {
-      const result = await setChangeCabDecision(changeId, decision);
+      const row = allChanges.find((change) => change.id === changeId);
+      const result = await setChangeCabDecision(
+        changeId, decision, undefined, row?.version ?? 0,
+      );
       if (!result.ok) {
         toastError(t(result.errorKey));
         return;
@@ -597,6 +600,7 @@ export function ChangesPage() {
       selected.id,
       decision,
       cabNotesDraft,
+      selected.version ?? 0,
     );
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -609,6 +613,7 @@ export function ChangesPage() {
         : t('changes.cab.rejectedToast'),
     );
     setSelectedId(result.change.id);
+    await reload();
   };
 
   const runCabVote = async (memberId: string, decision: CabVoteDecision) => {
@@ -635,7 +640,9 @@ export function ChangesPage() {
         backoutPlan: backoutDraft,
       });
     }
-    const result = await transitionChangeStatus(selected.id, next);
+    const result = await transitionChangeStatus(
+      selected.id, next, selected.version ?? 0,
+    );
     if (!result.ok) {
       setValidation(t(result.errorKey));
       toastError(t(result.errorKey));
@@ -643,6 +650,7 @@ export function ChangesPage() {
     }
     success(t('changes.transitionOk', { status: t(`status.${next}`) }));
     setSelectedId(result.change.id);
+    await reload();
   };
 
   const columns = useMemo<ModuleGridColumn<Change>[]>(

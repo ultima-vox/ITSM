@@ -125,10 +125,12 @@ class ChangeController {
     access.require(authentication.getName(), "change.write", "change", id.toString());
     try {
       return commands.transition(
-          id, body.target(), body.cabNotes(), body.cabRiskLevel(), authentication.getName()
+          id, body.target(), body.cabNotes(), body.cabRiskLevel(), body.expectedVersion(), authentication.getName()
       );
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -142,7 +144,7 @@ class ChangeController {
     List<BulkTransitionResult> results = body.ids().stream().map(id -> {
       access.require(actor, "change.write", "change", id.toString());
       try {
-        Change changed = commands.transition(id, body.target(), null, null, actor);
+        Change changed = commands.transition(id, body.target(), null, null, null, actor);
         return new BulkTransitionResult(id, true, changed.status().name(), null);
       } catch (IllegalArgumentException ex) {
         return new BulkTransitionResult(id, false, null, "NOT_FOUND");
@@ -202,7 +204,8 @@ class ChangeController {
   record TransitionRequest(
       @NotNull Change.Status target,
       @Size(max = 8000) String cabNotes,
-      Change.Risk cabRiskLevel
+      Change.Risk cabRiskLevel,
+      long expectedVersion
   ) {}
 
   record CabVoteRequest(
