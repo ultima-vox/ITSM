@@ -234,23 +234,16 @@ export async function bulkSetChangeStatus(
     await delay(80);
     return storeBulkSetChangeStatus(ids, status);
   }
-  // Live: per-item transitions (honest count of successes + skips).
-  const settled = await Promise.all(
-    ids.map(async (id) => {
-      const r = await transitionChangeStatus(id, status);
-      return { id, r };
-    }),
-  );
-  const skipped: BulkStatusResult['skipped'] = [];
-  let ok = 0;
-  for (const x of settled) {
-    if (x.r.ok) ok += 1;
-    else
-      skipped.push({
-        id: x.id,
-        number: x.id,
-        errorKey: x.r.errorKey,
-      });
-  }
-  return { ok, skipped };
+  const response = await apiRequest<{
+    succeeded: number;
+    results: Array<{ id: string; success: boolean; errorCode?: string | null }>;
+  }>('/changes/bulk/transitions', {
+    method: 'POST', body: { ids, target: toBackendChangeTarget(status) },
+  });
+  return {
+    ok: response.succeeded,
+    skipped: response.results.filter((item) => !item.success).map((item) => ({
+      id: item.id, number: item.id, errorKey: 'module.errors.invalidTransition',
+    })),
+  };
 }

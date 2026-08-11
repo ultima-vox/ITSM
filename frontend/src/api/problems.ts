@@ -165,8 +165,9 @@ export async function bulkSetProblemStatus(
     await delay(80);
     return storeBulkSetProblemStatus(ids, status);
   }
-  const results = await Promise.all(
-    ids.map((id) => transitionProblemStatus(id, status)),
+  const response = await apiRequest<{ succeeded: number }>(
+    '/problems/bulk/transitions',
+    { method: 'POST', body: { ids, target: toBackendProblemTarget(status) } },
   );
-  return results.filter((r) => r.ok).length;
+  return response.succeeded;
 }

@@ -510,6 +510,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/problems/bulk/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition up to 100 problems with explicit per-item results */
+        post: operations["bulkTransition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -763,6 +780,23 @@ export interface paths {
         put?: never;
         /** Transition change lifecycle; CAB risk fields accepted during review */
         post: operations["transition_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/bulk/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition up to 100 changes with explicit per-item results */
+        post: operations["bulkTransition_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2231,6 +2265,23 @@ export interface components {
         LinkWorkItemRequest: {
             /** Format: uuid */
             workItemId: string;
+        };
+        BulkTransitionRequest: {
+            ids: string[];
+            /** @enum {string} */
+            target: "NEW" | "UNDER_INVESTIGATION" | "ROOT_CAUSE_IDENTIFIED" | "KNOWN_ERROR" | "RESOLVED" | "CLOSED";
+        };
+        BulkTransitionResponse: {
+            /** Format: int64 */
+            succeeded?: number;
+            results?: components["schemas"]["BulkTransitionResult"][];
+        };
+        BulkTransitionResult: {
+            /** Format: uuid */
+            id?: string;
+            success?: boolean;
+            status?: string;
+            errorCode?: string;
         };
         MarkAllReadResponse: {
             /** Format: int32 */
@@ -3980,6 +4031,30 @@ export interface operations {
             };
         };
     };
+    bulkTransition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkTransitionResponse"];
+                };
+            };
+        };
+    };
     markRead: {
         parameters: {
             query?: never;
@@ -4466,6 +4541,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Change"];
+                };
+            };
+        };
+    };
+    bulkTransition_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkTransitionResponse"];
                 };
             };
         };

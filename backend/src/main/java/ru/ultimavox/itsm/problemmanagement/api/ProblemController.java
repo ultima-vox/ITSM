@@ -110,6 +110,25 @@ class ProblemController {
     }
   }
 
+  @PostMapping("/bulk/transitions")
+  @Operation(summary = "Transition up to 100 problems with explicit per-item results")
+  BulkTransitionResponse bulkTransition(Authentication authentication,
+                                         @Valid @RequestBody BulkTransitionRequest body) {
+    String actor = authentication.getName();
+    List<BulkTransitionResult> results = body.ids().stream().map(id -> {
+      access.require(actor, "problem.write", "problem", id.toString());
+      try {
+        Problem changed = commands.transition(id, body.target(), null, null, null, actor);
+        return new BulkTransitionResult(id, true, changed.status().name(), null);
+      } catch (IllegalArgumentException ex) {
+        return new BulkTransitionResult(id, false, null, "NOT_FOUND");
+      } catch (IllegalStateException ex) {
+        return new BulkTransitionResult(id, false, null, "INVALID_TRANSITION");
+      }
+    }).toList();
+    return new BulkTransitionResponse(results.stream().filter(BulkTransitionResult::success).count(), results);
+  }
+
   @PostMapping("/{id}/work-items")
   @Operation(summary = "Link a work item to a problem")
   Problem linkWorkItem(
@@ -145,4 +164,9 @@ class ProblemController {
   ) {}
 
   record LinkWorkItemRequest(@NotNull UUID workItemId) {}
+
+  record BulkTransitionRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids,
+                               @NotNull Problem.Status target) {}
+  record BulkTransitionResult(UUID id, boolean success, String status, String errorCode) {}
+  record BulkTransitionResponse(long succeeded, List<BulkTransitionResult> results) {}
 }
