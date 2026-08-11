@@ -82,6 +82,28 @@ export async function fetchCatalogRequestTasks(id: string): Promise<CatalogTaskV
   return apiRequest<CatalogTaskView[]>(`/catalog/requests/${id}/tasks`);
 }
 
+export async function fetchCatalogOperations(): Promise<CatalogRequestView[]> {
+  if (isMockMode()) return [];
+  return apiRequest<CatalogRequestView[]>('/catalog/operations/requests?page=0&size=100');
+}
+
+export async function decideCatalogApproval(
+  requestId: string, approvalId: string, decision: 'APPROVED' | 'REJECTED', comment?: string,
+): Promise<CatalogApprovalView> {
+  return apiRequest<CatalogApprovalView>(
+    `/catalog/requests/${requestId}/approvals/${approvalId}/decision`,
+    { method: 'POST', body: { decision, comment: comment?.trim() || null } },
+  );
+}
+
+export async function updateCatalogTask(
+  requestId: string, taskId: string, state: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED', assigneeId?: string,
+): Promise<CatalogTaskView> {
+  return apiRequest<CatalogTaskView>(`/catalog/requests/${requestId}/tasks/${taskId}`, {
+    method: 'POST', body: { state, assigneeId: assigneeId?.trim() || null },
+  });
+}
+
 /**
  * Live catalog request: POST /catalog/items/{id}/requests.
  * Mock mode is not used — callers should prefer createWorkItem for mock.

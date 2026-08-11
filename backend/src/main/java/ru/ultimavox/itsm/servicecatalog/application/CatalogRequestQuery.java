@@ -35,6 +35,13 @@ public class CatalogRequestQuery {
         (rs, row) -> map(rs), id, OrganizationContext.current(), requesterId).stream().findFirst();
   }
 
+  public List<RequestView> listOperations(int page, int size) {
+    int boundedSize = Math.min(Math.max(size, 1), 100);
+    int offset = Math.max(page, 0) * boundedSize;
+    return jdbc.query(BASE_SELECT + " WHERE cr.org_id=? ORDER BY cr.updated_at DESC LIMIT ? OFFSET ?",
+        (rs, row) -> map(rs), OrganizationContext.current(), boundedSize, offset);
+  }
+
   private RequestView map(java.sql.ResultSet rs) throws java.sql.SQLException {
     Map<String, Object> payload;
     try {

@@ -438,6 +438,12 @@
     "service": "Service",
     "requestStatus": "Status",
     "requestUpdated": "Updated",
+    "operations": "Fulfillment queue",
+    "operationsHint": "Approve requests and complete delivery tasks.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "startTask": "Start",
+    "completeTask": "Complete",
     "categoriesHeading": "Categories"
   },
   "knowledge": {

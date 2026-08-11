@@ -34,4 +34,10 @@ class CatalogRequestQueryTest {
     assertThat(new CatalogRequestQuery(jdbc, new ObjectMapper()).findMine(id, "bob")).isEmpty();
     verify(jdbc).query(anyString(), any(RowMapper.class), eq(id), eq("default"), eq("bob"));
   }
+
+  @Test void operationsQueueAlwaysScopesByOrganization() {
+    when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+    assertThat(new CatalogRequestQuery(jdbc, new ObjectMapper()).listOperations(0, 500)).isEmpty();
+    verify(jdbc).query(anyString(), any(RowMapper.class), eq("default"), eq(100), eq(0));
+  }
 }

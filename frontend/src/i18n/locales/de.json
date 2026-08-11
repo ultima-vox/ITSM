@@ -438,6 +438,12 @@
     "service": "Service",
     "requestStatus": "Status",
     "requestUpdated": "Aktualisiert",
+    "operations": "Erfüllungswarteschlange",
+    "operationsHint": "Anfragen genehmigen und Lieferaufgaben abschließen.",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "startTask": "Starten",
+    "completeTask": "Abschließen",
     "categoriesHeading": "Kategorien"
   },
   "knowledge": {

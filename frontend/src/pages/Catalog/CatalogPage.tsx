@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
+import { useAuth } from '@/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { useShell } from '@/hooks/useShell';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -23,6 +24,11 @@ import {
   fetchCatalogCategories,
   fetchCatalogServices,
   fetchMyCatalogRequests,
+  fetchCatalogOperations,
+  fetchCatalogRequestApprovals,
+  fetchCatalogRequestTasks,
+  decideCatalogApproval,
+  updateCatalogTask,
   fetchFormDefinition,
   submitCatalogRequest,
   isMockMode,
@@ -66,6 +72,7 @@ function catalogFormDefinition(base: FormDefinition | null): FormDefinition | nu
 
 export function CatalogPage() {
   const t = useT();
+  const { user } = useAuth();
   const { openCommand } = useShell();
   const { success } = useToast();
   const [query, setQuery] = useState('');
@@ -75,6 +82,26 @@ export function CatalogPage() {
   const categories = useAsync(() => fetchCatalogCategories(), []);
   const services = useAsync(() => fetchCatalogServices(), []);
   const requests = useAsync(() => fetchMyCatalogRequests(), []);
+  const canFulfill = Boolean(user?.roles.some((role) =>
+    ['ADMIN', 'SERVICE_DESK_MANAGER', 'SERVICE_DESK_AGENT'].includes(role.toUpperCase())));
+  const canApprove = Boolean(user?.roles.some((role) =>
+    ['ADMIN', 'SERVICE_DESK_MANAGER'].includes(role.toUpperCase())));
+  const operations = useAsync(
+    () => canFulfill ? fetchCatalogOperations() : Promise.resolve([]), [canFulfill],
+  );
+  const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
+  const approvals = useAsync(
+    () => selectedOperation ? fetchCatalogRequestApprovals(selectedOperation) : Promise.resolve([]),
+    [selectedOperation],
+  );
+  const tasks = useAsync(
+    () => selectedOperation ? fetchCatalogRequestTasks(selectedOperation) : Promise.resolve([]),
+    [selectedOperation],
+  );
+
+  const refreshOperation = () => {
+    operations.reload(); approvals.reload(); tasks.reload(); requests.reload();
+  };
 
   const allServices = useMemo(() => services.data ?? [], [services.data]);
   const cats = useMemo(() => categories.data ?? [], [categories.data]);
@@ -216,6 +243,43 @@ export function CatalogPage() {
                   </tr>
                 ))}</tbody>
               </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {!isMockMode() && canFulfill && (
+        <section className="panel mt-4" aria-labelledby="catalog-operations-heading">
+          <div className="section-head"><div><h2 id="catalog-operations-heading">{t('catalog.operations')}</h2><p>{t('catalog.operationsHint')}</p></div></div>
+          <div className="audit-table-wrap"><table className="audit-table">
+            <thead><tr><th>{t('catalog.requestNumber')}</th><th>{t('catalog.requestStatus')}</th><th>{t('catalog.requestUpdated')}</th></tr></thead>
+            <tbody>{(operations.data ?? []).map((request) => (
+              <tr key={request.id} onClick={() => setSelectedOperation(request.id)} tabIndex={0}>
+                <td className="mono">{request.number}</td><td><span className="chip">{request.status}</span></td>
+                <td>{new Date(request.updatedAt).toLocaleString()}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+          {selectedOperation && (
+            <div className="mt-4">
+              {(approvals.data ?? []).map((approval) => (
+                <div className="section-head" key={approval.id}>
+                  <span>{approval.approverRole} · <b>{approval.state}</b></span>
+                  {approval.state === 'PENDING' && canApprove && <div>
+                    <Button size="sm" onClick={() => void decideCatalogApproval(selectedOperation, approval.id, 'APPROVED').then(refreshOperation)}>{t('catalog.approve')}</Button>{' '}
+                    <Button size="sm" variant="ghost" onClick={() => void decideCatalogApproval(selectedOperation, approval.id, 'REJECTED').then(refreshOperation)}>{t('catalog.reject')}</Button>
+                  </div>}
+                </div>
+              ))}
+              {(tasks.data ?? []).map((task) => (
+                <div className="section-head" key={task.id}>
+                  <span>{task.title} · <b>{task.state}</b></span>
+                  {!['COMPLETED', 'CANCELLED'].includes(task.state) && <div>
+                    {task.state === 'OPEN' && <Button size="sm" variant="ghost" onClick={() => void updateCatalogTask(selectedOperation, task.id, 'IN_PROGRESS', user?.sub).then(refreshOperation)}>{t('catalog.startTask')}</Button>}{' '}
+                    <Button size="sm" onClick={() => void updateCatalogTask(selectedOperation, task.id, 'COMPLETED', user?.sub).then(refreshOperation)}>{t('catalog.completeTask')}</Button>
+                  </div>}
+                </div>
+              ))}
             </div>
           )}
         </section>

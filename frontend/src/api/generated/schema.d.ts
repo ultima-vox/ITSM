@@ -1225,6 +1225,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/operations/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant catalog requests for fulfillment operators */
+        get: operations["operationRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/items": {
         parameters: {
             query?: never;
@@ -4340,6 +4357,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApprovalView"][];
+                };
+            };
+        };
+    };
+    operationRequests: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RequestView"][];
                 };
             };
         };

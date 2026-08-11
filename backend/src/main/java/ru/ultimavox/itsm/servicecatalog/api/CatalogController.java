@@ -103,6 +103,17 @@ class CatalogController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog request not found"));
   }
 
+  @GetMapping("/operations/requests")
+  @Operation(summary = "List tenant catalog requests for fulfillment operators")
+  List<CatalogRequestQuery.RequestView> operationRequests(
+      Authentication authentication,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size
+  ) {
+    access.require(authentication.getName(), "catalog.fulfill", "catalog-request", null);
+    return requests.listOperations(page, size);
+  }
+
   @GetMapping("/requests/{id}/approvals")
   List<CatalogFulfillmentService.ApprovalView> approvals(Authentication authentication, @PathVariable UUID id) {
     authorizeRequestRead(authentication.getName(), id);
