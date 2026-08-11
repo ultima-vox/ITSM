@@ -67,6 +67,19 @@ export interface CatalogTaskView {
   createdAt: string; completedAt?: string | null;
 }
 
+export interface CatalogBundleComponent { id: string; key: string; quantity: number; position: number }
+export interface CatalogItemDetail extends BackendCatalogItem { components?: CatalogBundleComponent[] }
+
+export async function fetchCatalogItemDetail(id: string): Promise<CatalogItemDetail> {
+  return apiRequest<CatalogItemDetail>(`/catalog/items/${id}`);
+}
+
+export async function replaceCatalogBundle(
+  id: string, components: Array<{ itemId: string; quantity: number; position: number }>,
+): Promise<Array<{ itemId: string; quantity: number; position: number }>> {
+  return apiRequest(`/catalog/items/${id}/bundle`, { method: 'PUT', body: { components } });
+}
+
 export async function fetchMyCatalogRequests(): Promise<CatalogRequestView[]> {
   if (isMockMode()) return [];
   return apiRequest<CatalogRequestView[]>('/catalog/requests?page=0&size=100');

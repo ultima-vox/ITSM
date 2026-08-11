@@ -444,6 +444,12 @@
     "reject": "Reject",
     "startTask": "Start",
     "completeTask": "Complete",
+    "bundleAdmin": "Bundle editor",
+    "bundleAdminHint": "Compose a service from published catalog items.",
+    "bundleItem": "Bundle item",
+    "bundleSelect": "Select an item",
+    "bundleComponents": "Included services",
+    "bundleSaved": "Bundle composition saved",
     "categoriesHeading": "Categories"
   },
   "knowledge": {

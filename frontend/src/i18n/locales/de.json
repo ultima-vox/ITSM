@@ -444,6 +444,12 @@
     "reject": "Ablehnen",
     "startTask": "Starten",
     "completeTask": "Abschließen",
+    "bundleAdmin": "Paketeditor",
+    "bundleAdminHint": "Service aus veröffentlichten Katalogelementen zusammenstellen.",
+    "bundleItem": "Paketelement",
+    "bundleSelect": "Element auswählen",
+    "bundleComponents": "Enthaltene Services",
+    "bundleSaved": "Paketzusammenstellung gespeichert",
     "categoriesHeading": "Kategorien"
   },
   "knowledge": {

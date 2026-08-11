@@ -29,13 +29,15 @@ import {
   fetchCatalogRequestTasks,
   decideCatalogApproval,
   updateCatalogTask,
+  fetchCatalogItemDetail,
+  replaceCatalogBundle,
   fetchFormDefinition,
   submitCatalogRequest,
   isMockMode,
   type FormDefinition,
 } from '@/api';
 import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
-import { Button, EmptyState, ErrorState, Skeleton } from '@/components/ui';
+import { Button, EmptyState, ErrorState, Select, Skeleton } from '@/components/ui';
 import type {
   CatalogService,
   ImpactLevel,
@@ -86,6 +88,28 @@ export function CatalogPage() {
     ['ADMIN', 'SERVICE_DESK_MANAGER', 'SERVICE_DESK_AGENT'].includes(role.toUpperCase())));
   const canApprove = Boolean(user?.roles.some((role) =>
     ['ADMIN', 'SERVICE_DESK_MANAGER'].includes(role.toUpperCase())));
+  const canAdminCatalog = Boolean(user?.roles.some((role) => role.toUpperCase() === 'ADMIN'));
+  const [bundleId, setBundleId] = useState('');
+  const [bundleComponents, setBundleComponents] = useState<string[]>([]);
+  const [bundleSaving, setBundleSaving] = useState(false);
+  const bundleDetail = useAsync(
+    () => bundleId ? fetchCatalogItemDetail(bundleId) : Promise.resolve(null), [bundleId],
+  );
+  useEffect(() => {
+    setBundleComponents(bundleDetail.data?.components?.map((component) => component.id) ?? []);
+  }, [bundleDetail.data]);
+
+  const saveBundle = async () => {
+    if (!bundleId) return;
+    setBundleSaving(true);
+    try {
+      await replaceCatalogBundle(bundleId, bundleComponents.map((itemId, index) => ({
+        itemId, quantity: 1, position: (index + 1) * 10,
+      })));
+      success(t('catalog.bundleSaved'));
+      bundleDetail.reload();
+    } finally { setBundleSaving(false); }
+  };
   const operations = useAsync(
     () => canFulfill ? fetchCatalogOperations() : Promise.resolve([]), [canFulfill],
   );
@@ -282,6 +306,24 @@ export function CatalogPage() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {!isMockMode() && canAdminCatalog && (
+        <section className="panel mt-4" aria-labelledby="bundle-admin-heading">
+          <div className="section-head"><div><h2 id="bundle-admin-heading">{t('catalog.bundleAdmin')}</h2><p>{t('catalog.bundleAdminHint')}</p></div></div>
+          <Select label={t('catalog.bundleItem')} value={bundleId} onChange={(event) => setBundleId(event.target.value)}
+            placeholder={t('catalog.bundleSelect')} options={allServices.map((service) => ({ value: service.id, label: t(service.titleKey) }))} />
+          {bundleId && <fieldset className="mt-4"><legend>{t('catalog.bundleComponents')}</legend>
+            {allServices.filter((service) => service.id !== bundleId).map((service) => (
+              <label className="check-row" key={service.id}><input type="checkbox" checked={bundleComponents.includes(service.id)}
+                onChange={(event) => setBundleComponents((current) => event.target.checked ? [...current, service.id] : current.filter((id) => id !== service.id))} />
+                <span>{t(service.titleKey)}</span></label>
+            ))}
+            <Button className="mt-4" onClick={() => void saveBundle()} disabled={bundleSaving || bundleDetail.loading}>
+              {bundleSaving ? t('app.saving') : t('app.save')}
+            </Button>
+          </fieldset>}
         </section>
       )}
 

@@ -444,6 +444,12 @@
     "reject": "Отклонить",
     "startTask": "Начать",
     "completeTask": "Завершить",
+    "bundleAdmin": "Редактор комплектов",
+    "bundleAdminHint": "Соберите услугу из опубликованных элементов каталога.",
+    "bundleItem": "Комплект",
+    "bundleSelect": "Выберите элемент",
+    "bundleComponents": "Включённые услуги",
+    "bundleSaved": "Состав комплекта сохранён",
     "categoriesHeading": "Категории"
   },
   "knowledge": {
