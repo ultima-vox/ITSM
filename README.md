@@ -473,7 +473,7 @@ Build for production from the beginning.
 This repository now contains a production-oriented modular-monolith foundation:
 
 - **`frontend/`** — Vite + React + TypeScript operator workspace (AAA UI shell): design-system tokens, Russian-default / English locale switcher, queues, work-item surfaces, accessible controls.
-- **`backend/`** — Java 25 / Spring Boot modular monolith (`ru.ultimavox.itsm`): platform engines (metadata, workflow, forms, automation, RBAC, SLA, audit, outbox, search, AI gateway), Service Desk operator API, Change / Problem / CMDB / Asset / Knowledge / Catalog modules, Flyway migrations **V1–V15**, OpenAPI groups, OIDC JWT security (Keycloak), optional **dev** + **compose** profiles.
+- **`backend/`** — Java 25 / Spring Boot modular monolith (`ru.ultimavox.itsm`): platform engines (metadata, workflow, forms, automation, RBAC, SLA, audit, outbox, search, AI gateway), Service Desk operator API, Change / Problem / CMDB / Asset / Knowledge / Catalog modules, versioned Flyway migrations, OpenAPI groups, OIDC JWT security (Keycloak), optional **dev** + **compose** profiles.
 - **`docker-compose.yml`** — PostgreSQL, Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ bucket init), Keycloak realm import.
 - **`docs/`** — architecture, ADRs, product notes, security, UX quality gates, [compose integrations](docs/ops/compose-integrations.md).
 - **Production images** — non-root backend and nginx frontend Dockerfiles; see [production deployment](docs/ops/production-deployment.md).
@@ -485,7 +485,7 @@ This repository now contains a production-oriented modular-monolith foundation:
 | Platform engines (Object / Workflow / Form / Automation / RBAC / SLA / Audit / Outbox / Search / AI gateway) | Implemented (V10+ seed + services) |
 | Service Desk (work items, assign, transition, comments, activity, stats) | Implemented (V11 operator model + API) |
 | Business modules (Change, Problem, CMDB, Asset, Knowledge, Catalog) | Implemented (V12 extensions + seed demo data) |
-| Frontend operator shell | AAA UI shell; mock default + live `/api/v1` wiring |
+| Frontend operator shell | Live `/api/v1` by default; explicit `VITE_USE_MOCK=true` demo mode |
 | Redis distributed cache | Wired via `compose` profile (`CachePort` + fallback); locale prefs cached |
 | OpenSearch full-text | Wired via `compose` profile; index bootstrap; work-item projections; JDBC fallback when URL empty |
 | Attachments / MinIO | S3 port + compose MinIO bucket; local metadata mode by default |
@@ -584,12 +584,12 @@ Open `http://localhost:5173`. Default UI language is **Russian**; use the header
 
 Platform engines live under `ru.ultimavox.itsm.platform.*` (workflow, SLA, automation, authorization, audit, outbox, search, cache port).
 
-Flyway migrations: `backend/src/main/resources/db/migration/V1__…` through `V12__…`.
+Flyway migrations: `backend/src/main/resources/db/migration/`; current schema ends at `V66__working_calendar_catalog.sql`.
 
 ### Locale management
 
 - **Product default:** Russian (`ru`); English (`en`) fully supported; German (`de`) listed as supported interface locale in the backend preference service.
-- **Backend:** `GET/PUT /api/v1/me/locale` — per-subject preference (in-memory store in current foundation; DB table `user_locale_preference` exists for a durable adapter).
+- **Backend:** `GET/PUT /api/v1/me/locale` — durable, organization-scoped per-subject preference.
 - **Metadata i18n:** `translation` table + labels embedded in object/form/workflow seed JSON (RU/EN).
 - **Frontend:** `frontend/src/i18n` message catalogs; header switcher persists user choice locally.
 
