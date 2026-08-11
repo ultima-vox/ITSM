@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
@@ -32,6 +33,7 @@ import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.WorkItemPageResponse;
 import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.WorkItemResponse;
 import ru.ultimavox.itsm.servicedesk.application.AddWorkItemComment;
 import ru.ultimavox.itsm.servicedesk.application.AssignWorkItem;
+import ru.ultimavox.itsm.servicedesk.application.BulkWorkItemService;
 import ru.ultimavox.itsm.servicedesk.application.CreateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.EscalateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.GetWorkItem;
@@ -78,6 +80,7 @@ class WorkItemController {
   private final SubmitWorkItemSurvey surveys;
   private final DuplicateWorkItemQuery duplicates;
   private final MajorIncidentService majorIncidents;
+  private final BulkWorkItemService bulkWorkItems;
   private final AccessControl access;
 
   WorkItemController(
@@ -99,6 +102,7 @@ class WorkItemController {
       SubmitWorkItemSurvey surveys,
       DuplicateWorkItemQuery duplicates,
       MajorIncidentService majorIncidents,
+      BulkWorkItemService bulkWorkItems,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -119,6 +123,7 @@ class WorkItemController {
     this.surveys = surveys;
     this.duplicates = duplicates;
     this.majorIncidents = majorIncidents;
+    this.bulkWorkItems = bulkWorkItems;
     this.access = access;
   }
 
@@ -270,6 +275,26 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.read", "work-item", id.toString());
     return surveys.submit(id, request.rating(), request.comment(), actor);
+  }
+
+  @PostMapping("/bulk/assign")
+  @Operation(summary = "Atomically assign up to 200 work items")
+  BulkWorkItemService.Result bulkAssign(
+      @Valid @RequestBody BulkAssignRequest request, Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.assign", "work-item", null);
+    return bulkWorkItems.assign(request.ids(), request.assigneeId(), request.teamId(), actor);
+  }
+
+  @PostMapping("/bulk/priority")
+  @Operation(summary = "Atomically set priority on up to 200 work items")
+  BulkWorkItemService.Result bulkPriority(
+      @Valid @RequestBody BulkPriorityRequest request, Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", null);
+    return bulkWorkItems.setPriority(request.ids(), request.priority(), actor);
   }
 
   @GetMapping("/{id}/major-incident")
@@ -514,6 +539,17 @@ class WorkItemController {
   record MajorIncidentRequest(
       @NotBlank @Size(max = 128) String commanderId,
       @NotBlank @Size(max = 2000) String summary
+  ) {}
+
+  record BulkAssignRequest(
+      @NotEmpty @Size(max = 200) List<@NotNull UUID> ids,
+      @NotBlank @Size(max = 128) String assigneeId,
+      @Size(max = 128) String teamId
+  ) {}
+
+  record BulkPriorityRequest(
+      @NotEmpty @Size(max = 200) List<@NotNull UUID> ids,
+      @NotNull Priority priority
   ) {}
 
   record CreateLinkRequest(

@@ -301,6 +301,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/bulk/priority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically set priority on up to 200 work items */
+        post: operations["bulkPriority"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items/bulk/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically assign up to 200 work items */
+        post: operations["bulkAssign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/problems": {
         parameters: {
             query?: never;
@@ -1739,6 +1773,16 @@ export interface components {
             assigneeId: string;
             teamId?: string;
         };
+        BulkPriorityRequest: {
+            ids: string[];
+            /** @enum {string} */
+            priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+        };
+        BulkAssignRequest: {
+            ids: string[];
+            assigneeId: string;
+            teamId?: string;
+        };
         Problem: {
             /** Format: uuid */
             id?: string;
@@ -3006,6 +3050,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WorkItemResponse"];
+                };
+            };
+        };
+    };
+    bulkPriority: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkPriorityRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Result"];
+                };
+            };
+        };
+    };
+    bulkAssign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Result"];
                 };
             };
         };

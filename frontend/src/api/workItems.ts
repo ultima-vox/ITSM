@@ -391,14 +391,10 @@ export async function bulkAssignWorkItems(
     return;
   }
   const assigneeId = assignee?.id ?? getApiActorId();
-  await Promise.all(
-    ids.map((id) =>
-      apiRequest<BackendWorkItem>(`/work-items/${id}/assign`, {
-        method: 'POST',
-        body: { assigneeId, teamId: assignee?.teamId },
-      }),
-    ),
-  );
+  await apiRequest<{ updated: number }>('/work-items/bulk/assign', {
+    method: 'POST',
+    body: { ids, assigneeId, teamId: assignee?.teamId },
+  });
 }
 
 export async function bulkSetPriority(
@@ -410,29 +406,10 @@ export async function bulkSetPriority(
     storeSetPriority(ids, priority);
     return;
   }
-  // Backend derives priority from impact/urgency — approximate matrix inverse
-  const impact =
-    priority === 'critical' || priority === 'high'
-      ? 'HIGH'
-      : priority === 'low'
-        ? 'LOW'
-        : 'MEDIUM';
-  const urgency =
-    priority === 'critical'
-      ? 'HIGH'
-      : priority === 'high'
-        ? 'HIGH'
-        : priority === 'low'
-          ? 'LOW'
-          : 'MEDIUM';
-  await Promise.all(
-    ids.map((id) =>
-      apiRequest<BackendWorkItem>(`/work-items/${id}`, {
-        method: 'PATCH',
-        body: { impact, urgency },
-      }),
-    ),
-  );
+  await apiRequest<{ updated: number }>('/work-items/bulk/priority', {
+    method: 'POST',
+    body: { ids, priority: priority.toUpperCase() },
+  });
 }
 
 export async function assignWorkItemToMe(id: string): Promise<WorkItem | null> {
