@@ -56,6 +56,22 @@ class RbacAdminController {
         .toList();
   }
 
+  @GetMapping("/me")
+  @Operation(summary = "Get effective roles and permissions for authenticated principal")
+  EffectiveAccessResponse effectiveAccess(Authentication authentication) {
+    if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated principal is required");
+    }
+    String subject = authentication.getName();
+    return new EffectiveAccessResponse(
+        subject,
+        rbac.rolesForSubject(subject).stream().sorted().toList(),
+        rbac.permissionsForSubject(subject).stream().sorted().toList()
+    );
+  }
+
+  record EffectiveAccessResponse(String subjectId, List<String> roles, List<String> permissions) {}
+
   @GetMapping("/principals")
   @Operation(summary = "List principal role assignments")
   List<PrincipalResponse> listPrincipals(Authentication authentication) {

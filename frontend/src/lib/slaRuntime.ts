@@ -160,8 +160,9 @@ function fromPolicy(
 export function getWorkItemSlaRuntime(
   priority: Priority,
   status: WorkItemStatus,
+  policies?: SlaPolicy[],
 ): WorkItemSlaRuntime {
-  const all = listSlaPolicies().filter((p) => p.enabled);
+  const all = (policies ?? listSlaPolicies()).filter((p) => p.enabled);
   const responsePolicy =
     all.find((p) => p.key === 'work-item.response') ??
     all.find((p) =>

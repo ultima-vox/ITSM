@@ -8,7 +8,9 @@ import {
   listRbacRoles as mockRoles,
   listRbacUsers as mockUsers,
   subscribeRbac as mockSubscribe,
+  getUserPermissions as mockUserPermissions,
 } from '@/mock/rbac';
+import { currentUser } from '@/mock/data';
 import type { RbacPermission, RbacRole, RbacRoleKey, RbacUser } from '@/types';
 
 interface BackendRole {
@@ -50,6 +52,20 @@ export interface CreateRoleDelegation {
   startsAt?: string;
   expiresAt: string;
   reason: string;
+}
+
+export interface EffectiveAccess {
+  subjectId: string;
+  roles: string[];
+  permissions: string[];
+}
+
+export async function fetchMyEffectiveAccess(): Promise<EffectiveAccess> {
+  if (isMockMode()) {
+    await delay(40);
+    return { subjectId: currentUser.id, roles: [], permissions: mockUserPermissions(currentUser.id) };
+  }
+  return apiRequest<EffectiveAccess>('/rbac/me');
 }
 
 function mapRole(dto: BackendRole): RbacRole {

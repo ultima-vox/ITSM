@@ -1092,6 +1092,42 @@ export interface paths {
         patch: operations["patchNotes"];
         trace?: never;
     };
+    "/api/v1/cmdb/relationships/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a CI relationship */
+        delete: operations["deleteRelationship"];
+        options?: never;
+        head?: never;
+        /** Update a CI relationship type */
+        patch: operations["updateRelationship"];
+        trace?: never;
+    };
+    "/api/v1/cmdb/relations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a CI relationship */
+        delete: operations["deleteRelationship_1"];
+        options?: never;
+        head?: never;
+        /** Update a CI relationship type */
+        patch: operations["updateRelationship_1"];
+        trace?: never;
+    };
     "/api/v1/workflow/instances/{objectType}/{objectId}": {
         parameters: {
             query?: never;
@@ -1305,6 +1341,23 @@ export interface paths {
         };
         /** List permission catalog */
         get: operations["listPermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rbac/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get effective roles and permissions for authenticated principal */
+        get: operations["effectiveAccess"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1849,40 +1902,6 @@ export interface paths {
         post?: never;
         /** Revoke an active temporary role delegation */
         delete: operations["revokeDelegation"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/cmdb/relationships/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a CI relationship */
-        delete: operations["deleteRelationship"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/cmdb/relations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a CI relationship */
-        delete: operations["deleteRelationship_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2668,6 +2687,9 @@ export interface components {
             workaround?: string;
             resolution?: string;
         };
+        UpdateRelationRequest: {
+            type?: string;
+        };
         SetEnabledRequest: {
             enabled?: boolean;
         };
@@ -2769,6 +2791,11 @@ export interface components {
         PermissionResponse: {
             key?: string;
             description?: string;
+        };
+        EffectiveAccessResponse: {
+            subjectId?: string;
+            roles?: string[];
+            permissions?: string[];
         };
         ProblemSummary: {
             /** Format: uuid */
@@ -5139,6 +5166,98 @@ export interface operations {
             };
         };
     };
+    deleteRelationship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRelationship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRelationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CiRelationship"];
+                };
+            };
+        };
+    };
+    deleteRelationship_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRelationship_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRelationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CiRelationship"];
+                };
+            };
+        };
+    };
     getInstance: {
         parameters: {
             query?: never;
@@ -5414,6 +5533,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PermissionResponse"][];
+                };
+            };
+        };
+    };
+    effectiveAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EffectiveAccessResponse"];
                 };
             };
         };
@@ -6112,46 +6251,6 @@ export interface operations {
         };
     };
     revokeDelegation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    deleteRelationship: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    deleteRelationship_1: {
         parameters: {
             query?: never;
             header?: never;

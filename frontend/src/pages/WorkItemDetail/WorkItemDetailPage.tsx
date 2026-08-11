@@ -54,6 +54,12 @@ import {
   resolveMajorIncident,
   type AttachmentMeta,
   type FormDefinition,
+  fetchWorkflowDefinitions,
+  fetchSlaPolicies,
+  fetchMyEffectiveAccess,
+  subscribeWorkflowDefinitions,
+  subscribeSlaPolicies,
+  subscribeRbac,
 } from '@/api';
 import {
   Avatar,
@@ -80,18 +86,9 @@ import {
   getWorkItemRuntimeTransitions,
   workflowStateLabelKey,
   WORK_ITEM_ACTION_PERMISSIONS,
+  missingRequiredPermissions,
   type WorkItemRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import {
-  getActiveWorkflowDefinition,
-  subscribeWorkflowDefinitions,
-} from '@/mock/workflow';
-import { subscribeSlaPolicies } from '@/mock/sla';
-import {
-  getUserPermissions,
-  missingPermissionsFor,
-  subscribeRbac,
-} from '@/mock/rbac';
 import { currentUser } from '@/mock/data';
 import type {
   ImpactLevel,
@@ -312,6 +309,15 @@ export function WorkItemDetailPage() {
   const kb = useAsync(() => fetchKnowledgeArticles(), []);
   const problems = useAsync(() => fetchProblems(), []);
   const majorIncident = useAsync(() => fetchMajorIncident(id), [id]);
+  const workflowDefinitions = useAsync(
+    () => fetchWorkflowDefinitions(),
+    [workflowTick],
+  );
+  const slaPolicies = useAsync(() => fetchSlaPolicies(), [slaTick]);
+  const effectiveAccess = useAsync(
+    () => fetchMyEffectiveAccess(),
+    [rbacTick],
+  );
   useWorkItemsSync(
     item.reload,
     activity.reload,
@@ -623,17 +629,18 @@ export function WorkItemDetailPage() {
 
   // Principal grants from mock RBAC role (u-anna → SERVICE_DESK_AGENT by default).
   // rbacTick re-reads after admin role reassignment.
-  const principalPermissions =
-    rbacTick >= 0 ? getUserPermissions(currentUser.id) : [];
+  const principalPermissions = effectiveAccess.data?.permissions ?? [];
   const canUseInternalComments = principalPermissions.some(
     (permission) => permission === 'work-item.comment.internal' || permission === 'admin.full',
   );
 
   // Active workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.
+  const activeWorkItemWorkflow = (workflowDefinitions.data ?? []).find(
+    (definition) => definition.objectKey === 'work-item' && definition.active,
+  ) ?? null;
   const wfRuntime = getWorkItemRuntimeTransitions(wi, {
-    definition:
-      workflowTick >= 0 ? getActiveWorkflowDefinition('work-item') : null,
+    definition: activeWorkItemWorkflow,
     permissions: principalPermissions,
   });
   const workflowStateLabel = (() => {
@@ -649,13 +656,11 @@ export function WorkItemDetailPage() {
     : undefined;
 
   // Assign / Escalate: action-level permission stubs from RBAC catalog (S27).
-  const assignMissingPerms = missingPermissionsFor(
-    currentUser.id,
-    [...WORK_ITEM_ACTION_PERMISSIONS.assign],
+  const assignMissingPerms = missingRequiredPermissions(
+    [...WORK_ITEM_ACTION_PERMISSIONS.assign], principalPermissions,
   );
-  const escalateMissingPerms = missingPermissionsFor(
-    currentUser.id,
-    [...WORK_ITEM_ACTION_PERMISSIONS.escalate],
+  const escalateMissingPerms = missingRequiredPermissions(
+    [...WORK_ITEM_ACTION_PERMISSIONS.escalate], principalPermissions,
   );
   const assignPermReason = actionMissingPermissionReason(t, assignMissingPerms);
   const escalatePermReason = actionMissingPermissionReason(
@@ -684,10 +689,11 @@ export function WorkItemDetailPage() {
     wi.slaState === 'breached' ? 100 : wi.slaState === 'at_risk' ? 88 : 55;
 
   // SLA admin → runtime targets (S21). slaTick invalidates after policy edit/toggle.
-  const slaRuntime =
-    slaTick >= 0
-      ? getWorkItemSlaRuntime(wi.priority as Priority, wi.status)
-      : getWorkItemSlaRuntime(wi.priority as Priority, wi.status);
+  const slaRuntime = getWorkItemSlaRuntime(
+    wi.priority as Priority,
+    wi.status,
+    slaPolicies.data ?? [],
+  );
   const slaPolicyLabel =
     resolveSlaPolicyLabel(slaRuntime.primaryPolicy) ||
     t(
