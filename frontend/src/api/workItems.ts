@@ -1,4 +1,4 @@
-import { delay, isMockMode, apiRequest, getApiActorId } from './client';
+import { ApiError, delay, isMockMode, apiRequest, getApiActorId } from './client';
 import {
   mapActivity,
   mapComment,
@@ -42,6 +42,64 @@ import type {
 } from '@/types';
 
 const LIST_PAGE_SIZE = 100;
+
+export interface MajorIncident {
+  id: string;
+  workItemId: string;
+  status: 'DECLARED' | 'RESOLVED';
+  commanderId: string;
+  summary: string;
+  declaredAt: string;
+  resolvedAt?: string | null;
+}
+
+const mockMajorIncidents = new Map<string, MajorIncident>();
+
+export async function fetchMajorIncident(id: string): Promise<MajorIncident | null> {
+  if (isMockMode()) {
+    await delay(40);
+    return mockMajorIncidents.get(id) ?? null;
+  }
+  try {
+    return await apiRequest<MajorIncident>(`/work-items/${id}/major-incident`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function declareMajorIncident(
+  id: string,
+  commanderId: string,
+  summary: string,
+): Promise<MajorIncident> {
+  if (isMockMode()) {
+    await delay(100);
+    const incident: MajorIncident = {
+      id: crypto.randomUUID(), workItemId: id, status: 'DECLARED', commanderId,
+      summary, declaredAt: new Date().toISOString(), resolvedAt: null,
+    };
+    mockMajorIncidents.set(id, incident);
+    return incident;
+  }
+  return apiRequest<MajorIncident>(`/work-items/${id}/major-incident`, {
+    method: 'POST', body: { commanderId, summary },
+  });
+}
+
+export async function resolveMajorIncident(id: string): Promise<MajorIncident> {
+  if (isMockMode()) {
+    await delay(100);
+    const current = mockMajorIncidents.get(id);
+    if (!current) throw new Error('Major incident not found');
+    const resolved = { ...current, status: 'RESOLVED' as const, resolvedAt: new Date().toISOString() };
+    mockMajorIncidents.set(id, resolved);
+    return resolved;
+  }
+  return apiRequest<MajorIncident>(`/work-items/${id}/major-incident/resolve`, {
+    method: 'POST',
+  });
+}
 
 export async function fetchWorkItems(params?: {
   assigneeId?: string;

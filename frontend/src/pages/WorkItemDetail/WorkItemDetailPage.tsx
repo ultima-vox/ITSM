@@ -49,6 +49,9 @@ import {
   getContentUrl,
   formatBytes,
   submitWorkItemSurvey,
+  fetchMajorIncident,
+  declareMajorIncident,
+  resolveMajorIncident,
   type AttachmentMeta,
   type FormDefinition,
 } from '@/api';
@@ -57,6 +60,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  Input,
   Modal,
   Select,
   Skeleton,
@@ -284,6 +288,10 @@ export function WorkItemDetailPage() {
   const [surveyComment, setSurveyComment] = useState('');
   const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveySubmitted, setSurveySubmitted] = useState(false);
+  const [majorOpen, setMajorOpen] = useState(false);
+  const [majorCommander, setMajorCommander] = useState('');
+  const [majorSummary, setMajorSummary] = useState('');
+  const [majorSubmitting, setMajorSubmitting] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -303,6 +311,7 @@ export function WorkItemDetailPage() {
   const allItems = useAsync(() => fetchWorkItems(), []);
   const kb = useAsync(() => fetchKnowledgeArticles(), []);
   const problems = useAsync(() => fetchProblems(), []);
+  const majorIncident = useAsync(() => fetchMajorIncident(id), [id]);
   useWorkItemsSync(
     item.reload,
     activity.reload,
@@ -457,6 +466,25 @@ export function WorkItemDetailPage() {
     await addWorkItemComment(id, comment.trim(), { internal });
     setComment('');
     flash(t('workItem.commentSent'));
+  };
+
+  const handleDeclareMajor = async () => {
+    if (!majorCommander.trim() || !majorSummary.trim()) return;
+    setMajorSubmitting(true);
+    try {
+      await declareMajorIncident(id, majorCommander.trim(), majorSummary.trim());
+      await majorIncident.reload();
+      setMajorOpen(false);
+      flash(t('workItem.majorDeclaredToast'));
+    } finally {
+      setMajorSubmitting(false);
+    }
+  };
+
+  const handleResolveMajor = async () => {
+    await resolveMajorIncident(id);
+    await majorIncident.reload();
+    flash(t('workItem.majorResolvedToast'));
   };
 
   const submitSurvey = async () => {
@@ -716,6 +744,9 @@ export function WorkItemDetailPage() {
             {wi.escalated && (
               <span className="chip chip--warn">{t('workItem.escalatedTag')}</span>
             )}
+            {majorIncident.data?.status === 'DECLARED' && (
+              <span className="chip chip--danger">{t('workItem.majorTag')}</span>
+            )}
           </div>
           <div className="detail-sticky__actions">
             <Button
@@ -727,6 +758,17 @@ export function WorkItemDetailPage() {
             >
               {watching ? t('workItem.unwatch') : t('workItem.watch')}
             </Button>
+            {wi.type === 'incident' && !majorIncident.loading && (
+              majorIncident.data?.status === 'DECLARED' ? (
+                <Button variant="danger" size="sm" onClick={() => void handleResolveMajor()}>
+                  {t('workItem.majorResolve')}
+                </Button>
+              ) : !majorIncident.data ? (
+                <Button variant="ghost" size="sm" onClick={() => setMajorOpen(true)} disabled={resolved}>
+                  {t('workItem.majorDeclare')}
+                </Button>
+              ) : null
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -934,6 +976,14 @@ export function WorkItemDetailPage() {
           <b className="is-urgent">
             {wi.slaTarget} · {t(`sla.${wi.slaState}`)}
           </b>
+        </div>
+      )}
+
+      {majorIncident.data?.status === 'DECLARED' && (
+        <div className="detail-banner detail-banner--breach" role="status">
+          <ShieldAlert size={18} aria-hidden />
+          <span>{majorIncident.data.summary}</span>
+          <b>{t('workItem.majorCommander')}: {majorIncident.data.commanderId}</b>
         </div>
       )}
 
@@ -1824,6 +1874,39 @@ export function WorkItemDetailPage() {
             onClick={() => void handleResolve()}
           >
             {t('workItem.resolve')}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={majorOpen}
+        onClose={() => setMajorOpen(false)}
+        size="md"
+        labelledBy="major-title"
+      >
+        <h2 id="major-title">{t('workItem.majorDeclareTitle')}</h2>
+        <p className="muted mb-2">{t('workItem.majorDeclareHint')}</p>
+        <Input
+          label={t('workItem.majorCommander')}
+          value={majorCommander}
+          maxLength={128}
+          onChange={(e) => setMajorCommander(e.target.value)}
+        />
+        <Textarea
+          label={t('workItem.majorSummary')}
+          rows={4}
+          value={majorSummary}
+          maxLength={2000}
+          onChange={(e) => setMajorSummary(e.target.value)}
+        />
+        <div className="modal-actions mt-4">
+          <Button variant="secondary" onClick={() => setMajorOpen(false)}>{t('app.cancel')}</Button>
+          <Button
+            variant="danger"
+            disabled={majorSubmitting || !majorCommander.trim() || !majorSummary.trim()}
+            onClick={() => void handleDeclareMajor()}
+          >
+            {majorSubmitting ? t('app.saving') : t('workItem.majorDeclare')}
           </Button>
         </div>
       </Modal>
