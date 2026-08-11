@@ -18,24 +18,33 @@ public class LoggingNotificationService implements NotificationService {
 
   private final NotificationStore store;
   private final ObjectProvider<WebhookNotificationAdapter> webhook;
+  private final NotificationPreferenceService preferences;
 
   @Autowired
   public LoggingNotificationService(
       NotificationStore store,
-      ObjectProvider<WebhookNotificationAdapter> webhook
+      ObjectProvider<WebhookNotificationAdapter> webhook,
+      NotificationPreferenceService preferences
   ) {
     this.store = store;
     this.webhook = webhook;
+    this.preferences = preferences;
   }
 
   /** Unit-test constructor without webhook adapter. */
   LoggingNotificationService(NotificationStore store) {
     this.store = store;
     this.webhook = new EmptyWebhookProvider();
+    this.preferences = null;
   }
 
   @Override
   public void send(NotificationRequest request) {
+    if (preferences != null && !preferences.allows(request)) {
+      log.info("notification suppressed by recipient preference channel={} template={} recipient={}",
+          request.channel(), request.templateKey(), request.recipientSubject());
+      return;
+    }
     log.info(
         "notification channel={} template={} recipient={} locale={} correlationId={} variables={}",
         request.channel(),

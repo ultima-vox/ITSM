@@ -1116,6 +1116,8 @@
     "notifications": "Уведомления",
     "notificationsHint": "Как и когда vox уведомляет вас.",
     "notificationsPersist": "Настройки сохраняются автоматически в этом браузере (localStorage).",
+    "notificationsPersistServer": "После нажатия «Сохранить» настройки синхронизируются с профилем организации.",
+    "saveFailed": "Не удалось сохранить настройки",
     "prefEmail": "Email-уведомления",
     "prefDesktop": "Браузерные уведомления",
     "prefSla": "Алерты по SLA",

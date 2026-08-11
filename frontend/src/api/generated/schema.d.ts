@@ -39,6 +39,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/locale": {
         parameters: {
             query?: never;
@@ -47,7 +63,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get current user locale preference and supported locales */
-        get: operations["get"];
+        get: operations["get_1"];
         /** Update current user interface locale */
         put: operations["put"];
         post?: never;
@@ -1031,7 +1047,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get work item by id */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1066,7 +1082,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get problem by id */
-        get: operations["get_2"];
+        get: operations["get_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1356,7 +1372,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active object definition by key */
-        get: operations["get_3"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1406,7 +1422,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1423,7 +1439,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1440,7 +1456,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get article by id or slug */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1474,7 +1490,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get configuration item by id */
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1525,7 +1541,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get change by id */
-        get: operations["get_8"];
+        get: operations["get_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1676,7 +1692,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get catalog item detail */
-        get: operations["get_9"];
+        get: operations["get_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1761,7 +1777,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get asset by id */
-        get: operations["get_10"];
+        get: operations["get_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1895,6 +1911,13 @@ export interface components {
         PrincipalResponse: {
             subjectId?: string;
             roleKeys?: string[];
+        };
+        Preferences: {
+            email?: boolean;
+            desktop?: boolean;
+            slaAlerts?: boolean;
+            assignment?: boolean;
+            mentions?: boolean;
         };
         UpdateLocale: {
             locale?: string;
@@ -3036,6 +3059,50 @@ export interface operations {
         };
     };
     get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preferences"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4950,7 +5017,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5024,7 +5091,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5417,7 +5484,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -5483,28 +5550,6 @@ export interface operations {
             };
         };
     };
-    get_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                objectKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["FormRenderModel"];
-                };
-            };
-        };
-    };
     get_5: {
         parameters: {
             query?: never;
@@ -5528,6 +5573,28 @@ export interface operations {
         };
     };
     get_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormRenderModel"];
+                };
+            };
+        };
+    };
+    get_7: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5573,7 +5640,7 @@ export interface operations {
             };
         };
     };
-    get_7: {
+    get_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -5641,7 +5708,7 @@ export interface operations {
             };
         };
     };
-    get_8: {
+    get_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -5845,7 +5912,7 @@ export interface operations {
             };
         };
     };
-    get_9: {
+    get_10: {
         parameters: {
             query?: {
                 locale?: string;
@@ -5957,7 +6024,7 @@ export interface operations {
             };
         };
     };
-    get_10: {
+    get_11: {
         parameters: {
             query?: never;
             header?: never;

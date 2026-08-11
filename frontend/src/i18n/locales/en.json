@@ -1116,6 +1116,8 @@
     "notifications": "Notifications",
     "notificationsHint": "How and when vox notifies you.",
     "notificationsPersist": "Preferences are saved automatically in this browser (localStorage).",
+    "notificationsPersistServer": "Preferences sync to your organization profile when Save is pressed.",
+    "saveFailed": "Settings could not be saved",
     "prefEmail": "Email notifications",
     "prefDesktop": "Browser notifications",
     "prefSla": "SLA alerts",

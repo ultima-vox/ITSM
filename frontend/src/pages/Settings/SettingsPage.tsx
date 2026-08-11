@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Contrast,
@@ -23,6 +23,8 @@ import {
   getApiToken,
   fetchPlatformIntegrations,
   SAMPLE_WORK_ITEM_TRANSLATIONS,
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
 } from '@/api';
 import { currentUser } from '@/mock/data';
 import { resetDemoData } from '@/mock/store';
@@ -61,7 +63,7 @@ export function SettingsPage() {
   const { locale, setLocale, locales } = useI18n();
   const { density, setDensity } = useDensity();
   const { theme, setTheme } = useTheme();
-  const { success, info } = useToast();
+  const { success, info, error: toastError } = useToast();
   const mockMode = isMockMode();
   const {
     oidcEnabled,
@@ -74,6 +76,17 @@ export function SettingsPage() {
   const hasToken = Boolean(getApiToken());
   const [section, setSection] = useState<SettingsSection>('profile');
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadNotificationPrefs);
+
+  useEffect(() => {
+    if (mockMode) return;
+    let cancelled = false;
+    void fetchNotificationPreferences().then((remote) => {
+      if (cancelled) return;
+      setPrefs(remote);
+      saveNotificationPrefs(remote);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [mockMode]);
 
   const {
     data: integrations,
@@ -89,9 +102,16 @@ export function SettingsPage() {
     [],
   );
 
-  const save = () => {
+  const save = async () => {
     saveNotificationPrefs(prefs);
-    success(t('settings.saved'));
+    try {
+      const saved = await updateNotificationPreferences(prefs);
+      setPrefs(saved);
+      saveNotificationPrefs(saved);
+      success(t('settings.saved'));
+    } catch {
+      toastError(t('settings.saveFailed'));
+    }
   };
 
   const onResetDemo = () => {
@@ -147,7 +167,7 @@ export function SettingsPage() {
           <h1>{t('settings.title')}</h1>
           <p className="page-subtitle">{t('settings.subtitle')}</p>
         </div>
-        <Button variant="primary" onClick={save}>
+        <Button variant="primary" onClick={() => void save()}>
           {t('app.save')}
         </Button>
       </div>
@@ -457,7 +477,7 @@ export function SettingsPage() {
             <section className="panel settings-card settings-card--solo">
               <h2>{t('settings.notifications')}</h2>
               <p className="panel-hint">{t('settings.notificationsHint')}</p>
-              <p className="settings-persist-note">{t('settings.notificationsPersist')}</p>
+              <p className="settings-persist-note">{t(mockMode ? 'settings.notificationsPersist' : 'settings.notificationsPersistServer')}</p>
               <div className="toggle-stack">
                 <Toggle
                   label={t('settings.prefEmail')}

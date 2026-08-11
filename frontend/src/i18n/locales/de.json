@@ -1116,6 +1116,8 @@
     "notifications": "Benachrichtigungen",
     "notificationsHint": "Wie und wann vox Sie informiert.",
     "notificationsPersist": "Einstellungen werden automatisch in diesem Browser gespeichert (localStorage).",
+    "notificationsPersistServer": "Beim Speichern werden Einstellungen mit Ihrem Organisationsprofil synchronisiert.",
+    "saveFailed": "Einstellungen konnten nicht gespeichert werden",
     "prefEmail": "E-Mail-Benachrichtigungen",
     "prefDesktop": "Browser-Benachrichtigungen",
     "prefSla": "SLA-Alarme",
