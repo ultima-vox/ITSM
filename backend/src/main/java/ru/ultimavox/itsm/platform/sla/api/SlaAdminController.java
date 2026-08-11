@@ -19,6 +19,9 @@ import ru.ultimavox.itsm.platform.sla.SlaPolicy;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyRepository;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyRepository.SlaPolicyView;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyAdminService;
+import ru.ultimavox.itsm.platform.sla.WorkingCalendar;
+import ru.ultimavox.itsm.platform.sla.WorkingCalendarAdminService;
+import ru.ultimavox.itsm.platform.sla.WorkingCalendarRegistry.WorkingCalendarView;
 
 @RestController
 @RequestMapping("/api/v1/sla")
@@ -28,11 +31,49 @@ class SlaAdminController {
   private final SlaPolicyRepository policies;
   private final AccessControl access;
   private final SlaPolicyAdminService admin;
+  private final WorkingCalendarAdminService calendars;
 
-  SlaAdminController(SlaPolicyRepository policies, SlaPolicyAdminService admin, AccessControl access) {
+  SlaAdminController(SlaPolicyRepository policies, SlaPolicyAdminService admin, AccessControl access,
+      WorkingCalendarAdminService calendars) {
     this.policies = policies;
     this.admin = admin;
     this.access = access;
+    this.calendars = calendars;
+  }
+
+  @GetMapping("/calendars")
+  @Operation(summary = "List working calendars for current organization")
+  List<CalendarResponse> listCalendars(Authentication authentication) {
+    access.require(authentication.getName(), "sla.read", "working_calendar", null);
+    return calendars.list().stream().map(CalendarResponse::from).toList();
+  }
+
+  @org.springframework.web.bind.annotation.PostMapping("/calendars")
+  @Operation(summary = "Create a working calendar")
+  CalendarResponse createCalendar(Authentication authentication, @RequestBody CalendarRequest body) {
+    access.require(authentication.getName(), "sla.write", "working_calendar", null);
+    try {
+      return CalendarResponse.from(calendars.create(authentication.getName(), body.toCommand()));
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  @PatchMapping("/calendars/{id}")
+  @Operation(summary = "Update a working calendar with optimistic locking")
+  CalendarResponse updateCalendar(Authentication authentication, @PathVariable UUID id,
+      @RequestBody CalendarRequest body) {
+    access.require(authentication.getName(), "sla.write", "working_calendar", id.toString());
+    try {
+      return CalendarResponse.from(calendars.update(
+          authentication.getName(), id, body.expectedVersion(), body.toCommand()));
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
   }
 
   @GetMapping("/policies")
@@ -66,6 +107,25 @@ class SlaAdminController {
   }
 
   record UpdatePolicyRequest(int expectedVersion, Boolean enabled, List<TargetResponse> targets) {}
+
+  record CalendarRequest(long expectedVersion, String key, String zone,
+      java.util.Set<java.time.DayOfWeek> workingDays, java.time.LocalTime startsAt,
+      java.time.LocalTime endsAt, java.util.Set<java.time.LocalDate> holidays) {
+    WorkingCalendarAdminService.Command toCommand() {
+      return new WorkingCalendarAdminService.Command(key, zone, workingDays, startsAt, endsAt, holidays);
+    }
+  }
+
+  record CalendarResponse(UUID id, String key, String zone, List<String> workingDays,
+      String startsAt, String endsAt, List<String> holidays, long version) {
+    static CalendarResponse from(WorkingCalendarView view) {
+      WorkingCalendar c = view.calendar();
+      return new CalendarResponse(view.id(), view.key(), c.zone().getId(),
+          c.workingDays().stream().sorted().map(Enum::name).toList(),
+          c.startsAt().toString(), c.endsAt().toString(),
+          c.holidays().stream().sorted().map(Object::toString).toList(), view.version());
+    }
+  }
 
   record PolicyResponse(
       UUID id,

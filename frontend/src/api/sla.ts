@@ -3,13 +3,11 @@
  */
 import { apiRequest, delay, isMockMode } from './client';
 import {
-  getWorkingCalendar as mockGetCalendar,
   listSlaPolicies as mockListPolicies,
   listWorkingCalendars as mockListCalendars,
   setSlaPolicyEnabled as mockSetEnabled,
   subscribeSlaPolicies as mockSubscribe,
   updateSlaPolicyTargets as mockUpdateTargets,
-  DEFAULT_WORKING_CALENDAR,
 } from '@/mock/sla';
 import type { SlaPolicy, SlaTarget, WorkingCalendarMock } from '@/types';
 
@@ -28,6 +26,21 @@ interface BackendSlaPolicy {
   version: number;
   targets: BackendSlaTarget[];
   pauseStates: string[];
+}
+
+interface BackendWorkingCalendar {
+  id: string;
+  key: string;
+  zone: string;
+  workingDays: string[];
+  startsAt: string;
+  endsAt: string;
+  holidays: string[];
+  version: number;
+}
+
+function mapCalendar(dto: BackendWorkingCalendar): WorkingCalendarMock {
+  return { ...dto };
 }
 
 function mapPolicy(dto: BackendSlaPolicy): SlaPolicy {
@@ -57,14 +70,13 @@ export async function fetchSlaPolicies(): Promise<SlaPolicy[]> {
   return (list ?? []).map(mapPolicy);
 }
 
-export function listWorkingCalendars(): WorkingCalendarMock[] {
-  if (isMockMode()) return mockListCalendars();
-  return [DEFAULT_WORKING_CALENDAR];
-}
-
-export function getWorkingCalendar(key: string): WorkingCalendarMock | undefined {
-  if (isMockMode()) return mockGetCalendar(key) ?? undefined;
-  return DEFAULT_WORKING_CALENDAR;
+export async function fetchWorkingCalendars(): Promise<WorkingCalendarMock[]> {
+  if (isMockMode()) {
+    await delay(80);
+    return mockListCalendars();
+  }
+  const list = await apiRequest<BackendWorkingCalendar[]>('/sla/calendars');
+  return (list ?? []).map(mapCalendar);
 }
 
 export function slaPoliciesWritable(): boolean {
@@ -118,5 +130,3 @@ export function subscribeSlaPolicies(listener: () => void): () => void {
   if (isMockMode()) return mockSubscribe(listener);
   return () => undefined;
 }
-
-export { DEFAULT_WORKING_CALENDAR };

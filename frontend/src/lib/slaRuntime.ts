@@ -161,6 +161,7 @@ export function getWorkItemSlaRuntime(
   priority: Priority,
   status: WorkItemStatus,
   policies?: SlaPolicy[],
+  calendars?: WorkingCalendarMock[],
 ): WorkItemSlaRuntime {
   const all = (policies ?? listSlaPolicies()).filter((p) => p.enabled);
   const responsePolicy =
@@ -189,7 +190,9 @@ export function getWorkItemSlaRuntime(
     responsePolicy?.calendarKey ??
     resolutionPolicy?.calendarKey ??
     'default-business';
-  const calendar = getWorkingCalendar(calendarKey);
+  const calendar = calendars
+    ? calendars.find((candidate) => candidate.key === calendarKey) ?? calendars[0] ?? null
+    : getWorkingCalendar(calendarKey);
 
   let source: WorkItemSlaRuntime['source'] = 'fallback';
   if (response.source === 'policy' && resolution.source === 'policy') {

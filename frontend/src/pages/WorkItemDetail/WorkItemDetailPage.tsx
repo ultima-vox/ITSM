@@ -56,6 +56,7 @@ import {
   type FormDefinition,
   fetchWorkflowDefinitions,
   fetchSlaPolicies,
+  fetchWorkingCalendars,
   fetchMyEffectiveAccess,
   subscribeWorkflowDefinitions,
   subscribeSlaPolicies,
@@ -314,6 +315,7 @@ export function WorkItemDetailPage() {
     [workflowTick],
   );
   const slaPolicies = useAsync(() => fetchSlaPolicies(), [slaTick]);
+  const workingCalendars = useAsync(() => fetchWorkingCalendars(), [slaTick]);
   const effectiveAccess = useAsync(
     () => fetchMyEffectiveAccess(),
     [rbacTick],
@@ -693,6 +695,7 @@ export function WorkItemDetailPage() {
     wi.priority as Priority,
     wi.status,
     slaPolicies.data ?? [],
+    workingCalendars.data ?? [],
   );
   const slaPolicyLabel =
     resolveSlaPolicyLabel(slaRuntime.primaryPolicy) ||

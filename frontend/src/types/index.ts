@@ -512,6 +512,8 @@ export interface SlaPolicy {
 
 /** Explicit business-time calendar (backend WorkingCalendar). */
 export interface WorkingCalendarMock {
+  id?: string;
+  version?: number;
   key: string;
   zone: string;
   workingDays: string[];

@@ -4,8 +4,7 @@ import { useT } from '@/i18n';
 import { useToast } from '@/hooks/useToast';
 import {
   fetchSlaPolicies,
-  getWorkingCalendar,
-  listWorkingCalendars,
+  fetchWorkingCalendars,
   setSlaPolicyEnabled,
   slaPoliciesWritable,
   subscribeSlaPolicies,
@@ -32,13 +31,16 @@ export function SlaPage() {
   const [loadError, setLoadError] = useState(false);
   const [draftTargets, setDraftTargets] = useState<SlaTarget[]>([]);
   const [dirty, setDirty] = useState(false);
-
-  const calendars = useMemo(() => listWorkingCalendars(), []);
+  const [calendars, setCalendars] = useState<WorkingCalendarMock[]>([]);
 
   const reload = useCallback(async () => {
     try {
-      const list = await fetchSlaPolicies();
+      const [list, calendarList] = await Promise.all([
+        fetchSlaPolicies(),
+        fetchWorkingCalendars(),
+      ]);
       setPolicies(list);
+      setCalendars(calendarList);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -77,7 +79,7 @@ export function SlaPage() {
   }, [selectedKey]);
 
   const calendar: WorkingCalendarMock | null = selected
-    ? getWorkingCalendar(selected.calendarKey) ?? calendars[0] ?? null
+    ? calendars.find((candidate) => candidate.key === selected.calendarKey) ?? calendars[0] ?? null
     : calendars[0] ?? null;
 
   const handleTargetChange = (

@@ -456,6 +456,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sla/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List working calendars for current organization */
+        get: operations["listCalendars"];
+        put?: never;
+        /** Create a working calendar */
+        post: operations["createCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rbac/delegations": {
         parameters: {
             query?: never;
@@ -1072,6 +1090,23 @@ export interface paths {
         head?: never;
         /** Update SLA policy targets or enabled state for current organization */
         patch: operations["updatePolicy"];
+        trace?: never;
+    };
+    "/api/v1/sla/calendars/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a working calendar with optimistic locking */
+        patch: operations["updateCalendar"];
         trace?: never;
     };
     "/api/v1/problems/{id}": {
@@ -2265,6 +2300,28 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        CalendarRequest: {
+            /** Format: int64 */
+            expectedVersion?: number;
+            key?: string;
+            zone?: string;
+            workingDays?: ("MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY")[];
+            startsAt?: string;
+            endsAt?: string;
+            holidays?: string[];
+        };
+        CalendarResponse: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            zone?: string;
+            workingDays?: string[];
+            startsAt?: string;
+            endsAt?: string;
+            holidays?: string[];
+            /** Format: int64 */
+            version?: number;
         };
         DelegationRequest: {
             delegatorId?: string;
@@ -4009,6 +4066,50 @@ export interface operations {
             };
         };
     };
+    listCalendars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalendarResponse"][];
+                };
+            };
+        };
+    };
+    createCalendar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalendarResponse"];
+                };
+            };
+        };
+    };
     listDelegations: {
         parameters: {
             query?: never;
@@ -5140,6 +5241,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PolicyResponse"];
+                };
+            };
+        };
+    };
+    updateCalendar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalendarResponse"];
                 };
             };
         };
