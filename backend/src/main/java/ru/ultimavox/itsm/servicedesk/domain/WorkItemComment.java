@@ -10,6 +10,7 @@ public record WorkItemComment(
     UUID workItemId,
     String authorId,
     String body,
+    boolean internal,
     Instant createdAt
 ) {
   public WorkItemComment {

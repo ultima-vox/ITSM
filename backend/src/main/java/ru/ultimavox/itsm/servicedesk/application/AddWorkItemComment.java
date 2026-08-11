@@ -53,6 +53,7 @@ public class AddWorkItemComment {
         workItemId,
         actorId,
         command.body().trim(),
+        command.internal(),
         now
     );
     store.insertComment(comment);
@@ -60,7 +61,8 @@ public class AddWorkItemComment {
     Map<String, Object> after = Map.of(
         "commentId", comment.id().toString(),
         "body", comment.body(),
-        "authorId", actorId
+        "authorId", actorId,
+        "internal", comment.internal()
     );
     audit.append(new AuditTrail.Entry(
         actorId,
@@ -82,7 +84,9 @@ public class AddWorkItemComment {
         workItemId.toString(),
         after
     ));
-    notifyWatchers(item, comment, actorId, correlationId);
+    if (!comment.internal()) {
+      notifyWatchers(item, comment, actorId, correlationId);
+    }
     return comment;
   }
 
@@ -129,5 +133,5 @@ public class AddWorkItemComment {
     return body.length() <= max ? body : body.substring(0, max) + "…";
   }
 
-  public record Command(String body) {}
+  public record Command(String body, boolean internal) {}
 }

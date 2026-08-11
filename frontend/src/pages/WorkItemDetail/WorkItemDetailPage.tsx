@@ -281,7 +281,7 @@ export function WorkItemDetailPage() {
   const { locale } = useI18n();
   const [tab, setTab] = useState('details');
   const [comment, setComment] = useState('');
-  const [internal, setInternal] = useState(true);
+  const [internal, setInternal] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [surveyRating, setSurveyRating] = useState('5');
@@ -625,6 +625,9 @@ export function WorkItemDetailPage() {
   // rbacTick re-reads after admin role reassignment.
   const principalPermissions =
     rbacTick >= 0 ? getUserPermissions(currentUser.id) : [];
+  const canUseInternalComments = principalPermissions.some(
+    (permission) => permission === 'work-item.comment.internal' || permission === 'admin.full',
+  );
 
   // Active workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.
@@ -1508,16 +1511,18 @@ export function WorkItemDetailPage() {
                     hint={t('workItem.commentShortcut')}
                   />
                   <div className="comment-compose__actions">
-                    <label className="check-inline">
-                      <input
-                        type="checkbox"
-                        checked={internal}
-                        onChange={(e) => setInternal(e.target.checked)}
-                      />
-                      {internal
-                        ? t('workItem.internalNote')
-                        : t('workItem.publicComment')}
-                    </label>
+                    {canUseInternalComments && (
+                      <label className="check-inline">
+                        <input
+                          type="checkbox"
+                          checked={internal}
+                          onChange={(e) => setInternal(e.target.checked)}
+                        />
+                        {internal
+                          ? t('workItem.internalNote')
+                          : t('workItem.publicComment')}
+                      </label>
+                    )}
                     <Button
                       variant="primary"
                       icon={<MessageSquare size={15} />}

@@ -332,8 +332,15 @@ class WorkItemController {
   @GetMapping("/{id}/comments")
   @Operation(summary = "List comments on a work item")
   List<CommentResponse> listComments(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
-    return listWorkItemComments.list(id).stream().map(CommentResponse::from).toList();
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    boolean includeInternal = access.isAllowed(
+        actor, "work-item.comment.internal", "work-item", id.toString());
+    if (!includeInternal && !actor.equals(getWorkItem.get(id).requesterId())) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Only requester may read public replies");
+    }
+    return listWorkItemComments.list(id, includeInternal).stream().map(CommentResponse::from).toList();
   }
 
   @PostMapping("/{id}/comments")
@@ -346,16 +353,32 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.comment", "work-item", id.toString());
+    boolean canUseInternal = access.isAllowed(
+        actor, "work-item.comment.internal", "work-item", id.toString());
+    if (!canUseInternal && !actor.equals(getWorkItem.get(id).requesterId())) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Only requester may add a public reply");
+    }
+    if (request.internal()) {
+      access.require(actor, "work-item.comment.internal", "work-item", id.toString());
+    }
     return CommentResponse.from(
-        addWorkItemComment.add(id, new AddWorkItemComment.Command(request.body()), actor)
+        addWorkItemComment.add(id, new AddWorkItemComment.Command(request.body(), request.internal()), actor)
     );
   }
 
   @GetMapping("/{id}/activity")
   @Operation(summary = "Audit activity trail for a work item")
   List<ActivityResponse> activity(@PathVariable UUID id, Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
-    return activityQuery.list(id).stream().map(ActivityResponse::from).toList();
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    boolean includeInternal = access.isAllowed(
+        actor, "work-item.comment.internal", "work-item", id.toString());
+    if (!includeInternal && !actor.equals(getWorkItem.get(id).requesterId())) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Only requester may read public activity");
+    }
+    return activityQuery.list(id, includeInternal).stream().map(ActivityResponse::from).toList();
   }
 
   @GetMapping("/{id}/attachments")
@@ -528,7 +551,8 @@ class WorkItemController {
   ) {}
 
   record CommentRequest(
-      @NotBlank @Size(max = 12000) String body
+      @NotBlank @Size(max = 12000) String body,
+      boolean internal
   ) {}
 
   record SurveyRequest(

@@ -52,6 +52,7 @@ export interface BackendComment {
   workItemId: string;
   authorId: string;
   body: string;
+  internal: boolean;
   createdAt: string;
 }
 
@@ -268,6 +269,7 @@ export function mapComment(dto: BackendComment): WorkItemComment {
         initials: '??',
       },
     body: dto.body,
+    internal: dto.internal,
   };
 }
 

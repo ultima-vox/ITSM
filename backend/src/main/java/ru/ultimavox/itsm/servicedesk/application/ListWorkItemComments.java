@@ -14,8 +14,8 @@ public class ListWorkItemComments {
     this.store = store;
   }
 
-  public List<WorkItemComment> list(UUID workItemId) {
+  public List<WorkItemComment> list(UUID workItemId, boolean includeInternal) {
     store.requireById(workItemId);
-    return store.listComments(workItemId);
+    return store.listComments(workItemId, includeInternal);
   }
 }

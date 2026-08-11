@@ -82,6 +82,7 @@ final class WorkItemResponses {
       UUID workItemId,
       String authorId,
       String body,
+      boolean internal,
       Instant createdAt
   ) {
     static CommentResponse from(WorkItemComment comment) {
@@ -90,6 +91,7 @@ final class WorkItemResponses {
           comment.workItemId(),
           comment.authorId(),
           comment.body(),
+          comment.internal(),
           comment.createdAt()
       );
     }

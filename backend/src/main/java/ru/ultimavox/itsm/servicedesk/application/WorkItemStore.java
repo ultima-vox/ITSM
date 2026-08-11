@@ -164,23 +164,24 @@ class WorkItemStore {
   void insertComment(WorkItemComment comment) {
     jdbc.update(
         """
-        INSERT INTO work_item_comment (id, work_item_id, author_id, body, created_at)
-        VALUES (?,?,?,?,?)
+        INSERT INTO work_item_comment (id, work_item_id, author_id, body, internal, created_at)
+        VALUES (?,?,?,?,?,?)
         """,
         comment.id(),
         comment.workItemId(),
         comment.authorId(),
         comment.body(),
+        comment.internal(),
         Timestamp.from(comment.createdAt())
     );
   }
 
-  List<WorkItemComment> listComments(UUID workItemId) {
+  List<WorkItemComment> listComments(UUID workItemId, boolean includeInternal) {
     return jdbc.query(
         """
-        SELECT id, work_item_id, author_id, body, created_at
+        SELECT id, work_item_id, author_id, body, internal, created_at
         FROM work_item_comment
-        WHERE work_item_id = ?
+        WHERE work_item_id = ? AND (? OR NOT internal)
         ORDER BY created_at ASC
         """,
         (rs, rowNum) -> new WorkItemComment(
@@ -188,9 +189,11 @@ class WorkItemStore {
             (UUID) rs.getObject("work_item_id"),
             rs.getString("author_id"),
             rs.getString("body"),
+            rs.getBoolean("internal"),
             rs.getTimestamp("created_at").toInstant()
         ),
-        workItemId
+        workItemId,
+        includeInternal
     );
   }
 

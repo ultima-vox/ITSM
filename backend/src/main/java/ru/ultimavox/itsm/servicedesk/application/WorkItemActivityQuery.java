@@ -23,13 +23,15 @@ public class WorkItemActivityQuery {
     this.json = json;
   }
 
-  public List<ActivityEntry> list(UUID workItemId) {
+  public List<ActivityEntry> list(UUID workItemId, boolean includeInternal) {
     store.requireById(workItemId);
     return jdbc.query(
         """
         SELECT id, occurred_at, actor_id, action, before_state, after_state, correlation_id
         FROM audit_event
         WHERE object_type = 'work-item' AND object_id = ?
+          AND (? OR action <> 'work-item.comment-added'
+               OR COALESCE(after_state ->> 'internal', 'false') <> 'true')
         ORDER BY occurred_at DESC
         """,
         (rs, rowNum) -> new ActivityEntry(
@@ -41,7 +43,8 @@ public class WorkItemActivityQuery {
             readMap(rs.getString("after_state")),
             (UUID) rs.getObject("correlation_id")
         ),
-        workItemId.toString()
+        workItemId.toString(),
+        includeInternal
     );
   }
 

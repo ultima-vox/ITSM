@@ -1776,6 +1776,7 @@ export interface components {
         };
         CommentRequest: {
             body: string;
+            internal?: boolean;
         };
         CommentResponse: {
             /** Format: uuid */
@@ -1784,6 +1785,7 @@ export interface components {
             workItemId?: string;
             authorId?: string;
             body?: string;
+            internal?: boolean;
             /** Format: date-time */
             createdAt?: string;
         };

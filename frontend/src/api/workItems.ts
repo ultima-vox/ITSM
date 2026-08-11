@@ -614,13 +614,11 @@ export async function addWorkItemComment(
     await delay(100);
     return storeAddComment(id, body, opts);
   }
-  // Backend only accepts { body }; internal flag is UI-only for now
   const dto = await apiRequest<BackendComment>(`/work-items/${id}/comments`, {
     method: 'POST',
-    body: { body },
+    body: { body, internal: Boolean(opts?.internal) },
   });
-  const comment = mapComment(dto);
-  return opts?.internal ? { ...comment, internal: true } : comment;
+  return mapComment(dto);
 }
 
 export async function watchWorkItem(id: string): Promise<WorkItem | null> {
