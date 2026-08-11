@@ -495,6 +495,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/requests/{id}/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updateTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/requests/{id}/approvals/{approvalId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decideApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/items/{id}/requests": {
         parameters: {
             query?: never;
@@ -1161,6 +1193,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/requests/{id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/requests/{id}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["approvals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/items": {
         parameters: {
             query?: never;
@@ -1680,6 +1744,39 @@ export interface components {
             /** Format: date-time */
             decidedAt?: string;
             comment?: string;
+        };
+        TaskUpdateRequest: {
+            /** @enum {string} */
+            state: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            assigneeId?: string;
+        };
+        TaskView: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            state?: string;
+            assigneeId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+        };
+        ApprovalDecisionRequest: {
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            comment?: string;
+        };
+        ApprovalView: {
+            /** Format: uuid */
+            id?: string;
+            approverRole?: string;
+            state?: string;
+            decidedBy?: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            comment?: string;
+            /** Format: date-time */
+            createdAt?: string;
         };
         SubmitRequest: {
             formPayload?: {
@@ -3177,6 +3274,60 @@ export interface operations {
             };
         };
     };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskView"];
+                };
+            };
+        };
+    };
+    decideApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                approvalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApprovalView"];
+                };
+            };
+        };
+    };
     submitRequest: {
         parameters: {
             query?: never;
@@ -4145,6 +4296,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RequestView"];
+                };
+            };
+        };
+    };
+    tasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskView"][];
+                };
+            };
+        };
+    };
+    approvals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApprovalView"][];
                 };
             };
         };

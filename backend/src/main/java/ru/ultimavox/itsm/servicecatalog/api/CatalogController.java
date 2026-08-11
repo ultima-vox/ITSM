@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogRequestQuery;
+import ru.ultimavox.itsm.servicecatalog.application.CatalogFulfillmentService;
 import ru.ultimavox.itsm.servicecatalog.application.SubmitCatalogRequest;
 
 @RestController
@@ -31,12 +32,15 @@ class CatalogController {
   private final SubmitCatalogRequest submit;
   private final AccessControl access;
   private final CatalogRequestQuery requests;
+  private final CatalogFulfillmentService fulfillment;
 
-  CatalogController(CatalogQuery query, SubmitCatalogRequest submit, CatalogRequestQuery requests, AccessControl access) {
+  CatalogController(CatalogQuery query, SubmitCatalogRequest submit, CatalogRequestQuery requests,
+                    CatalogFulfillmentService fulfillment, AccessControl access) {
     this.query = query;
     this.submit = submit;
     this.access = access;
     this.requests = requests;
+    this.fulfillment = fulfillment;
   }
 
   @GetMapping("/items")
@@ -98,4 +102,53 @@ class CatalogController {
     return requests.findMine(id, authentication.getName())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog request not found"));
   }
+
+  @GetMapping("/requests/{id}/approvals")
+  List<CatalogFulfillmentService.ApprovalView> approvals(Authentication authentication, @PathVariable UUID id) {
+    authorizeRequestRead(authentication.getName(), id);
+    return fulfillment.approvals(id);
+  }
+
+  @PostMapping("/requests/{id}/approvals/{approvalId}/decision")
+  CatalogFulfillmentService.ApprovalView decideApproval(
+      Authentication authentication, @PathVariable UUID id, @PathVariable UUID approvalId,
+      @Valid @RequestBody ApprovalDecisionRequest request
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "catalog.approve", "catalog-request", id.toString());
+    return fulfillment.decide(id, approvalId, request.decision(), request.comment(), actor);
+  }
+
+  @GetMapping("/requests/{id}/tasks")
+  List<CatalogFulfillmentService.TaskView> tasks(Authentication authentication, @PathVariable UUID id) {
+    authorizeRequestRead(authentication.getName(), id);
+    return fulfillment.tasks(id);
+  }
+
+  @PostMapping("/requests/{id}/tasks/{taskId}")
+  CatalogFulfillmentService.TaskView updateTask(
+      Authentication authentication, @PathVariable UUID id, @PathVariable UUID taskId,
+      @Valid @RequestBody TaskUpdateRequest request
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "catalog.fulfill", "catalog-request", id.toString());
+    return fulfillment.updateTask(id, taskId, request.state(), request.assigneeId(), actor);
+  }
+
+  private void authorizeRequestRead(String actor, UUID id) {
+    if (access.isAllowed(actor, "catalog.fulfill", "catalog-request", id.toString())) return;
+    access.require(actor, "catalog.request", "catalog-request", id.toString());
+    if (requests.findMine(id, actor).isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog request not found");
+    }
+  }
+
+  record ApprovalDecisionRequest(
+      @jakarta.validation.constraints.NotNull CatalogFulfillmentService.Decision decision,
+      @jakarta.validation.constraints.Size(max=2000) String comment
+  ) {}
+  record TaskUpdateRequest(
+      @jakarta.validation.constraints.NotNull CatalogFulfillmentService.TaskState state,
+      @jakarta.validation.constraints.Size(max=128) String assigneeId
+  ) {}
 }

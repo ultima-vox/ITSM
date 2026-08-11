@@ -50,21 +50,36 @@ public class SubmitCatalogRequest {
     Long sequence = jdbc.queryForObject("SELECT nextval('catalog_request_number_seq')", Long.class);
     String number = "CRQ-%06d".formatted(sequence);
     String payloadJson = writeJson(command.formPayload());
+    ApprovalConfig approval = jdbc.queryForObject(
+        "SELECT approval_required, approver_role FROM catalog_item WHERE id=?",
+        (rs, row) -> new ApprovalConfig(rs.getBoolean(1), rs.getString(2)), item.id());
+    String initialStatus = approval != null && approval.required() ? "PENDING_APPROVAL" : "FULFILLING";
+    if (approval != null && approval.required()
+        && (approval.approverRole() == null || approval.approverRole().isBlank())) {
+      throw new IllegalStateException("Approval-required catalog item has no approver role");
+    }
 
     jdbc.update(
         """
             INSERT INTO catalog_request (id, org_id, number, catalog_item_id, requester_id, status, form_payload, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?::jsonb,?,?)
             """,
-        id, OrganizationContext.current(), number, item.id(), actor, "SUBMITTED", payloadJson,
+        id, OrganizationContext.current(), number, item.id(), actor, initialStatus, payloadJson,
         java.sql.Timestamp.from(now), java.sql.Timestamp.from(now)
     );
+    if (approval != null && approval.required()) {
+      jdbc.update("INSERT INTO catalog_request_approval(id,org_id,request_id,approver_role,state,created_at) VALUES (?,?,?,?,?,?)",
+          UUID.randomUUID(), OrganizationContext.current(), id, approval.approverRole(), "PENDING",
+          java.sql.Timestamp.from(now));
+    } else {
+      insertFulfillmentTask(id, item.key(), now);
+    }
 
     Map<String, Object> state = Map.of(
         "number", number,
         "catalogItemId", item.id().toString(),
         "catalogItemKey", item.key(),
-        "status", "SUBMITTED",
+        "status", initialStatus,
         "requesterId", actor
     );
     audit.append(new AuditTrail.Entry(
@@ -75,7 +90,13 @@ public class SubmitCatalogRequest {
         UUID.randomUUID(), "catalog-request.submitted", 1, now, correlationId,
         "catalog-request", id.toString(), state
     ));
-    return new Submitted(id, number, "SUBMITTED", item.id());
+    return new Submitted(id, number, initialStatus, item.id());
+  }
+
+  private void insertFulfillmentTask(UUID requestId, String itemKey, Instant now) {
+    jdbc.update("INSERT INTO catalog_fulfillment_task(id,org_id,request_id,title,state,created_at) VALUES (?,?,?,?,?,?)",
+        UUID.randomUUID(), OrganizationContext.current(), requestId, "Fulfill " + itemKey, "OPEN",
+        java.sql.Timestamp.from(now));
   }
 
   private String writeJson(Map<String, Object> payload) {
@@ -89,4 +110,5 @@ public class SubmitCatalogRequest {
   public record Command(UUID catalogItemId, Map<String, Object> formPayload) {}
 
   public record Submitted(UUID id, String number, String status, UUID catalogItemId) {}
+  private record ApprovalConfig(boolean required, String approverRole) {}
 }
