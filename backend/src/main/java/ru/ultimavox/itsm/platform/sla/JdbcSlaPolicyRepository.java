@@ -30,16 +30,22 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
     public Optional<SlaPolicy> findByKey(String policyKey) {
         List<SlaPolicy> rows = jdbc.query(
                 """
-                SELECT id, policy_key, definition::text
-                FROM sla_policy
-                WHERE org_id = ? AND policy_key = ? AND enabled = true
+                SELECT id, policy_key, definition
+                FROM (
+                  SELECT id, policy_key, enabled, definition::text AS definition
+                  FROM sla_policy
+                  WHERE org_id IN (?, 'default') AND policy_key = ?
+                  ORDER BY (org_id = ?) DESC
+                  LIMIT 1
+                ) scoped
+                WHERE enabled = true
                 """,
                 (rs, i) -> map(
                         rs.getObject("id", UUID.class),
                         rs.getString("policy_key"),
                         rs.getString("definition")
                 ),
-                OrganizationContext.current(), policyKey
+                OrganizationContext.current(), policyKey, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -48,10 +54,10 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
     public List<SlaPolicyView> listAll() {
         return jdbc.query(
                 """
-                SELECT id, policy_key, enabled, version, definition::text
+                SELECT DISTINCT ON (policy_key) id, policy_key, enabled, version, definition::text
                 FROM sla_policy
-                WHERE org_id = ?
-                ORDER BY policy_key
+                WHERE org_id IN (?, 'default')
+                ORDER BY policy_key, (org_id = ?) DESC
                 """,
                 (rs, i) -> new SlaPolicyView(
                         map(
@@ -61,7 +67,7 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                         ),
                         rs.getBoolean("enabled"),
                         rs.getInt("version")
-                ), OrganizationContext.current()
+                ), OrganizationContext.current(), OrganizationContext.current()
         );
     }
 

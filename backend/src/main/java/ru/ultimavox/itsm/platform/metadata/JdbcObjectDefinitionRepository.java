@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.metadata.AttributeDefinition.AttributeType;
 import ru.ultimavox.itsm.platform.metadata.RelationDefinition.Cardinality;
 
@@ -34,10 +35,11 @@ class JdbcObjectDefinitionRepository implements ObjectDefinitionRepository {
     @Override
     public Optional<ObjectDefinition> findActiveByKey(String objectKey) {
         List<ObjectDefinition> rows = jdbc.query(
-                SELECT_BASE + " WHERE object_key = ? AND active = true ORDER BY version DESC LIMIT 1",
+                SELECT_BASE + " WHERE org_id IN (?, 'default') AND object_key = ? AND active = true "
+                        + "ORDER BY (org_id = ?) DESC, version DESC LIMIT 1",
                 (rs, i) -> map(rs.getObject("id", UUID.class), rs.getString("object_key"),
                         rs.getInt("version"), rs.getString("definition")),
-                objectKey
+                OrganizationContext.current(), objectKey, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -48,21 +50,23 @@ class JdbcObjectDefinitionRepository implements ObjectDefinitionRepository {
                 """
                 SELECT DISTINCT ON (object_key) id, object_key, version, definition::text
                 FROM object_definition
-                WHERE active = true
-                ORDER BY object_key, version DESC
+                WHERE org_id IN (?, 'default') AND active = true
+                ORDER BY object_key, (org_id = ?) DESC, version DESC
                 """,
                 (rs, i) -> map(rs.getObject("id", UUID.class), rs.getString("object_key"),
-                        rs.getInt("version"), rs.getString("definition"))
+                        rs.getInt("version"), rs.getString("definition")),
+                OrganizationContext.current(), OrganizationContext.current()
         );
     }
 
     @Override
     public Optional<ObjectDefinition> findByKeyAndVersion(String objectKey, int version) {
         List<ObjectDefinition> rows = jdbc.query(
-                SELECT_BASE + " WHERE object_key = ? AND version = ?",
+                SELECT_BASE + " WHERE org_id IN (?, 'default') AND object_key = ? AND version = ? "
+                        + "ORDER BY (org_id = ?) DESC LIMIT 1",
                 (rs, i) -> map(rs.getObject("id", UUID.class), rs.getString("object_key"),
                         rs.getInt("version"), rs.getString("definition")),
-                objectKey, version
+                OrganizationContext.current(), objectKey, version, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }

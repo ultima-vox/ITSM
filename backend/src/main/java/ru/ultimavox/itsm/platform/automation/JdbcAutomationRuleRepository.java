@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.automation.AutomationRule.Action;
 import ru.ultimavox.itsm.platform.automation.AutomationRule.Condition;
 import ru.ultimavox.itsm.platform.automation.AutomationRule.Operator;
@@ -31,10 +32,15 @@ class JdbcAutomationRuleRepository implements AutomationRuleRepository {
     public List<AutomationRule> findEnabledByEventType(String eventType) {
         return jdbc.query(
                 """
-                SELECT id, rule_key, enabled, definition::text
-                FROM automation_rule
+                SELECT id, rule_key, enabled, definition
+                FROM (
+                  SELECT DISTINCT ON (rule_key) id, rule_key, enabled, definition::text AS definition
+                  FROM automation_rule
+                  WHERE org_id IN (?, 'default')
+                    AND definition -> 'trigger' ->> 'eventType' = ?
+                  ORDER BY rule_key, (org_id = ?) DESC
+                ) scoped
                 WHERE enabled = true
-                  AND definition -> 'trigger' ->> 'eventType' = ?
                 """,
                 (rs, i) -> map(
                         rs.getObject("id", UUID.class),
@@ -42,7 +48,7 @@ class JdbcAutomationRuleRepository implements AutomationRuleRepository {
                         rs.getBoolean("enabled"),
                         rs.getString("definition")
                 ),
-                eventType
+                OrganizationContext.current(), eventType, OrganizationContext.current()
         );
     }
 
@@ -50,16 +56,17 @@ class JdbcAutomationRuleRepository implements AutomationRuleRepository {
     public List<AutomationRule> listAll() {
         return jdbc.query(
                 """
-                SELECT id, rule_key, enabled, definition::text
+                SELECT DISTINCT ON (rule_key) id, rule_key, enabled, definition::text
                 FROM automation_rule
-                ORDER BY rule_key
+                WHERE org_id IN (?, 'default')
+                ORDER BY rule_key, (org_id = ?) DESC
                 """,
                 (rs, i) -> map(
                         rs.getObject("id", UUID.class),
                         rs.getString("rule_key"),
                         rs.getBoolean("enabled"),
                         rs.getString("definition")
-                )
+                ), OrganizationContext.current(), OrganizationContext.current()
         );
     }
 

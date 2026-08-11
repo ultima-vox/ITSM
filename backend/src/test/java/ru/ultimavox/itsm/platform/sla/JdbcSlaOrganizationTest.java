@@ -46,8 +46,8 @@ class JdbcSlaOrganizationTest {
     ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
     verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
-    assertThat(sql.getValue()).contains("org_id = ? AND policy_key = ?");
-    assertThat(args.getValue()).containsExactly("org-blue", "p1");
+    assertThat(sql.getValue()).contains("org_id IN (?, 'default') AND policy_key = ?");
+    assertThat(args.getValue()).containsExactly("org-blue", "p1", "org-blue");
   }
 
   private void authenticate(String organization) {

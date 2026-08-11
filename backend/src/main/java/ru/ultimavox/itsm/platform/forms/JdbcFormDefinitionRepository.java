@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.forms.FormDefinition.Expression;
 import ru.ultimavox.itsm.platform.forms.FormDefinition.Field;
 import ru.ultimavox.itsm.platform.forms.FormDefinition.Section;
@@ -32,8 +33,8 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
                 """
                 SELECT id, form_key, object_key, version, definition::text
                 FROM form_definition
-                WHERE object_key = ? AND active = true
-                ORDER BY version DESC
+                WHERE org_id IN (?, 'default') AND object_key = ? AND active = true
+                ORDER BY (org_id = ?) DESC, version DESC
                 LIMIT 1
                 """,
                 (rs, i) -> map(
@@ -43,7 +44,7 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
                         rs.getInt("version"),
                         rs.getString("definition")
                 ),
-                objectKey
+                OrganizationContext.current(), objectKey, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -54,8 +55,8 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
                 """
                 SELECT id, form_key, object_key, version, definition::text
                 FROM form_definition
-                WHERE form_key = ? AND active = true
-                ORDER BY version DESC
+                WHERE org_id IN (?, 'default') AND form_key = ? AND active = true
+                ORDER BY (org_id = ?) DESC, version DESC
                 LIMIT 1
                 """,
                 (rs, i) -> map(
@@ -65,7 +66,7 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
                         rs.getInt("version"),
                         rs.getString("definition")
                 ),
-                formKey
+                OrganizationContext.current(), formKey, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -75,10 +76,11 @@ class JdbcFormDefinitionRepository implements FormDefinitionRepository {
         UUID id = definition.id() != null ? definition.id() : UUID.randomUUID();
         jdbc.update(
                 """
-                INSERT INTO form_definition (id, form_key, object_key, version, active, definition)
-                VALUES (?, ?, ?, ?, true, ?::jsonb)
+                INSERT INTO form_definition (id, org_id, form_key, object_key, version, active, definition)
+                VALUES (?, ?, ?, ?, ?, true, ?::jsonb)
                 """,
                 id,
+                OrganizationContext.current(),
                 definition.key(),
                 definition.objectKey(),
                 definition.version(),

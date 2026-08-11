@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 
 import java.util.ArrayList;
@@ -30,8 +31,8 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                 """
                 SELECT id, object_key, version, definition::text
                 FROM workflow_definition
-                WHERE object_key = ? AND active = true
-                ORDER BY version DESC
+                WHERE org_id IN (?, 'default') AND object_key = ? AND active = true
+                ORDER BY (org_id = ?) DESC, version DESC
                 LIMIT 1
                 """,
                 (rs, i) -> map(
@@ -40,7 +41,7 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                         rs.getInt("version"),
                         rs.getString("definition")
                 ),
-                objectKey
+                OrganizationContext.current(), objectKey, OrganizationContext.current()
         );
         return rows.stream().findFirst();
     }
@@ -49,9 +50,10 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
     public List<WorkflowDefinitionView> listAll() {
         return jdbc.query(
                 """
-                SELECT id, object_key, version, active, definition::text
+                SELECT DISTINCT ON (object_key, version) id, object_key, version, active, definition::text
                 FROM workflow_definition
-                ORDER BY object_key, version DESC
+                WHERE org_id IN (?, 'default')
+                ORDER BY object_key, version DESC, (org_id = ?) DESC
                 """,
                 (rs, i) -> new WorkflowDefinitionView(
                         map(
@@ -61,7 +63,7 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
                                 rs.getString("definition")
                         ),
                         rs.getBoolean("active")
-                )
+                ), OrganizationContext.current(), OrganizationContext.current()
         );
     }
 

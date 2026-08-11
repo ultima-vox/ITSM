@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 import java.util.Map;
 import java.util.UUID;
@@ -24,10 +25,11 @@ class JdbcAutomationActionLogRepository implements AutomationActionLogRepository
         try {
             int inserted = jdbc.update(
                     """
-                    INSERT INTO automation_action_log (rule_key, event_id, action_type, status, details)
-                    VALUES (?, ?, ?, ?, ?::jsonb)
-                    ON CONFLICT (rule_key, event_id, action_type) DO NOTHING
+                    INSERT INTO automation_action_log (org_id, rule_key, event_id, action_type, status, details)
+                    VALUES (?, ?, ?, ?, ?, ?::jsonb)
+                    ON CONFLICT (org_id, rule_key, event_id, action_type) DO NOTHING
                     """,
+                    OrganizationContext.current(),
                     ruleKey,
                     eventId,
                     actionType,
