@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -50,6 +52,17 @@ class SubmitWorkItemSurveyTest {
     assertThatThrownBy(() -> service.submit(id, 5, null, "requester"))
         .isInstanceOf(IllegalStateException.class).hasMessageContaining("resolved or closed");
     verify(audit, never()).append(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test void storesAndAuditsValidRequesterSurvey() {
+    when(store.requireById(id)).thenReturn(item(State.RESOLVED));
+    when(jdbc.update(anyString(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+
+    var result = service.submit(id, 4, "  useful response  ", "requester");
+
+    org.assertj.core.api.Assertions.assertThat(result.rating()).isEqualTo(4);
+    org.assertj.core.api.Assertions.assertThat(result.comment()).isEqualTo("useful response");
+    verify(audit).append(any());
   }
 
   private WorkItem item(State state) {
