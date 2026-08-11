@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.access.AccessDeniedException;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogQuery;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogRequestQuery;
@@ -78,14 +80,31 @@ class CatalogController {
       @Valid @RequestBody SubmitRequest body
   ) {
     access.require(authentication.getName(), "catalog.request", "catalog-item", id.toString());
-    var result = submit.submit(
-        new SubmitCatalogRequest.Command(id, body.formPayload() == null ? Map.of() : body.formPayload()),
-        authentication.getName()
-    );
+    SubmitCatalogRequest.Submitted result;
+    try {
+      result = submit.submit(new SubmitCatalogRequest.Command(id,
+          body.formPayload() == null ? Map.of() : body.formPayload(), subjectContext(authentication)),
+          authentication.getName());
+    } catch (AccessDeniedException ex) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
     return ResponseEntity.created(URI.create("/api/v1/catalog/requests/" + result.id())).body(result);
   }
 
   record SubmitRequest(Map<String, Object> formPayload) {}
+
+  private static Map<String,Object> subjectContext(Authentication authentication) {
+    Map<String,Object> context = new java.util.HashMap<>();
+    context.put("id", authentication.getName());
+    context.put("roles", authentication.getAuthorities().stream().map(a -> a.getAuthority().replaceFirst("^ROLE_", "")).toList());
+    if (authentication.getPrincipal() instanceof Jwt jwt) {
+      for (String key : List.of("department", "country", "location", "employee_type")) {
+        Object value=jwt.getClaims().get(key);
+        if (value instanceof String || value instanceof Number || value instanceof Boolean) context.put(key,value);
+      }
+    }
+    return Map.copyOf(context);
+  }
 
   @GetMapping("/requests")
   @Operation(summary = "List current requester's catalog requests")

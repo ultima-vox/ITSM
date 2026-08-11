@@ -2,12 +2,15 @@ package ru.ultimavox.itsm.servicecatalog.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.event.DomainEvent;
@@ -21,19 +24,22 @@ public class SubmitCatalogRequest {
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
   private final ObjectMapper json;
+  private final CatalogEligibilityEvaluator eligibility;
 
   public SubmitCatalogRequest(
       JdbcTemplate jdbc,
       CatalogQuery catalogQuery,
       AuditTrail audit,
       IntegrationEventOutbox outbox,
-      ObjectMapper json
+      ObjectMapper json,
+      CatalogEligibilityEvaluator eligibility
   ) {
     this.jdbc = jdbc;
     this.catalogQuery = catalogQuery;
     this.audit = audit;
     this.outbox = outbox;
     this.json = json;
+    this.eligibility = eligibility;
   }
 
   @Transactional
@@ -57,6 +63,15 @@ public class SubmitCatalogRequest {
     if (approval != null && approval.required()
         && (approval.approverRole() == null || approval.approverRole().isBlank())) {
       throw new IllegalStateException("Approval-required catalog item has no approver role");
+    }
+    String rulesJson = jdbc.queryForObject(
+        "SELECT eligibility_rules::text FROM catalog_item WHERE id=? AND org_id=?",
+        String.class, item.id(), OrganizationContext.current());
+    for (EligibilityRule rule : readRules(rulesJson)) {
+      if (!eligibility.matches(rule.expression(), command.subjectContext(), command.formPayload())) {
+        throw new AccessDeniedException(rule.denialMessageKey() == null || rule.denialMessageKey().isBlank()
+            ? "catalog.not-eligible" : rule.denialMessageKey());
+      }
     }
 
     jdbc.update(
@@ -107,8 +122,17 @@ public class SubmitCatalogRequest {
     }
   }
 
-  public record Command(UUID catalogItemId, Map<String, Object> formPayload) {}
+  private List<EligibilityRule> readRules(String value) {
+    try { return json.readValue(value == null ? "[]" : value, new TypeReference<>() {}); }
+    catch (JsonProcessingException ex) { throw new IllegalStateException("Invalid catalog eligibility policy", ex); }
+  }
+
+  public record Command(UUID catalogItemId, Map<String, Object> formPayload, Map<String, Object> subjectContext) {
+    public Command { formPayload = formPayload == null ? Map.of() : Map.copyOf(formPayload);
+      subjectContext = subjectContext == null ? Map.of() : Map.copyOf(subjectContext); }
+  }
 
   public record Submitted(UUID id, String number, String status, UUID catalogItemId) {}
   private record ApprovalConfig(boolean required, String approverRole) {}
+  private record EligibilityRule(String expression, String denialMessageKey) {}
 }
