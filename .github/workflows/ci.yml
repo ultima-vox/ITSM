@@ -49,6 +49,15 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+        env:
+          VITE_API_TOKEN: VOX_CI_SECRET_MUST_NOT_SHIP
+
+      - name: Verify dev token excluded from production bundle
+        run: |
+          if grep -R "VOX_CI_SECRET_MUST_NOT_SHIP" dist; then
+            echo "Production bundle contains VITE_API_TOKEN"
+            exit 1
+          fi
 
       - name: Verify generated API contract
         run: npm run api:check

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getApiToken } from '@/api/client';
+import { getApiActorId, getApiToken } from '@/api/client';
 import { clearSession, readSession, writeSession, type OidcSession } from './session';
 
 function session(): OidcSession {
@@ -36,13 +36,14 @@ describe('OIDC session storage boundary', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps OAuth tokens in memory and persists only non-secret actor id', () => {
+  it('keeps OAuth tokens and actor identity in memory only', () => {
     const active = session();
     writeSession(active);
 
     expect(readSession()).toBe(active);
     expect(getApiToken()).toBe('access-secret');
-    expect(values).toEqual(new Map([['vox-user-id', 'user-42']]));
+    expect(getApiActorId()).toBe('user-42');
+    expect(values).toEqual(new Map());
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
     expect(JSON.stringify([...values])).not.toContain('secret');
   });
@@ -53,6 +54,7 @@ describe('OIDC session storage boundary', () => {
 
     expect(readSession()).toBeNull();
     expect(getApiToken()).toBeNull();
+    expect(getApiActorId()).toBe('dev-local');
     expect(values.has('vox-user-id')).toBe(false);
   });
 });

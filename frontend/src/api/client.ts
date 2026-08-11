@@ -26,8 +26,8 @@ export class ApiError extends Error {
 }
 
 const DEFAULT_BASE = '/api/v1';
-const ACTOR_STORAGE_KEY = 'vox-user-id';
 let apiToken: string | null = null;
+let apiActorId: string | null = null;
 
 /** Returns true if tokens were refreshed and a retry may succeed. */
 export type AuthRefreshHandler = () => Promise<boolean>;
@@ -95,29 +95,16 @@ export function setApiToken(token: string | null): void {
 
 /**
  * Subject used for "assign to me" when no users API is available.
- * Prefer localStorage `vox-user-id`, else dev-local (Spring profile dev).
+ * OIDC subject stays memory-only with tokens; dev profile falls back to dev-local.
  */
 export function getApiActorId(): string {
-  try {
-    const stored = localStorage.getItem(ACTOR_STORAGE_KEY)?.trim();
-    if (stored) return stored;
-  } catch {
-    /* ignore */
-  }
+  if (apiActorId) return apiActorId;
   return (import.meta.env.VITE_API_ACTOR as string | undefined)?.trim() || 'dev-local';
 }
 
-/** Persist OIDC `sub` (or clear) for assign-to-me and actor headers. */
+/** Keep OIDC `sub` in memory for assign-to-me; clear atomically with bearer session. */
 export function setApiActorId(actorId: string | null): void {
-  try {
-    if (actorId == null || actorId === '') {
-      localStorage.removeItem(ACTOR_STORAGE_KEY);
-    } else {
-      localStorage.setItem(ACTOR_STORAGE_KEY, actorId);
-    }
-  } catch {
-    /* ignore quota / private mode */
-  }
+  apiActorId = actorId?.trim() || null;
 }
 
 export interface RequestOptions {

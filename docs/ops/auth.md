@@ -30,7 +30,7 @@ When OIDC is disabled, mock mode and backend `dev` profile still work without a 
 1. **Login** — SPA generates `code_verifier` / S256 `code_challenge` + `state`, stores them in `sessionStorage`, redirects to Keycloak authorize.
 2. **Callback** — route `/auth/callback` exchanges `code` + verifier at the token endpoint.
 3. **Tokens** — access, refresh and ID tokens remain in memory only. `apiRequest` receives the access token through the in-memory auth session and sends `Authorization: Bearer …`.
-4. **Actor** — JWT `sub` → `localStorage` `vox-user-id` for assign-to-me.
+4. **Actor** — JWT `sub` stays in memory with the session for assign-to-me.
 5. **Refresh (silent renew)** — if `refresh_token` is present:
    - timer refreshes slightly before `expires_at` and reschedules;
    - on load, near-expiry sessions (&lt; 90s) refresh immediately;
