@@ -5,7 +5,7 @@ import {
   fetchWorkflowDefinitions,
   setWorkflowActiveVersion,
   subscribeWorkflowDefinitions,
-  useMock,
+  isMockMode,
   workflowDefinitionsWritable,
 } from '@/api';
 import type { WorkflowDefinition } from '@/types';
@@ -14,7 +14,7 @@ import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
 export function WorkflowPage() {
   const t = useT();
   const writable = workflowDefinitionsWritable();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [defs, setDefs] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);

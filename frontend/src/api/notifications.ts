@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 import {
   ensureNotificationCenter,
   listNotifications as listMockNotifications,
@@ -126,7 +126,7 @@ function extractList(
  * S24: failures rethrow — UI surfaces error (no silent mock seed fallback).
  */
 export async function fetchNotifications(): Promise<AppNotification[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(60);
     ensureNotificationCenter();
     return listMockNotifications();
@@ -147,7 +147,7 @@ export function listNotifications(): AppNotification[] {
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     markMockRead(id);
     return;
   }
@@ -157,7 +157,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     markAllMockRead();
     return;
   }

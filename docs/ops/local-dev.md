@@ -58,8 +58,8 @@ Open `http://localhost:5173`.
 
 | Mode | How |
 | --- | --- |
-| **Mock (default)** | `VITE_USE_MOCK` unset or not `false` — SPA uses in-browser mock data |
-| **Live API** | `VITE_USE_MOCK=false` — Vite proxies `/api` → `http://localhost:8080` |
+| **Live API (default)** | `VITE_USE_MOCK` unset or `false` — Vite proxies `/api` → `http://localhost:8080` |
+| **Mock demo** | `VITE_USE_MOCK=true` — SPA uses in-browser demo data |
 
 Live with **backend `dev`** (no JWT): leave `VITE_API_TOKEN` empty.
 
@@ -103,7 +103,7 @@ CI (GitHub Actions on `main` / PR): frontend typecheck + build + Playwright, bac
 
 ### Playwright smoke E2E
 
-Mock mode is default (`VITE_USE_MOCK` unset / not `false`), so no backend is required.
+Mock demo mode requires explicit `VITE_USE_MOCK=true`; no backend is required in that mode.
 
 ```bash
 cd frontend

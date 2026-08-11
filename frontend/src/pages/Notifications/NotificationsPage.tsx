@@ -15,7 +15,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   subscribeNotifications,
-  useMock,
+  isMockMode,
   type AppNotification,
   type NotificationKind,
 } from '@/api';
@@ -54,7 +54,7 @@ type Filter = 'all' | 'unread';
 export function NotificationsPage() {
   const t = useT();
   const navigate = useNavigate();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [filter, setFilter] = useState<Filter>('all');
   const [mockTick, setMockTick] = useState(0);
   const [liveItems, setLiveItems] = useState<AppNotification[] | null>(null);

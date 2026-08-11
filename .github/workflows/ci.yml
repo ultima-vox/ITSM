@@ -54,6 +54,7 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
+          VITE_USE_MOCK: true
 
   backend:
     name: Backend tests

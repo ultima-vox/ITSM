@@ -7,7 +7,7 @@ import {
   fetchAuditActionKeys,
   fetchAuditEvents,
   listAuditActionKeys,
-  useMock,
+  isMockMode,
 } from '@/api';
 import { Badge, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 import { formatDateTime, formatRelative } from '@/lib/format';
@@ -67,7 +67,7 @@ function objectHref(ev: AuditEvent): string | null {
 export function AuditPage() {
   const t = useT();
   const { locale } = useI18n();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [action, setAction] = useState<string>('all');
   const [liveActionKeys, setLiveActionKeys] = useState<string[] | null>(null);
 

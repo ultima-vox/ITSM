@@ -1118,7 +1118,7 @@
     "tabDemo": "Демо-данные",
     "demoOnlyMock": "Сброс демо доступен только при VITE_USE_MOCK.",
     "apiMode": "Режим API",
-    "apiModeHint": "Задаётся через VITE_USE_MOCK (по умолчанию: mock).",
+    "apiModeHint": "Задаётся через VITE_USE_MOCK (по умолчанию: live API).",
     "apiModeLabel": "Режим",
     "apiModeMock": "Mock",
     "apiModeLive": "Live",

@@ -30,7 +30,7 @@ import {
   fetchDashboardMetrics,
   fetchWorkItems,
   summarizeCopilot,
-  useMock,
+  isMockMode,
 } from '@/api';
 import { currentUser } from '@/mock/data';
 import { getQueueCopilotStats } from '@/mock/store';
@@ -234,7 +234,7 @@ export function OverviewPage() {
     setCopilotError(null);
     try {
       let content: string | undefined;
-      if (!useMock()) {
+      if (!isMockMode()) {
         const list = items.data ?? [];
         content = buildQueueSummaryText({
           open: list.filter(

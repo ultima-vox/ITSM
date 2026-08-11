@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { fetchWorkItems, searchAll, searchHitPath, useMock } from '@/api';
+import { fetchWorkItems, searchAll, searchHitPath, isMockMode } from '@/api';
 import type { SearchHit } from '@/api';
 import type { CreateKind, WorkItem } from '@/types';
 import { PriorityBadge } from '@/components/data-display';
@@ -111,7 +111,7 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
   useEffect(() => {
     if (!open) return;
     const q = query.trim();
-    if (useMock() || q.length < LIVE_SEARCH_MIN) {
+    if (isMockMode() || q.length < LIVE_SEARCH_MIN) {
       setLiveHits([]);
       setSearching(false);
       return;
@@ -350,7 +350,7 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rawQ = query.trim();
-    const liveMode = !useMock();
+    const liveMode = !isMockMode();
 
     const workCmds: CmdItem[] = items.map((w) => ({
       id: `wi-${w.id}`,

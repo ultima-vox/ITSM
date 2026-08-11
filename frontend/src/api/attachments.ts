@@ -3,7 +3,7 @@
  * Mock mode: in-memory meta + work-item link map.
  */
 
-import { ApiError, apiFetch, apiRequest, delay, getBaseUrl, useMock } from './client';
+import { ApiError, apiFetch, apiRequest, delay, getBaseUrl, isMockMode } from './client';
 
 export type AttachmentScanStatus =
   | 'PENDING'
@@ -39,7 +39,7 @@ function mockId(): string {
  * Do NOT set Content-Type to application/json — browser sets multipart boundary.
  */
 export async function uploadAttachment(file: File): Promise<AttachmentMeta> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(320);
     const infected = file.name.toLowerCase().includes('eicar');
     const meta: AttachmentMeta = {
@@ -80,7 +80,7 @@ export async function uploadAttachment(file: File): Promise<AttachmentMeta> {
 }
 
 export async function getAttachment(id: string): Promise<AttachmentMeta | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return mockStore.get(id) ?? null;
   }
@@ -109,7 +109,7 @@ export function getContentUrl(id: string): string {
 export async function listWorkItemAttachments(
   workItemId: string,
 ): Promise<AttachmentMeta[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(160);
     const ids = mockLinks.get(workItemId) ?? [];
     return ids
@@ -145,7 +145,7 @@ export async function linkWorkItemAttachment(
   workItemId: string,
   attachmentId: string,
 ): Promise<AttachmentMeta> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     const meta = mockStore.get(attachmentId);
     if (!meta) throw new ApiError(404, 'Attachment not found');
@@ -183,7 +183,7 @@ export async function unlinkWorkItemAttachment(
   workItemId: string,
   attachmentId: string,
 ): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     const ids = mockLinks.get(workItemId) ?? [];
     mockLinks.set(

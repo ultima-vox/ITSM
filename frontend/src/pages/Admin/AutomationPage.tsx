@@ -6,7 +6,7 @@ import {
   fetchAutomationRules,
   setAutomationRuleEnabled,
   subscribeAutomationRules,
-  useMock,
+  isMockMode,
 } from '@/api';
 import type { AutomationAction, AutomationRule } from '@/types';
 import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
@@ -20,7 +20,7 @@ function formatActionParams(action: AutomationAction): string {
 export function AutomationPage() {
   const t = useT();
   const writable = automationRulesWritable();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);

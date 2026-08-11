@@ -1,7 +1,7 @@
 /**
  * Workflow definitions — live list from backend; mock for local edits.
  */
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import {
   listWorkflowDefinitions as mockList,
   setWorkflowActiveVersion as mockSetActive,
@@ -47,7 +47,7 @@ function mapDef(dto: BackendDefinition): WorkflowDefinition {
 }
 
 export async function fetchWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(140);
     return mockList();
   }
@@ -59,7 +59,7 @@ export async function setWorkflowActiveVersion(
   id: string,
   active: boolean,
 ): Promise<WorkflowDefinition | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return mockSetActive(id, active);
   }
@@ -67,10 +67,10 @@ export async function setWorkflowActiveVersion(
 }
 
 export function workflowDefinitionsWritable(): boolean {
-  return useMock();
+  return isMockMode();
 }
 
 export function subscribeWorkflowDefinitions(listener: () => void): () => void {
-  if (useMock()) return mockSubscribe(listener);
+  if (isMockMode()) return mockSubscribe(listener);
   return () => undefined;
 }

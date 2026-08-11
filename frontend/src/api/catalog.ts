@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 import {
   deriveCatalogCategories,
   mapCatalogService,
@@ -8,7 +8,7 @@ import { catalogCategories, catalogServices } from '@/mock/data';
 import type { CatalogCategory, CatalogService } from '@/types';
 
 export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(200);
     return catalogCategories;
   }
@@ -19,7 +19,7 @@ export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
 }
 
 export async function fetchCatalogServices(q?: string): Promise<CatalogService[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(220);
     if (!q) return catalogServices;
     const needle = q.toLowerCase();
@@ -54,7 +54,7 @@ export async function submitCatalogRequest(
   itemId: string,
   payload: SubmitCatalogRequestPayload = {},
 ): Promise<SubmittedCatalogRequest> {
-  if (useMock()) {
+  if (isMockMode()) {
     throw new Error('submitCatalogRequest is live-only; use createWorkItem in mock mode');
   }
   const result = await apiRequest<{

@@ -1,4 +1,4 @@
-import { apiRequest, useMock } from './client';
+import { apiRequest, isMockMode } from './client';
 import type { LocaleCode } from '@/types';
 
 export interface BackendLocaleView {
@@ -7,7 +7,7 @@ export interface BackendLocaleView {
 }
 
 export async function fetchLocalePreference(): Promise<LocaleCode | null> {
-  if (useMock()) return null;
+  if (isMockMode()) return null;
   try {
     const view = await apiRequest<BackendLocaleView>('/me/locale');
     const code = (view.locale ?? '').slice(0, 2).toLowerCase();
@@ -19,7 +19,7 @@ export async function fetchLocalePreference(): Promise<LocaleCode | null> {
 }
 
 export async function updateLocalePreference(locale: LocaleCode): Promise<void> {
-  if (useMock()) return;
+  if (isMockMode()) return;
   try {
     await apiRequest<void>('/me/locale', {
       method: 'PUT',

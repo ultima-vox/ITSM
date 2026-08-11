@@ -2,7 +2,7 @@
  * Platform full-text search — GET /api/v1/search?q=
  */
 
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import { resolveRelatedHref } from '@/lib/resolveRelated';
 import {
   listAssets,
@@ -190,7 +190,7 @@ export async function searchAll(
 
   let hits: SearchHit[];
 
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     hits = mockSearchAll(needle, Math.max(limit, 80));
   } else {

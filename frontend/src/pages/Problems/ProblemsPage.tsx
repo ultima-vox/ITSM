@@ -20,7 +20,7 @@ import {
   patchProblem,
   subscribeSecondaryModules,
   transitionProblemStatus,
-  useMock,
+  isMockMode,
 } from '@/api';
 import {
   Avatar,
@@ -371,7 +371,7 @@ export function ProblemsPage() {
       toastError(t('problems.validation.knownErrorNeedsCause'));
       return;
     }
-    if (!useMock()) {
+    if (!isMockMode()) {
       toastError(t('knowledge.cmsLiveUnsupported'));
       return;
     }
@@ -421,20 +421,6 @@ export function ProblemsPage() {
     }
     success(t('problems.rcaSaved'));
   };
-
-  if (error && !loading && !data) {
-    return (
-      <section className="page">
-        <div className="page-head">
-          <div>
-            <h1>{t('problems.title')}</h1>
-            <p className="page-subtitle">{t('problems.subtitle')}</p>
-          </div>
-        </div>
-        <ErrorState onRetry={reload} />
-      </section>
-    );
-  }
 
   const columns = useMemo<ModuleGridColumn<Problem>[]>(
     () => [
@@ -508,6 +494,20 @@ export function ProblemsPage() {
     ],
     [t],
   );
+
+  if (error && !loading && !data) {
+    return (
+      <section className="page">
+        <div className="page-head">
+          <div>
+            <h1>{t('problems.title')}</h1>
+            <p className="page-subtitle">{t('problems.subtitle')}</p>
+          </div>
+        </div>
+        <ErrorState onRetry={reload} />
+      </section>
+    );
+  }
 
   // Active problem workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.

@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, getApiActorId } from './client';
+import { delay, isMockMode, apiRequest, getApiActorId } from './client';
 import {
   mapAsset,
   mapCiRelationship,
@@ -36,7 +36,7 @@ import type {
 } from '@/types';
 
 export async function fetchConfigurationItems(): Promise<ConfigurationItem[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(240);
     return listConfigurationItems();
   }
@@ -45,7 +45,7 @@ export async function fetchConfigurationItems(): Promise<ConfigurationItem[]> {
 }
 
 export async function fetchCiRelations(): Promise<CiRelation[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return listCiRelations();
   }
@@ -59,7 +59,7 @@ export async function fetchCiRelations(): Promise<CiRelation[]> {
 
 /** CIs with zero relationships — live orphan detection. */
 export async function fetchOrphanCis(): Promise<ConfigurationItem[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     const cis = listConfigurationItems();
     const rels = listCiRelations();
@@ -79,7 +79,7 @@ export async function createCiRelation(input: {
   toId: string;
   type: CiRelationType;
 }): Promise<{ ok: true; relation: CiRelation } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     return storeAddCiRelation(input);
   }
@@ -104,7 +104,7 @@ export async function createCiRelation(input: {
 export async function deleteCiRelation(
   id: string,
 ): Promise<{ ok: true } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeRemoveCiRelation(id);
   }
@@ -120,7 +120,7 @@ export async function updateCiRelation(
   id: string,
   patch: { type: CiRelationType },
 ): Promise<{ ok: true; relation: CiRelation } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeUpdateCiRelation(id, patch);
   }
@@ -143,7 +143,7 @@ export async function fetchCiImpact(options?: {
   rootCiId: string;
   entries: CiImpactEntry[];
 }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(160);
     return {
       changeKey: ciImpactScenario.changeKey,
@@ -191,7 +191,7 @@ export async function createConfigurationItem(input: {
   status: CiStatus;
   owner?: string;
 }): Promise<ConfigurationItem> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return addConfigurationItem(input);
   }
@@ -212,7 +212,7 @@ export { subscribeConfigurationItems };
 export { subscribeSecondaryModules };
 
 export async function fetchAssets(): Promise<Asset[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(240);
     return listAssets();
   }
@@ -221,7 +221,7 @@ export async function fetchAssets(): Promise<Asset[]> {
 }
 
 export async function createAsset(payload: CreateAssetPayload): Promise<Asset> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return storeAddAsset(payload);
   }
@@ -254,7 +254,7 @@ export async function transitionAssetStatus(
   next: AssetStatus,
   opts?: { assignedTo?: string | null },
 ): Promise<{ ok: true; asset: Asset } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeTransitionAsset(id, next, opts);
   }
@@ -272,7 +272,7 @@ export async function transitionAssetStatus(
 export { getAssetTransitions };
 
 export async function bulkAssignAssets(ids: string[]): Promise<number> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkAssignAssets(ids);
   }
@@ -297,7 +297,7 @@ export async function bulkSetAssetStatus(
   ids: string[],
   status: AssetStatus,
 ): Promise<number> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkSetAssetStatus(ids, status);
   }

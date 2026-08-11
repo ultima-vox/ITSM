@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('live backend', () => {
   test.describe.configure({ mode: 'serial' });
-  test.skip(process.env.VITE_USE_MOCK !== 'false', 'requires VITE_USE_MOCK=false');
+  test.skip(process.env.VITE_USE_MOCK === 'true', 'requires live API mode');
   const fixtureTitle = 'CI live persisted incident';
 
   test.beforeAll(async ({ request }) => {

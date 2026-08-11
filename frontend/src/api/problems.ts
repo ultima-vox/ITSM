@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
+import { delay, isMockMode, apiRequest, refuseLiveFeature } from './client';
 import { mapProblem, type BackendProblemSummary } from './mappers/problems';
 import {
   addProblem as storeAddProblem,
@@ -35,7 +35,7 @@ function toBackendProblemTarget(status: WorkItemStatus): string {
 }
 
 export async function fetchProblems(): Promise<Problem[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(220);
     return listProblems();
   }
@@ -46,7 +46,7 @@ export async function fetchProblems(): Promise<Problem[]> {
 export async function createProblem(
   payload: CreateProblemPayload,
 ): Promise<Problem> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return storeAddProblem(payload);
   }
@@ -71,7 +71,7 @@ export async function transitionProblemStatus(
     knownError?: boolean;
   },
 ): Promise<{ ok: true; problem: Problem } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeTransitionProblem(id, next, opts);
   }
@@ -98,7 +98,7 @@ export async function patchProblem(
   id: string,
   patch: Parameters<typeof storeUpdateProblem>[1],
 ): Promise<{ ok: true; problem: Problem } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     return storeUpdateProblem(id, patch);
   }
@@ -150,7 +150,7 @@ export async function patchProblem(
 export { getProblemTransitions };
 
 export async function bulkAssignProblems(ids: string[]): Promise<number> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkAssignProblems(ids);
   }
@@ -161,7 +161,7 @@ export async function bulkSetProblemStatus(
   ids: string[],
   status: WorkItemStatus,
 ): Promise<number> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkSetProblemStatus(ids, status);
   }

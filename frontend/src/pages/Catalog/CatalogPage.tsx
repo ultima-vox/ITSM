@@ -24,7 +24,7 @@ import {
   fetchCatalogServices,
   fetchFormDefinition,
   submitCatalogRequest,
-  useMock,
+  isMockMode,
   type FormDefinition,
 } from '@/api';
 import { DynamicForm, formRequiredKeys } from '@/components/form/DynamicForm';
@@ -476,7 +476,7 @@ function ServiceDrawer({
       };
 
       // Live backend: prefer catalog request endpoint for UUID catalog items
-      if (!useMock() && /^[0-9a-f-]{36}$/i.test(service.id)) {
+      if (!isMockMode() && /^[0-9a-f-]{36}$/i.test(service.id)) {
         const submitted = await submitCatalogRequest(service.id, { formPayload });
         const item: WorkItem = {
           id: submitted.workItemId ?? submitted.id,

@@ -10,7 +10,7 @@ import {
   slaPoliciesWritable,
   subscribeSlaPolicies,
   updateSlaPolicyTargets,
-  useMock,
+  isMockMode,
 } from '@/api';
 import { reseedOpenWorkItemSlaFromPolicies } from '@/mock/store';
 import type { SlaPolicy, SlaTarget, WorkingCalendarMock } from '@/types';
@@ -26,7 +26,7 @@ export function SlaPage() {
   const t = useT();
   const { success } = useToast();
   const writable = slaPoliciesWritable();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);

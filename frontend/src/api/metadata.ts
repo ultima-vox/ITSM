@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 
 export interface MetadataAttribute {
   key: string;
@@ -188,7 +188,7 @@ export const SAMPLE_WORK_ITEM_TRANSLATIONS: SampleTranslationRow[] = [
 
 /** GET /api/v1/metadata/objects — mock object definitions when VITE_USE_MOCK. */
 export async function fetchObjectDefinitions(): Promise<ObjectDefinition[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(220);
     return structuredClone(MOCK_OBJECTS);
   }
@@ -312,7 +312,7 @@ export const FORM_FIELD_META: Record<
 export async function fetchFormDefinition(
   objectKey: string,
 ): Promise<FormDefinition | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     const found = MOCK_FORMS.find((f) => f.objectKey === objectKey) ?? null;
     return found ? structuredClone(found) : null;

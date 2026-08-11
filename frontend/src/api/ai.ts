@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 import { getQueueCopilotStats } from '@/mock/store';
 
 export interface CopilotSuggestion {
@@ -100,7 +100,7 @@ function buildMockCopilotContent(): string {
 export async function summarizeCopilot(
   payload?: Partial<SummarizePayload>,
 ): Promise<CopilotSuggestion> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(420);
     return {
       provider: 'mock',

@@ -625,7 +625,7 @@ function ArticleReader({
 
   /** S10 / S36: open incident pre-filled from this article. */
   const [usingInTicket, setUsingInTicket] = useState(false);
-  const useInTicket = async () => {
+  const insertIntoTicket = async () => {
     setUsingInTicket(true);
     try {
       const title = articleTitle(article, t);
@@ -909,7 +909,7 @@ function ArticleReader({
                 )}
                 <Button
                   variant="secondary"
-                  onClick={() => void useInTicket()}
+                  onClick={() => void insertIntoTicket()}
                   disabled={usingInTicket}
                   title={t('knowledge.useInTicketHint')}
                 >

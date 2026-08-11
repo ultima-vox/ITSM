@@ -34,7 +34,7 @@ import {
   setChangeCabDecision,
   subscribeSecondaryModules,
   transitionChangeStatus,
-  useMock,
+  isMockMode,
 } from '@/api';
 import {
   Avatar,
@@ -441,7 +441,7 @@ export function ChangesPage() {
   }, [selected, t]);
 
   const allChanges = data ?? [];
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
 
   /** Client-side CI-overlap pairs (mock-friendly + always available). */
   const clientConflicts = useMemo(
@@ -645,20 +645,6 @@ export function ChangesPage() {
     setSelectedId(result.change.id);
   };
 
-  if (error && !loading && !data) {
-    return (
-      <section className="page">
-        <div className="page-head">
-          <div>
-            <h1>{t('changes.title')}</h1>
-            <p className="page-subtitle">{t('changes.subtitle')}</p>
-          </div>
-        </div>
-        <ErrorState onRetry={reload} />
-      </section>
-    );
-  }
-
   const columns = useMemo<ModuleGridColumn<Change>[]>(
     () => [
       {
@@ -728,6 +714,20 @@ export function ChangesPage() {
     ],
     [t, locale],
   );
+
+  if (error && !loading && !data) {
+    return (
+      <section className="page">
+        <div className="page-head">
+          <div>
+            <h1>{t('changes.title')}</h1>
+            <p className="page-subtitle">{t('changes.subtitle')}</p>
+          </div>
+        </div>
+        <ErrorState onRetry={reload} />
+      </section>
+    );
+  }
 
   // Active change workflow (session) → next transitions; falls back when inactive.
   // Policy gates (CAB required, plans) disable illegal edges with tooltips.

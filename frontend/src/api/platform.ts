@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 
 export interface IntegrationHealth {
   status: string;
@@ -53,7 +53,7 @@ const MOCK_INTEGRATIONS: PlatformIntegrations = {
 
 /** GET /api/v1/platform/integrations — mock cards when VITE_USE_MOCK. */
 export async function fetchPlatformIntegrations(): Promise<PlatformIntegrations> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return structuredClone(MOCK_INTEGRATIONS);
   }

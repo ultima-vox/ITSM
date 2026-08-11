@@ -1,4 +1,4 @@
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import { fetchDashboardMetrics, fetchWorkItems } from './workItems';
 
 export interface WorkloadReport {
@@ -20,7 +20,7 @@ export interface WorkloadReport {
  * Mock: derive comparable snapshot from mock work items + dashboard metrics.
  */
 export async function fetchWorkloadReport(): Promise<WorkloadReport> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     const [metrics, items] = await Promise.all([
       fetchDashboardMetrics(),

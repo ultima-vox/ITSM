@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { getApiToken, setAuthRefreshHandler } from '@/api/client';
+import { getApiToken, setAuthRefreshHandler, isMockMode } from '@/api/client';
 import { getOidcConfig, isOidcEnabled } from './config';
 import {
   clearPkceSession,
@@ -305,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Soft sign-in: live API, OIDC on, no token (env token or session)
   const needsSignIn =
     oidcEnabled &&
-    import.meta.env.VITE_USE_MOCK === 'false' &&
+    !isMockMode() &&
     !getApiToken() &&
     !isAuthenticated;
 

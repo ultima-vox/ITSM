@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, getApiActorId } from './client';
+import { delay, isMockMode, apiRequest, getApiActorId } from './client';
 import {
   mapActivity,
   mapComment,
@@ -51,7 +51,7 @@ export async function fetchWorkItems(params?: {
   type?: string;
   priority?: string;
 }): Promise<WorkItem[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay();
     return listWorkItems(params);
   }
@@ -90,7 +90,7 @@ function otherLinkedId(link: WorkItemLinkDto, selfId: string): string {
 export async function fetchWorkItemLinks(
   id: string,
 ): Promise<WorkItemLinkDto[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(40);
     const wi = getWorkItem(id);
     return (wi?.relatedIds ?? []).map((rid, i) => ({
@@ -109,7 +109,7 @@ export async function createWorkItemLink(
   targetId: string,
   linkType: WorkItemLinkType = 'RELATED',
 ): Promise<WorkItemLinkDto> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     const wi = getWorkItem(id);
     if (!wi) throw new Error('not found');
@@ -130,7 +130,7 @@ export async function createWorkItemLink(
 }
 
 export async function fetchWorkItemCiIds(id: string): Promise<string[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(40);
     return getWorkItem(id)?.ciIds ?? [];
   }
@@ -144,7 +144,7 @@ export async function linkWorkItemCi(
   id: string,
   configurationItemId: string,
 ): Promise<string[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     const wi = getWorkItem(id);
     if (!wi) return [];
@@ -166,7 +166,7 @@ export async function unlinkWorkItemCi(
   id: string,
   configurationItemId: string,
 ): Promise<string[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(60);
     const wi = getWorkItem(id);
     if (!wi) return [];
@@ -185,7 +185,7 @@ export async function deleteWorkItemLink(
   id: string,
   linkId: string,
 ): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(60);
     const wi = getWorkItem(id);
     if (!wi) return;
@@ -203,7 +203,7 @@ export async function deleteWorkItemLink(
 }
 
 export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay();
     return getWorkItem(id);
   }
@@ -252,7 +252,7 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
 export async function fetchWorkItemActivity(
   id: string,
 ): Promise<WorkItemActivity[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return getActivities(id);
   }
@@ -263,7 +263,7 @@ export async function fetchWorkItemActivity(
 export async function fetchWorkItemComments(
   id: string,
 ): Promise<WorkItemComment[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return getComments(id);
   }
@@ -272,7 +272,7 @@ export async function fetchWorkItemComments(
 }
 
 export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(200);
     const list = listWorkItems();
     const open = list.filter(
@@ -323,7 +323,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
 export async function createWorkItem(
   payload: CreateWorkItemPayload,
 ): Promise<WorkItem> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(400);
     const number =
       payload.kind === 'incident'
@@ -385,7 +385,7 @@ export async function bulkAssignWorkItems(
   ids: string[],
   assignee?: Person,
 ): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     storeAssign(ids, assignee);
     return;
@@ -405,7 +405,7 @@ export async function bulkSetPriority(
   ids: string[],
   priority: Priority,
 ): Promise<void> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     storeSetPriority(ids, priority);
     return;
@@ -436,7 +436,7 @@ export async function bulkSetPriority(
 }
 
 export async function assignWorkItemToMe(id: string): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     storeAssign([id]);
     return getWorkItem(id);
@@ -449,7 +449,7 @@ export async function assignWorkItemToMe(id: string): Promise<WorkItem | null> {
 }
 
 export async function escalateWorkItem(id: string): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeEscalate(id);
   }
@@ -463,7 +463,7 @@ export async function resolveWorkItem(
   id: string,
   resolutionNotes?: string,
 ): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeResolve(id, resolutionNotes);
   }
@@ -482,7 +482,7 @@ export async function patchWorkItem(
   id: string,
   patch: WorkItemPatch,
 ): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     return storeUpdate(id, patch);
   }
@@ -550,7 +550,7 @@ export async function addWorkItemComment(
   body: string,
   opts?: { internal?: boolean },
 ): Promise<WorkItemComment | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     return storeAddComment(id, body, opts);
   }
@@ -564,7 +564,7 @@ export async function addWorkItemComment(
 }
 
 export async function watchWorkItem(id: string): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeAddWatcher(id);
   }
@@ -584,7 +584,7 @@ export async function watchWorkItem(id: string): Promise<WorkItem | null> {
 }
 
 export async function unwatchWorkItem(id: string): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeRemoveWatcher(id, currentUser.id);
   }
@@ -609,7 +609,7 @@ export async function transitionWorkItem(
   targetState: string,
   fields?: { resolutionCode?: string; resolutionNotes?: string },
 ): Promise<WorkItem | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     const status = targetState.toLowerCase() === 'pending'
       ? 'waiting'

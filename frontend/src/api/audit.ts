@@ -3,7 +3,7 @@
  * Live: GET /api/v1/audit (+ /actions for filter chips).
  */
 
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import { auditEvents as seedAudit } from '@/mock/data';
 import type { AuditEvent, Person } from '@/types';
 
@@ -66,7 +66,7 @@ export async function fetchAuditEvents(options?: {
   const limit = options?.limit ?? 100;
   const action = options?.action && options.action !== 'all' ? options.action : null;
 
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(160);
     let list = seedAudit.map((e) => ({
       ...e,
@@ -91,7 +91,7 @@ export async function fetchAuditEvents(options?: {
 export async function fetchAuditActionKeys(
   signal?: AbortSignal,
 ): Promise<string[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(40);
     return listAuditActionKeys();
   }

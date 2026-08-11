@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 import {
   deriveKnowledgeTopics,
   mapKnowledgeArticle,
@@ -37,7 +37,7 @@ function mapDetail(dto: BackendArticleDetail): KnowledgeArticle {
 }
 
 export async function fetchKnowledgeArticles(): Promise<KnowledgeArticle[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(220);
     return listKnowledgeArticles();
   }
@@ -54,7 +54,7 @@ export async function fetchKnowledgeArticles(): Promise<KnowledgeArticle[]> {
 }
 
 export async function fetchKnowledgeTopics(): Promise<KnowledgeTopic[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return knowledgeTopics;
   }
@@ -66,7 +66,7 @@ export async function submitKnowledgeVote(
   id: string,
   vote: 'yes' | 'no',
 ): Promise<KnowledgeArticle | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return voteKnowledgeArticle(id, vote);
   }
@@ -82,14 +82,14 @@ export async function submitKnowledgeVote(
 }
 
 export function readKnowledgeVote(id: string): 'yes' | 'no' | null {
-  if (!useMock()) return null;
+  if (!isMockMode()) return null;
   return getKnowledgeVote(id);
 }
 
 export async function createKnowledgeArticle(
   payload: CreateKnowledgeArticlePayload,
 ): Promise<KnowledgeArticle> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return storeAddArticle(payload);
   }
@@ -109,7 +109,7 @@ export async function updateKnowledgeArticle(
   id: string,
   payload: UpdateKnowledgeArticlePayload,
 ): Promise<KnowledgeArticle | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(140);
     return storeUpdateArticle(id, payload);
   }
@@ -131,7 +131,7 @@ export async function updateKnowledgeArticle(
 export async function publishKnowledgeArticle(
   id: string,
 ): Promise<KnowledgeArticle | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(140);
     return storePublishArticle(id);
   }

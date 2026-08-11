@@ -1,7 +1,7 @@
 /**
  * SLA admin API — live policies from backend; mock store for local-only edits.
  */
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import {
   getWorkingCalendar as mockGetCalendar,
   listSlaPolicies as mockListPolicies,
@@ -48,7 +48,7 @@ function mapPolicy(dto: BackendSlaPolicy): SlaPolicy {
 }
 
 export async function fetchSlaPolicies(): Promise<SlaPolicy[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return mockListPolicies();
   }
@@ -57,25 +57,25 @@ export async function fetchSlaPolicies(): Promise<SlaPolicy[]> {
 }
 
 export function listWorkingCalendars(): WorkingCalendarMock[] {
-  if (useMock()) return mockListCalendars();
+  if (isMockMode()) return mockListCalendars();
   return [DEFAULT_WORKING_CALENDAR];
 }
 
 export function getWorkingCalendar(key: string): WorkingCalendarMock | undefined {
-  if (useMock()) return mockGetCalendar(key) ?? undefined;
+  if (isMockMode()) return mockGetCalendar(key) ?? undefined;
   return DEFAULT_WORKING_CALENDAR;
 }
 
 /** Live mode is read-only for target edits until PATCH policy API lands. */
 export function slaPoliciesWritable(): boolean {
-  return useMock();
+  return isMockMode();
 }
 
 export async function updateSlaPolicyTargets(
   id: string,
   targets: SlaTarget[],
 ): Promise<SlaPolicy | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return mockUpdateTargets(id, targets);
   }
@@ -86,7 +86,7 @@ export async function setSlaPolicyEnabled(
   id: string,
   enabled: boolean,
 ): Promise<SlaPolicy | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(60);
     return mockSetEnabled(id, enabled);
   }
@@ -94,7 +94,7 @@ export async function setSlaPolicyEnabled(
 }
 
 export function subscribeSlaPolicies(listener: () => void): () => void {
-  if (useMock()) return mockSubscribe(listener);
+  if (isMockMode()) return mockSubscribe(listener);
   return () => undefined;
 }
 

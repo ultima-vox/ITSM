@@ -1,6 +1,6 @@
 /**
  * HTTP client for /api/v1 backend.
- * Routes through mock layer when VITE_USE_MOCK !== 'false' (default: mock on).
+ * Routes through mock layer only when VITE_USE_MOCK=true (default: live API).
  *
  * On HTTP 401: single-flight OIDC refresh (if registered) then one retry.
  */
@@ -58,9 +58,9 @@ export function getBaseUrl(): string {
   return (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_BASE;
 }
 
-/** Mock is default; set VITE_USE_MOCK=false for live backend. */
-export function useMock(): boolean {
-  return import.meta.env.VITE_USE_MOCK !== 'false';
+/** Live API is default. Mock data requires explicit VITE_USE_MOCK=true. */
+export function isMockMode(): boolean {
+  return import.meta.env.VITE_USE_MOCK === 'true';
 }
 
 /** Live bulk / CMS feature not wired to server — never fake success. */
@@ -174,7 +174,7 @@ export async function apiFetch(
     res.status === 401 &&
     !retried &&
     !skipAuthRefresh &&
-    !useMock()
+    !isMockMode()
   ) {
     const refreshed = await tryAuthRefresh();
     if (refreshed) {
@@ -208,7 +208,7 @@ export async function apiRequest<T>(
     res.status === 401 &&
     !retried &&
     !skipAuthRefresh &&
-    !useMock()
+    !isMockMode()
   ) {
     const refreshed = await tryAuthRefresh();
     if (refreshed) {

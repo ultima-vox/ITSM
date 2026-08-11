@@ -18,7 +18,7 @@ import { useTheme, type ThemeMode } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
 import { useAsync } from '@/hooks/useAsync';
 import {
-  useMock,
+  isMockMode,
   getBaseUrl,
   getApiToken,
   fetchPlatformIntegrations,
@@ -62,7 +62,7 @@ export function SettingsPage() {
   const { density, setDensity } = useDensity();
   const { theme, setTheme } = useTheme();
   const { success, info } = useToast();
-  const mockMode = useMock();
+  const mockMode = isMockMode();
   const {
     oidcEnabled,
     isAuthenticated,

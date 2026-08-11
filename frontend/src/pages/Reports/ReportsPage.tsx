@@ -24,7 +24,7 @@ import {
   fetchDashboardMetrics,
   fetchWorkItems,
   fetchWorkloadReport,
-  useMock,
+  isMockMode,
 } from '@/api';
 import { getActivities } from '@/mock/store';
 import type { Priority, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
@@ -234,7 +234,7 @@ function computeFilteredCsat(list: WorkItem[]): number | null {
 export function ReportsPage() {
   const t = useT();
   const { locale } = useI18n();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const metrics = useAsync(() => fetchDashboardMetrics(), []);
   const items = useAsync(() => fetchWorkItems(), []);
   const workload = useAsync(() => fetchWorkloadReport(), []);

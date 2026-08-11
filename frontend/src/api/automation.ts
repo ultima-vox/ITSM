@@ -1,7 +1,7 @@
 /**
  * Automation rules — live list from backend; mock for local demo edits.
  */
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import {
   listAutomationRules as mockList,
   setAutomationRuleEnabled as mockSetEnabled,
@@ -50,7 +50,7 @@ function mapRule(dto: BackendRule): AutomationRule {
 }
 
 export async function fetchAutomationRules(): Promise<AutomationRule[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(140);
     return mockList();
   }
@@ -62,7 +62,7 @@ export async function setAutomationRuleEnabled(
   id: string,
   enabled: boolean,
 ): Promise<AutomationRule | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(60);
     return mockSetEnabled(id, enabled);
   }
@@ -71,10 +71,10 @@ export async function setAutomationRuleEnabled(
 }
 
 export function automationRulesWritable(): boolean {
-  return useMock();
+  return isMockMode();
 }
 
 export function subscribeAutomationRules(listener: () => void): () => void {
-  if (useMock()) return mockSubscribe(listener);
+  if (isMockMode()) return mockSubscribe(listener);
   return () => undefined;
 }

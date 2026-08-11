@@ -8,7 +8,7 @@ import {
   getPermissionDescription,
   rbacWritable,
   subscribeRbac,
-  useMock,
+  isMockMode,
 } from '@/api';
 import type { LocaleCode, RbacRole, RbacRoleKey, RbacUser, RbacUserStatus } from '@/types';
 import { Badge, EmptyState, ErrorState, Select, Tabs } from '@/components/ui';
@@ -42,7 +42,7 @@ export function RbacPage() {
   const { locale } = useI18n();
   const { success } = useToast();
   const writable = rbacWritable();
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [tab, setTab] = useState<'roles' | 'users'>('roles');
   const [roles, setRoles] = useState<RbacRole[]>([]);
   const [users, setUsers] = useState<RbacUser[]>([]);

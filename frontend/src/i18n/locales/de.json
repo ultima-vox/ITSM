@@ -1118,7 +1118,7 @@
     "tabDemo": "Demo-Daten",
     "demoOnlyMock": "Demo-Reset ist nur bei aktivem VITE_USE_MOCK verfügbar.",
     "apiMode": "API-Modus",
-    "apiModeHint": "Gesteuert über VITE_USE_MOCK (Standard: Mock).",
+    "apiModeHint": "Gesteuert über VITE_USE_MOCK (Standard: Live-API).",
     "apiModeLabel": "Modus",
     "apiModeMock": "Mock",
     "apiModeLive": "Live",

@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { LocaleCode } from '@/types';
 import { fetchLocalePreference, updateLocalePreference } from '@/api/locale';
-import { useMock } from '@/api/client';
+import { isMockMode } from '@/api/client';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 import de from './locales/de.json';
@@ -69,7 +69,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   // Live mode: hydrate from GET /api/v1/me/locale once
   useEffect(() => {
-    if (useMock()) return;
+    if (isMockMode()) return;
     let cancelled = false;
     void fetchLocalePreference().then((remote) => {
       if (cancelled || !remote) return;
@@ -93,7 +93,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    if (!useMock()) {
+    if (!isMockMode()) {
       void updateLocalePreference(next);
     }
   }, []);

@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
+import { delay, isMockMode, apiRequest, refuseLiveFeature } from './client';
 import { mapChange, type BackendChange } from './mappers/changes';
 import {
   addChange as storeAddChange,
@@ -58,7 +58,7 @@ function toIsoOrUndefined(value?: string): string | undefined {
 }
 
 export async function fetchChanges(): Promise<Change[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(220);
     return listChanges();
   }
@@ -72,7 +72,7 @@ export async function fetchScheduleConflicts(params: {
   end: string;
   excludeId?: string;
 }): Promise<Change[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(40);
     return [];
   }
@@ -85,7 +85,7 @@ export async function fetchScheduleConflicts(params: {
 }
 
 export async function fetchChangeConflicts(id: string): Promise<Change[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(40);
     return [];
   }
@@ -98,7 +98,7 @@ export async function fetchChangeConflicts(id: string): Promise<Change[]> {
 export async function createChange(
   payload: CreateChangePayload,
 ): Promise<Change> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(180);
     return storeAddChange(payload);
   }
@@ -125,7 +125,7 @@ export async function transitionChangeStatus(
   id: string,
   next: ChangeStatus,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeTransitionChange(id, next);
   }
@@ -144,7 +144,7 @@ export async function patchChange(
   id: string,
   patch: Parameters<typeof storeUpdateChange>[1],
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(100);
     return storeUpdateChange(id, patch);
   }
@@ -156,7 +156,7 @@ export async function setChangeCabDecision(
   decision: 'approve' | 'reject',
   notes?: string,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return storeSetCabDecision(id, decision, notes);
   }
@@ -181,7 +181,7 @@ export async function castCabMemberVote(
   _memberId: string,
   decision: CabVoteDecision,
 ): Promise<{ ok: true; change: Change } | { ok: false; errorKey: string }> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeCastCabVote(id, _memberId, decision);
   }
@@ -216,7 +216,7 @@ export function countCabApproves(
 export { CAB_QUORUM_APPROVES };
 
 export async function bulkAssignChanges(ids: string[]): Promise<number> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkAssignChanges(ids);
   }
@@ -230,7 +230,7 @@ export async function bulkSetChangeStatus(
   ids: string[],
   status: ChangeStatus,
 ): Promise<BulkStatusResult> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return storeBulkSetChangeStatus(ids, status);
   }

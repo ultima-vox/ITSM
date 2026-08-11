@@ -9,7 +9,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   subscribeNotifications,
-  useMock,
+  isMockMode,
   type AppNotification,
   type NotificationKind,
 } from '@/api';
@@ -55,7 +55,7 @@ export function NotificationMenu() {
   const [liveError, setLiveError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const liveMode = !useMock();
+  const liveMode = !isMockMode();
   const [prefsTick, setPrefsTick] = useState(0);
   useEffect(() => subscribeNotificationPrefs(() => setPrefsTick((n) => n + 1)), []);
 

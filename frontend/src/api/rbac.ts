@@ -1,7 +1,7 @@
 /**
  * RBAC catalog — live roles/permissions/principals; mock for user directory edits.
  */
-import { apiRequest, delay, useMock } from './client';
+import { apiRequest, delay, isMockMode } from './client';
 import {
   assignUserRole as mockAssign,
   getPermissionDescription as mockPermDesc,
@@ -62,7 +62,7 @@ function mapPrincipal(dto: BackendPrincipal): RbacUser {
 }
 
 export async function fetchRbacRoles(): Promise<RbacRole[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return mockRoles();
   }
@@ -71,7 +71,7 @@ export async function fetchRbacRoles(): Promise<RbacRole[]> {
 }
 
 export async function fetchRbacUsers(): Promise<RbacUser[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(120);
     return mockUsers();
   }
@@ -80,7 +80,7 @@ export async function fetchRbacUsers(): Promise<RbacUser[]> {
 }
 
 export async function fetchRbacPermissions(): Promise<RbacPermission[]> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return [];
   }
@@ -92,7 +92,7 @@ export async function assignUserRole(
   userId: string,
   roleKey: RbacRoleKey,
 ): Promise<RbacUser | null> {
-  if (useMock()) {
+  if (isMockMode()) {
     await delay(80);
     return mockAssign(userId, roleKey);
   }
@@ -100,15 +100,15 @@ export async function assignUserRole(
 }
 
 export function getPermissionDescription(key: string): string {
-  if (useMock()) return mockPermDesc(key);
+  if (isMockMode()) return mockPermDesc(key);
   return key;
 }
 
 export function rbacWritable(): boolean {
-  return useMock();
+  return isMockMode();
 }
 
 export function subscribeRbac(listener: () => void): () => void {
-  if (useMock()) return mockSubscribe(listener);
+  if (isMockMode()) return mockSubscribe(listener);
   return () => undefined;
 }
