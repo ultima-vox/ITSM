@@ -151,6 +151,16 @@ class WorkItemStore {
     );
   }
 
+  List<WorkItem> duplicateCandidates(int limit) {
+    return jdbc.query("""
+        SELECT id, number, type, title, description, service, state, priority,
+               impact, urgency, assignee_id, requester_id, team_id,
+               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at, version
+        FROM work_item WHERE org_id=? AND state NOT IN ('CLOSED','CANCELLED')
+        ORDER BY updated_at DESC LIMIT ?
+        """, (rs,row) -> mapWorkItem(rs), OrganizationContext.current(), Math.min(Math.max(limit,1),500));
+  }
+
   void insertComment(WorkItemComment comment) {
     jdbc.update(
         """

@@ -44,6 +44,7 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
+import ru.ultimavox.itsm.servicedesk.application.DuplicateWorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
@@ -74,6 +75,7 @@ class WorkItemController {
   private final WorkItemLinkService links;
   private final WorkItemCiLinkService ciLinks;
   private final SubmitWorkItemSurvey surveys;
+  private final DuplicateWorkItemQuery duplicates;
   private final AccessControl access;
 
   WorkItemController(
@@ -93,6 +95,7 @@ class WorkItemController {
       WorkItemLinkService links,
       WorkItemCiLinkService ciLinks,
       SubmitWorkItemSurvey surveys,
+      DuplicateWorkItemQuery duplicates,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -111,6 +114,7 @@ class WorkItemController {
     this.links = links;
     this.ciLinks = ciLinks;
     this.surveys = surveys;
+    this.duplicates = duplicates;
     this.access = access;
   }
 
@@ -238,6 +242,19 @@ class WorkItemController {
         ),
         actor
     ));
+  }
+
+  @GetMapping("/duplicates")
+  @Operation(summary = "Find likely duplicate active work items")
+  List<DuplicateWorkItemQuery.Match> duplicates(
+      @RequestParam @NotBlank @Size(max=240) String title,
+      @RequestParam(required=false,defaultValue="") @Size(max=2000) String description,
+      @RequestParam(required=false) UUID excludeId,
+      @RequestParam(defaultValue="5") int limit,
+      Authentication authentication
+  ) {
+    access.require(authentication.getName(),"work-item.read","work-item",null);
+    return duplicates.find(title,description,excludeId,limit);
   }
 
   @PostMapping("/{id}/survey")
