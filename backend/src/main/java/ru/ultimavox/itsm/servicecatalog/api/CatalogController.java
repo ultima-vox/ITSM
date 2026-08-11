@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.servicecatalog.application.CatalogQuery;
+import ru.ultimavox.itsm.servicecatalog.application.CatalogRequestQuery;
 import ru.ultimavox.itsm.servicecatalog.application.SubmitCatalogRequest;
 
 @RestController
@@ -29,11 +30,13 @@ class CatalogController {
   private final CatalogQuery query;
   private final SubmitCatalogRequest submit;
   private final AccessControl access;
+  private final CatalogRequestQuery requests;
 
-  CatalogController(CatalogQuery query, SubmitCatalogRequest submit, AccessControl access) {
+  CatalogController(CatalogQuery query, SubmitCatalogRequest submit, CatalogRequestQuery requests, AccessControl access) {
     this.query = query;
     this.submit = submit;
     this.access = access;
+    this.requests = requests;
   }
 
   @GetMapping("/items")
@@ -76,4 +79,23 @@ class CatalogController {
   }
 
   record SubmitRequest(Map<String, Object> formPayload) {}
+
+  @GetMapping("/requests")
+  @Operation(summary = "List current requester's catalog requests")
+  List<CatalogRequestQuery.RequestView> listRequests(
+      Authentication authentication,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size
+  ) {
+    access.require(authentication.getName(), "catalog.request", "catalog-request", null);
+    return requests.listMine(authentication.getName(), page, size);
+  }
+
+  @GetMapping("/requests/{id}")
+  @Operation(summary = "Track current requester's catalog request")
+  CatalogRequestQuery.RequestView getRequest(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "catalog.request", "catalog-request", id.toString());
+    return requests.findMine(id, authentication.getName())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog request not found"));
+  }
 }
