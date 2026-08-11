@@ -82,6 +82,13 @@ public class CatalogQuery {
       return Optional.empty();
     }
     CatalogItemDetail primary = rows.getFirst();
+    List<BundleComponent> components = jdbc.query("""
+        SELECT ci.id, ci.item_key, bc.quantity, bc.position
+        FROM catalog_bundle_component bc JOIN catalog_item ci ON ci.id=bc.component_item_id
+        WHERE bc.bundle_item_id=? AND bc.org_id=? AND ci.org_id=? AND ci.status='PUBLISHED'
+        ORDER BY bc.position, ci.item_key
+        """, (rs, row) -> new BundleComponent(rs.getObject("id", UUID.class), rs.getString("item_key"),
+        rs.getInt("quantity"), rs.getInt("position")), id, OrganizationContext.current(), OrganizationContext.current());
     Map<String, CatalogItem.Translation> translations = new LinkedHashMap<>();
     for (CatalogItemDetail row : rows) {
       if (row.locale() != null) {
@@ -99,7 +106,8 @@ public class CatalogQuery {
         primary.name(),
         primary.description(),
         primary.category(),
-        translations
+        translations,
+        components
     ));
   }
 
@@ -169,7 +177,8 @@ public class CatalogQuery {
       String name,
       String description,
       String category,
-      Map<String, CatalogItem.Translation> translations
+      Map<String, CatalogItem.Translation> translations,
+      List<BundleComponent> components
   ) {
     public CatalogItemDetail(
         UUID id,
@@ -183,7 +192,9 @@ public class CatalogQuery {
         String description,
         String category
     ) {
-      this(id, key, status, formDefinitionId, workflowDefinitionId, eligibilityRulesJson, locale, name, description, category, Map.of());
+      this(id, key, status, formDefinitionId, workflowDefinitionId, eligibilityRulesJson, locale, name, description, category, Map.of(), List.of());
     }
   }
+
+  public record BundleComponent(UUID id, String key, int quantity, int position) {}
 }
