@@ -66,9 +66,8 @@ export function getWorkingCalendar(key: string): WorkingCalendarMock | undefined
   return DEFAULT_WORKING_CALENDAR;
 }
 
-/** Live mode is read-only for target edits until PATCH policy API lands. */
 export function slaPoliciesWritable(): boolean {
-  return isMockMode();
+  return true;
 }
 
 export async function updateSlaPolicyTargets(
@@ -79,7 +78,21 @@ export async function updateSlaPolicyTargets(
     await delay(80);
     return mockUpdateTargets(id, targets);
   }
-  throw new Error('module.errors.bulkLiveUnsupported');
+  const changed = await apiRequest<BackendSlaPolicy>(
+    `/sla/policies/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: {
+        targets: targets.map((target) => ({
+          metric: target.metric,
+          condition: target.condition,
+          targetMinutes: Math.round(target.targetHours * 60),
+          warningBeforeMinutes: Math.round(target.warningBeforeHours * 60),
+        })),
+      },
+    },
+  );
+  return mapPolicy(changed);
 }
 
 export async function setSlaPolicyEnabled(
@@ -90,7 +103,11 @@ export async function setSlaPolicyEnabled(
     await delay(60);
     return mockSetEnabled(id, enabled);
   }
-  throw new Error('module.errors.bulkLiveUnsupported');
+  const changed = await apiRequest<BackendSlaPolicy>(
+    `/sla/policies/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: { enabled } },
+  );
+  return mapPolicy(changed);
 }
 
 export function subscribeSlaPolicies(listener: () => void): () => void {

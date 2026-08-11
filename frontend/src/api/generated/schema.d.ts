@@ -650,6 +650,23 @@ export interface paths {
         patch: operations["update_1"];
         trace?: never;
     };
+    "/api/v1/sla/policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update SLA policy targets or enabled state for current organization */
+        patch: operations["updatePolicy"];
+        trace?: never;
+    };
     "/api/v1/problems/{id}": {
         parameters: {
             query?: never;
@@ -1675,6 +1692,29 @@ export interface components {
             /** @enum {string} */
             urgency?: "HIGH" | "MEDIUM" | "LOW";
         };
+        TargetResponse: {
+            metric?: string;
+            condition?: string;
+            /** Format: int64 */
+            targetMinutes?: number;
+            /** Format: int64 */
+            warningBeforeMinutes?: number;
+        };
+        UpdatePolicyRequest: {
+            enabled?: boolean;
+            targets?: components["schemas"]["TargetResponse"][];
+        };
+        PolicyResponse: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            calendarKey?: string;
+            enabled?: boolean;
+            /** Format: int32 */
+            version?: number;
+            targets?: components["schemas"]["TargetResponse"][];
+            pauseStates?: string[];
+        };
         PatchNotesRequest: {
             rootCause?: string;
             workaround?: string;
@@ -1738,25 +1778,6 @@ export interface components {
             breached?: number;
             /** Format: double */
             csat?: number;
-        };
-        PolicyResponse: {
-            /** Format: uuid */
-            id?: string;
-            key?: string;
-            calendarKey?: string;
-            enabled?: boolean;
-            /** Format: int32 */
-            version?: number;
-            targets?: components["schemas"]["TargetResponse"][];
-            pauseStates?: string[];
-        };
-        TargetResponse: {
-            metric?: string;
-            condition?: string;
-            /** Format: int64 */
-            targetMinutes?: number;
-            /** Format: int64 */
-            warningBeforeMinutes?: number;
         };
         SearchHit: {
             id?: string;
@@ -3326,6 +3347,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WorkItemResponse"];
+                };
+            };
+        };
+    };
+    updatePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyResponse"];
                 };
             };
         };

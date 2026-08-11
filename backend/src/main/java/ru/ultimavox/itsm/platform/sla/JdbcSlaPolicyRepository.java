@@ -2,8 +2,11 @@ package ru.ultimavox.itsm.platform.sla;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.sla.SlaPolicy.Target;
 
@@ -70,6 +73,69 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                 ), OrganizationContext.current(), OrganizationContext.current()
         );
     }
+
+    @Override
+    @Transactional
+    public Optional<SlaPolicyView> update(UUID id, Boolean enabled, List<Target> targets) {
+        String organization = OrganizationContext.current();
+        List<PolicySource> sources = jdbc.query(
+                """
+                SELECT policy_key, enabled, version, definition::text
+                FROM sla_policy
+                WHERE id = ? AND org_id IN (?, 'default')
+                ORDER BY (org_id = ?) DESC
+                LIMIT 1
+                """,
+                (rs, i) -> new PolicySource(
+                        rs.getString("policy_key"), rs.getBoolean("enabled"),
+                        rs.getInt("version"), rs.getString("definition")
+                ),
+                id, organization, organization
+        );
+        if (sources.isEmpty()) {
+            return Optional.empty();
+        }
+        PolicySource source = sources.getFirst();
+        try {
+            ObjectNode definition = (ObjectNode) json.readTree(source.definition());
+            if (targets != null) {
+                ArrayNode array = definition.putArray("targets");
+                for (Target target : targets) {
+                    ObjectNode node = array.addObject();
+                    node.put("metric", target.metric());
+                    node.put("condition", target.condition());
+                    node.put("targetMinutes", target.target() == null ? 0 : target.target().toMinutes());
+                    node.put("warningBeforeMinutes",
+                            target.warningBefore() == null ? 0 : target.warningBefore().toMinutes());
+                }
+            }
+            boolean nextEnabled = enabled == null ? source.enabled() : enabled;
+            String raw = json.writeValueAsString(definition);
+            List<SlaPolicyView> rows = jdbc.query(
+                    """
+                    INSERT INTO sla_policy (org_id, policy_key, enabled, definition, version, updated_at)
+                    VALUES (?, ?, ?, ?::jsonb, ?, now())
+                    ON CONFLICT (org_id, policy_key) DO UPDATE
+                      SET enabled = EXCLUDED.enabled,
+                          definition = EXCLUDED.definition,
+                          version = sla_policy.version + 1,
+                          updated_at = now()
+                    RETURNING id, policy_key, enabled, version, definition::text
+                    """,
+                    (rs, i) -> new SlaPolicyView(
+                            map(rs.getObject("id", UUID.class), rs.getString("policy_key"),
+                                    rs.getString("definition")),
+                            rs.getBoolean("enabled"), rs.getInt("version")
+                    ),
+                    organization, source.key(), nextEnabled, raw, source.version()
+            );
+            return rows.stream().findFirst();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Cannot update sla_policy id=" + id, ex);
+        }
+    }
+
+    private record PolicySource(String key, boolean enabled, int version, String definition) {}
 
     private SlaPolicy map(UUID id, String key, String definitionJson) {
         try {
