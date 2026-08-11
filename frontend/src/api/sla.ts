@@ -25,7 +25,7 @@ interface BackendSlaPolicy {
   key: string;
   calendarKey: string;
   enabled: boolean;
-  version?: number;
+  version: number;
   targets: BackendSlaTarget[];
   pauseStates: string[];
 }
@@ -36,6 +36,7 @@ function mapPolicy(dto: BackendSlaPolicy): SlaPolicy {
     key: dto.key,
     calendarKey: dto.calendarKey ?? 'default-business',
     enabled: dto.enabled,
+    version: dto.version,
     pauseStates: dto.pauseStates ?? [],
     name: dto.key,
     targets: (dto.targets ?? []).map((t) => ({
@@ -72,6 +73,7 @@ export function slaPoliciesWritable(): boolean {
 
 export async function updateSlaPolicyTargets(
   id: string,
+  expectedVersion: number,
   targets: SlaTarget[],
 ): Promise<SlaPolicy | null> {
   if (isMockMode()) {
@@ -83,6 +85,7 @@ export async function updateSlaPolicyTargets(
     {
       method: 'PATCH',
       body: {
+        expectedVersion,
         targets: targets.map((target) => ({
           metric: target.metric,
           condition: target.condition,
@@ -97,6 +100,7 @@ export async function updateSlaPolicyTargets(
 
 export async function setSlaPolicyEnabled(
   id: string,
+  expectedVersion: number,
   enabled: boolean,
 ): Promise<SlaPolicy | null> {
   if (isMockMode()) {
@@ -105,7 +109,7 @@ export async function setSlaPolicyEnabled(
   }
   const changed = await apiRequest<BackendSlaPolicy>(
     `/sla/policies/${encodeURIComponent(id)}`,
-    { method: 'PATCH', body: { enabled } },
+    { method: 'PATCH', body: { expectedVersion, enabled } },
   );
   return mapPolicy(changed);
 }

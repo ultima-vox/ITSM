@@ -99,7 +99,7 @@ export function SlaPage() {
   const handleSave = async () => {
     if (!selected || !writable) return;
     try {
-      const updated = await updateSlaPolicyTargets(selected.id, draftTargets);
+      const updated = await updateSlaPolicyTargets(selected.id, selected.version, draftTargets);
       if (updated) {
         setDirty(false);
         reseedOpenWorkItemSlaFromPolicies();
@@ -114,7 +114,7 @@ export function SlaPage() {
   const handleToggleEnabled = async () => {
     if (!selected || !writable) return;
     try {
-      const updated = await setSlaPolicyEnabled(selected.id, !selected.enabled);
+      const updated = await setSlaPolicyEnabled(selected.id, selected.version, !selected.enabled);
       if (updated) {
         reseedOpenWorkItemSlaFromPolicies();
         success(

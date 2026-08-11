@@ -36,6 +36,7 @@ function target(
 const SEED_POLICIES: SlaPolicy[] = [
   {
     id: 'sla-work-item-response',
+    version: 1,
     key: 'work-item.response',
     calendarKey: 'default-business',
     enabled: true,
@@ -52,6 +53,7 @@ const SEED_POLICIES: SlaPolicy[] = [
   },
   {
     id: 'sla-work-item-resolution',
+    version: 1,
     key: 'work-item.resolution',
     calendarKey: 'default-business',
     enabled: true,
@@ -68,6 +70,7 @@ const SEED_POLICIES: SlaPolicy[] = [
   },
   {
     id: 'sla-change-implementation',
+    version: 1,
     key: 'change.implementation',
     calendarKey: 'default-business',
     enabled: true,
@@ -148,6 +151,7 @@ export function updateSlaPolicyTargets(
 
   policies[idx] = {
     ...policies[idx],
+    version: policies[idx].version + 1,
     targets: sanitized,
   };
   notify();
@@ -161,7 +165,7 @@ export function setSlaPolicyEnabled(
 ): SlaPolicy | null {
   const idx = policies.findIndex((p) => p.id === id || p.key === id);
   if (idx < 0) return null;
-  policies[idx] = { ...policies[idx], enabled };
+  policies[idx] = { ...policies[idx], version: policies[idx].version + 1, enabled };
   notify();
   return clonePolicy(policies[idx]);
 }

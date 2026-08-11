@@ -10,7 +10,7 @@ public interface SlaPolicyRepository {
     /** All policies (enabled + disabled) for admin read. */
     List<SlaPolicyView> listAll();
 
-    Optional<SlaPolicyView> update(UUID id, Boolean enabled, List<SlaPolicy.Target> targets);
+    Optional<SlaPolicyView> update(UUID id, int expectedVersion, Boolean enabled, List<SlaPolicy.Target> targets);
 
     record SlaPolicyView(SlaPolicy policy, boolean enabled, int version) {}
 }

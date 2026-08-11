@@ -76,13 +76,13 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
 
     @Override
     @Transactional
-    public Optional<SlaPolicyView> update(UUID id, Boolean enabled, List<Target> targets) {
+    public Optional<SlaPolicyView> update(UUID id, int expectedVersion, Boolean enabled, List<Target> targets) {
         String organization = OrganizationContext.current();
         List<PolicySource> sources = jdbc.query(
                 """
                 SELECT policy_key, enabled, version, definition::text
                 FROM sla_policy
-                WHERE id = ? AND org_id IN (?, 'default')
+                WHERE id = ? AND org_id IN (?, 'default') AND version = ?
                 ORDER BY (org_id = ?) DESC
                 LIMIT 1
                 """,
@@ -90,7 +90,7 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                         rs.getString("policy_key"), rs.getBoolean("enabled"),
                         rs.getInt("version"), rs.getString("definition")
                 ),
-                id, organization, organization
+                id, organization, expectedVersion, organization
         );
         if (sources.isEmpty()) {
             return Optional.empty();
@@ -114,12 +114,13 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
             List<SlaPolicyView> rows = jdbc.query(
                     """
                     INSERT INTO sla_policy (org_id, policy_key, enabled, definition, version, updated_at)
-                    VALUES (?, ?, ?, ?::jsonb, ?, now())
+                    VALUES (?, ?, ?, ?::jsonb, ? + 1, now())
                     ON CONFLICT (org_id, policy_key) DO UPDATE
                       SET enabled = EXCLUDED.enabled,
                           definition = EXCLUDED.definition,
                           version = sla_policy.version + 1,
                           updated_at = now()
+                      WHERE sla_policy.version = ?
                     RETURNING id, policy_key, enabled, version, definition::text
                     """,
                     (rs, i) -> new SlaPolicyView(
@@ -127,7 +128,7 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
                                     rs.getString("definition")),
                             rs.getBoolean("enabled"), rs.getInt("version")
                     ),
-                    organization, source.key(), nextEnabled, raw, source.version()
+                    organization, source.key(), nextEnabled, raw, expectedVersion, expectedVersion
             );
             return rows.stream().findFirst();
         } catch (Exception ex) {

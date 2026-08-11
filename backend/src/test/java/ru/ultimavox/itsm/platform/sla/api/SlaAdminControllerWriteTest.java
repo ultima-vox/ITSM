@@ -8,6 +8,7 @@ import org.mockito.Mockito;
 import org.springframework.security.core.Authentication;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyRepository;
+import ru.ultimavox.itsm.platform.sla.SlaPolicyAdminService;
 
 class SlaAdminControllerWriteTest {
   @Test void updateRequiresSlaWrite() {
@@ -18,8 +19,8 @@ class SlaAdminControllerWriteTest {
     UUID id = UUID.randomUUID();
 
     try {
-      new SlaAdminController(policies, access)
-          .updatePolicy(auth, id, new SlaAdminController.UpdatePolicyRequest(false, null));
+      new SlaAdminController(policies, Mockito.mock(SlaPolicyAdminService.class), access)
+          .updatePolicy(auth, id, new SlaAdminController.UpdatePolicyRequest(1, false, null));
     } catch (RuntimeException ignored) {
       // Empty repository intentionally returns 404 after authorization.
     }

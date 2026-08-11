@@ -2573,6 +2573,8 @@ export interface components {
             warningBeforeMinutes?: number;
         };
         UpdatePolicyRequest: {
+            /** Format: int32 */
+            expectedVersion?: number;
             enabled?: boolean;
             targets?: components["schemas"]["TargetResponse"][];
         };

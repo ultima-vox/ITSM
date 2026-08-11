@@ -18,6 +18,7 @@ import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.sla.SlaPolicy;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyRepository;
 import ru.ultimavox.itsm.platform.sla.SlaPolicyRepository.SlaPolicyView;
+import ru.ultimavox.itsm.platform.sla.SlaPolicyAdminService;
 
 @RestController
 @RequestMapping("/api/v1/sla")
@@ -26,9 +27,11 @@ class SlaAdminController {
 
   private final SlaPolicyRepository policies;
   private final AccessControl access;
+  private final SlaPolicyAdminService admin;
 
-  SlaAdminController(SlaPolicyRepository policies, AccessControl access) {
+  SlaAdminController(SlaPolicyRepository policies, SlaPolicyAdminService admin, AccessControl access) {
     this.policies = policies;
+    this.admin = admin;
     this.access = access;
   }
 
@@ -59,13 +62,10 @@ class SlaAdminController {
             t.metric(), t.condition(), Duration.ofMinutes(t.targetMinutes()),
             Duration.ofMinutes(t.warningBeforeMinutes())))
         .toList();
-    return policies.update(id, body.enabled(), targets)
-        .map(PolicyResponse::from)
-        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-            org.springframework.http.HttpStatus.NOT_FOUND, "SLA policy not found"));
+    return PolicyResponse.from(admin.update(actor, id, body.expectedVersion(), body.enabled(), targets));
   }
 
-  record UpdatePolicyRequest(Boolean enabled, List<TargetResponse> targets) {}
+  record UpdatePolicyRequest(int expectedVersion, Boolean enabled, List<TargetResponse> targets) {}
 
   record PolicyResponse(
       UUID id,

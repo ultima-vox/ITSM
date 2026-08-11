@@ -498,6 +498,7 @@ export interface SlaPolicy {
   key: string;
   calendarKey: string;
   enabled: boolean;
+  version: number;
   targets: SlaTarget[];
   pauseStates: string[];
   /** Optional UI label */
