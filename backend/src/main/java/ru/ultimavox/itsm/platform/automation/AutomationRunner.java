@@ -63,8 +63,13 @@ public class AutomationRunner {
                 }
                 try {
                     executor.execute(action, event);
+                    actionLog.complete(rule.ruleKey(), event.id(), action.type(), "SUCCEEDED",
+                            Map.of("eventType", event.type(), "aggregateId", event.aggregateId()));
                     executed++;
                 } catch (RuntimeException ex) {
+                    actionLog.complete(rule.ruleKey(), event.id(), action.type(), "FAILED",
+                            Map.of("eventType", event.type(), "aggregateId", event.aggregateId(),
+                                    "error", safeMessage(ex)));
                     log.error("Automation action failed rule={} action={} event={}: {}",
                             rule.ruleKey(), action.type(), event.id(), ex.getMessage());
                     // row already logged as STARTED; leave for operator review / future retry table
@@ -72,5 +77,11 @@ public class AutomationRunner {
             }
         }
         return executed;
+    }
+
+    private static String safeMessage(RuntimeException failure) {
+        String message = failure.getMessage();
+        if (message == null || message.isBlank()) return failure.getClass().getSimpleName();
+        return message.length() <= 500 ? message : message.substring(0, 500);
     }
 }

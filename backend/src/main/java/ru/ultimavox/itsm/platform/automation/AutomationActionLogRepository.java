@@ -10,4 +10,6 @@ public interface AutomationActionLogRepository {
      * @return true if the log row was inserted (first execution); false if already present.
      */
     boolean tryLog(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details);
+
+    void complete(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details);
 }
