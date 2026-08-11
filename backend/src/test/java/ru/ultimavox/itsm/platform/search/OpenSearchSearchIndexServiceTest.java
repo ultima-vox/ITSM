@@ -44,7 +44,7 @@ class OpenSearchSearchIndexServiceTest {
     assertThat(seen.get()).isNotNull();
     assertThat(seen.get().method()).isEqualTo("PUT");
     assertThat(seen.get().uri().toString())
-        .isEqualTo("http://opensearch.local:9200/itsm-docs/_doc/work-item%3A1");
+        .isEqualTo("http://opensearch.local:9200/itsm-docs/_doc/default%3Awork-item%3A1");
   }
 
   @Test

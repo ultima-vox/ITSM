@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 /**
  * OpenSearch HTTP adapter. Active when {@code itsm.opensearch.url} / {@code OPENSEARCH_URL} is set.
@@ -60,6 +61,7 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
     try {
       ObjectNode body = json.createObjectNode();
       body.put("id", document.id());
+      body.put("organizationId", OrganizationContext.current());
       body.put("objectType", document.objectType());
       body.put("title", document.title() == null ? "" : document.title());
       body.put("body", document.body() == null ? "" : document.body());
@@ -70,7 +72,7 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
       }
       body.set("facets", json.valueToTree(document.facets()));
 
-      String path = indexName() + "/_doc/" + encode(document.id());
+      String path = indexName() + "/_doc/" + encode(scopedId(document.id()));
       HttpRequest request = OpenSearchHttpClient.request(uri(path), props.getReadTimeout())
           .header("Content-Type", "application/json")
           .PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
@@ -93,7 +95,7 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
   @Override
   public void delete(String id) {
     try {
-      String path = indexName() + "/_doc/" + encode(id);
+      String path = indexName() + "/_doc/" + encode(scopedId(id));
       HttpRequest request = OpenSearchHttpClient.request(uri(path), props.getReadTimeout())
           .DELETE()
           .build();
@@ -117,7 +119,10 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
     try {
       ObjectNode body = json.createObjectNode();
       body.put("size", safeLimit);
-      ObjectNode queryNode = body.putObject("query");
+      ObjectNode bool = body.putObject("query").putObject("bool");
+      bool.putArray("filter").addObject().putObject("term")
+          .put("organizationId.keyword", OrganizationContext.current());
+      ObjectNode queryNode = bool.putObject("must");
       String q = query == null ? "" : query.trim();
       if (q.isEmpty()) {
         queryNode.putObject("match_all");
@@ -147,6 +152,10 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
       log.warn("OpenSearch search request failed: {}", ex.toString());
       return List.of();
     }
+  }
+
+  private static String scopedId(String id) {
+    return OrganizationContext.current() + ":" + id;
   }
 
   private List<SearchDocument> parseHits(String responseBody) throws JsonProcessingException {

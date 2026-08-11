@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -37,9 +38,9 @@ public class JdbcSearchIndexService implements SearchIndexService {
         try {
             jdbc.update(
                     """
-                    INSERT INTO search_document (id, object_type, title, body, scopes, facets, updated_at)
-                    VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
-                    ON CONFLICT (id) DO UPDATE SET
+                    INSERT INTO search_document (org_id, id, object_type, title, body, scopes, facets, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
+                    ON CONFLICT (org_id, id) DO UPDATE SET
                       object_type = EXCLUDED.object_type,
                       title = EXCLUDED.title,
                       body = EXCLUDED.body,
@@ -47,6 +48,7 @@ public class JdbcSearchIndexService implements SearchIndexService {
                       facets = EXCLUDED.facets,
                       updated_at = EXCLUDED.updated_at
                     """,
+                    OrganizationContext.current(),
                     document.id(),
                     document.objectType(),
                     document.title(),
@@ -63,7 +65,7 @@ public class JdbcSearchIndexService implements SearchIndexService {
     @Override
     @Transactional
     public void delete(String id) {
-        jdbc.update("DELETE FROM search_document WHERE id = ?", id);
+        jdbc.update("DELETE FROM search_document WHERE org_id = ? AND id = ?", OrganizationContext.current(), id);
     }
 
     @Override
@@ -75,7 +77,7 @@ public class JdbcSearchIndexService implements SearchIndexService {
                 """
                 SELECT id, object_type, title, body, scopes::text, facets::text, updated_at
                 FROM search_document
-                WHERE title ILIKE ? OR body ILIKE ?
+                WHERE org_id = ? AND (title ILIKE ? OR body ILIKE ?)
                 ORDER BY updated_at DESC
                 LIMIT ?
                 """,
@@ -88,7 +90,7 @@ public class JdbcSearchIndexService implements SearchIndexService {
                         rs.getTimestamp("updated_at").toInstant(),
                         readObjectMap(rs.getString("facets"))
                 ),
-                pattern, pattern, safeLimit
+                OrganizationContext.current(), pattern, pattern, safeLimit
         );
 
         if (allowedScopes == null || allowedScopes.isEmpty()) {
