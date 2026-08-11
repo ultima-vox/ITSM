@@ -47,6 +47,11 @@ public class WorkflowEngine {
         return definitions.findActiveByObjectKey(objectKey);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<WorkflowInstance> findInstance(String objectType, String objectId) {
+        return instances.findByObject(objectType, objectId);
+    }
+
     /**
      * Pure guard: whether the named transition is legal for the current state and payload.
      * Permission checks use the provided subject against requiredPermissions.
@@ -76,12 +81,21 @@ public class WorkflowEngine {
     @Transactional
     public WorkflowInstance applyTransition(TransitionCommand command) {
         Objects.requireNonNull(command, "command");
-        WorkflowDefinition definition = definitions.findActiveByObjectKey(command.objectType())
-                .orElseThrow(() -> new WorkflowTransitionException(
-                        "No active workflow for object type: " + command.objectType()));
-
-        WorkflowInstance current = instances.findByObject(command.objectType(), command.objectId())
-                .orElseGet(() -> startInstance(definition, command.objectType(), command.objectId()));
+        Optional<WorkflowInstance> existing = instances.findByObject(command.objectType(), command.objectId());
+        WorkflowInstance current;
+        WorkflowDefinition definition;
+        if (existing.isPresent()) {
+            current = existing.get();
+            definition = definitions.findByObjectKeyAndVersion(command.objectType(), current.definitionVersion())
+                    .orElseThrow(() -> new WorkflowTransitionException(
+                            "Pinned workflow definition not found: %s v%d"
+                                    .formatted(command.objectType(), current.definitionVersion())));
+        } else {
+            definition = definitions.findActiveByObjectKey(command.objectType())
+                    .orElseThrow(() -> new WorkflowTransitionException(
+                            "No active workflow for object type: " + command.objectType()));
+            current = startInstance(definition, command.objectType(), command.objectId());
+        }
 
         Transition transition = resolveAndGuard(
                 definition,
@@ -151,6 +165,37 @@ public class WorkflowEngine {
                                     "No active workflow for object type: " + objectType));
                     return startInstance(definition, objectType, objectId);
                 });
+    }
+
+    @Transactional
+    public WorkflowInstance migrateInstance(MigrationCommand command) {
+        Objects.requireNonNull(command, "command");
+        WorkflowInstance current = instances.findByObject(command.objectType(), command.objectId())
+                .orElseThrow(() -> new WorkflowTransitionException("Workflow instance not found"));
+        if (current.version() != command.expectedVersion()) {
+            throw new WorkflowTransitionException("Workflow instance version conflict");
+        }
+        WorkflowDefinition target = definitions.findByObjectKeyAndVersion(
+                        command.objectType(), command.targetDefinitionVersion())
+                .orElseThrow(() -> new WorkflowTransitionException("Target workflow definition not found"));
+        if (!target.states().contains(current.state())) {
+            throw new WorkflowTransitionException(
+                    "Target workflow v%d does not contain active state '%s'"
+                            .formatted(target.version(), current.state()));
+        }
+        if (target.version() == current.definitionVersion()) return current;
+
+        WorkflowInstance migrated = instances.updateDefinitionVersion(
+                current, target.version(), command.expectedVersion());
+        Instant now = Instant.now();
+        UUID correlation = command.correlationId() == null ? UUID.randomUUID() : command.correlationId();
+        Map<String,Object> before = Map.of("definitionVersion", current.definitionVersion(), "state", current.state());
+        Map<String,Object> after = Map.of("definitionVersion", target.version(), "state", current.state());
+        audit.append(new AuditTrail.Entry(command.subject(), "workflow.instance-migrated",
+                command.objectType(), command.objectId(), before, after, correlation, now));
+        outbox.record(new DomainEvent(UUID.randomUUID(), "workflow.instance-migrated", 1, now, correlation,
+                command.objectType(), command.objectId(), after));
+        return migrated;
     }
 
     private WorkflowInstance startInstance(WorkflowDefinition definition, String objectType, String objectId) {
@@ -225,4 +270,7 @@ public class WorkflowEngine {
             this(subject, objectType, objectId, transitionKey, fields, null);
         }
     }
+
+    public record MigrationCommand(String subject, String objectType, String objectId,
+                                   int targetDefinitionVersion, int expectedVersion, UUID correlationId) {}
 }

@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,9 @@ import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinitionRepository;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinitionRepository.WorkflowDefinitionView;
+import ru.ultimavox.itsm.platform.workflow.WorkflowEngine;
+import ru.ultimavox.itsm.platform.workflow.WorkflowInstance;
+import ru.ultimavox.itsm.platform.workflow.WorkflowTransitionException;
 
 @RestController
 @RequestMapping("/api/v1/workflow")
@@ -23,10 +27,12 @@ class WorkflowAdminController {
 
   private final WorkflowDefinitionRepository definitions;
   private final AccessControl access;
+  private final WorkflowEngine engine;
 
-  WorkflowAdminController(WorkflowDefinitionRepository definitions, AccessControl access) {
+  WorkflowAdminController(WorkflowDefinitionRepository definitions, AccessControl access, WorkflowEngine engine) {
     this.definitions = definitions;
     this.access = access;
+    this.engine = engine;
   }
 
   @GetMapping("/definitions")
@@ -53,6 +59,38 @@ class WorkflowAdminController {
   }
 
   record SetActiveRequest(boolean active) {}
+
+  @GetMapping("/instances/{objectType}/{objectId}")
+  @Operation(summary = "Get workflow instance state and pinned definition version")
+  WorkflowInstance getInstance(
+      Authentication authentication, @PathVariable String objectType, @PathVariable String objectId) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "workflow.read", "workflow_instance", objectType + "/" + objectId);
+    return engine.findInstance(objectType, objectId)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.NOT_FOUND, "Workflow instance not found"));
+  }
+
+  @PostMapping("/instances/{objectType}/{objectId}/migrations")
+  @Operation(summary = "Migrate an active workflow instance to a compatible definition version")
+  WorkflowInstance migrateInstance(
+      Authentication authentication,
+      @PathVariable String objectType,
+      @PathVariable String objectId,
+      @RequestBody MigrateInstanceRequest body
+  ) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "workflow.write", "workflow_instance", objectType + "/" + objectId);
+    try {
+      return engine.migrateInstance(new WorkflowEngine.MigrationCommand(
+          actor, objectType, objectId, body.targetDefinitionVersion(), body.expectedVersion(), null));
+    } catch (WorkflowTransitionException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(
+          org.springframework.http.HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  record MigrateInstanceRequest(int targetDefinitionVersion, int expectedVersion) {}
 
   record DefinitionResponse(
       UUID id,

@@ -47,6 +47,20 @@ class JdbcWorkflowDefinitionOrganizationTest {
         id, "org-red", "org-red", "org-red", true, "org-red", true);
   }
 
+  @Test void pinnedVersionLookupPrefersTenantWithoutRequiringActiveFlag() {
+    JdbcTemplate jdbc = Mockito.mock(JdbcTemplate.class);
+    authenticate("org-red");
+
+    new JdbcWorkflowDefinitionRepository(jdbc, new ObjectMapper())
+        .findByObjectKeyAndVersion("change", 3);
+
+    ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+    verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
+    assertThat(sql.getValue()).contains("version=?").doesNotContain("active = true");
+    assertThat(args.getValue()).containsExactly("org-red", "change", 3, "org-red");
+  }
+
   private void authenticate(String org) {
     SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(
         Jwt.withTokenValue("t").header("alg", "none").claim("sub", "u").claim("organization_id", org).build()));

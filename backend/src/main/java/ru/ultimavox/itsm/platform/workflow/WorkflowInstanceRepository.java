@@ -9,4 +9,7 @@ public interface WorkflowInstanceRepository {
     WorkflowInstance insert(WorkflowInstance instance);
 
     WorkflowInstance updateState(WorkflowInstance instance, String newState, int expectedVersion);
+
+    WorkflowInstance updateDefinitionVersion(
+        WorkflowInstance instance, int targetDefinitionVersion, int expectedVersion);
 }

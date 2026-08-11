@@ -1272,7 +1272,17 @@
     "statesEmptyTitle": "Keine Status",
     "statesEmptyHint": "Dieser Workflow hat keine deklarierten Status.",
     "transEmptyTitle": "Keine Übergänge",
-    "transEmptyHint": "Dieser Workflow hat noch keine Übergänge."
+    "transEmptyHint": "Dieser Workflow hat noch keine Übergänge.",
+    "migrationTitle": "Aktive Instanz migrieren",
+    "migrationHint": "Objekt-Workflow laden und ohne Zustandsänderung auf eine kompatible Version verschieben.",
+    "objectType": "Objekttyp",
+    "objectId": "Objekt-ID",
+    "loadInstance": "Instanz laden",
+    "targetVersion": "Zielversion",
+    "migrate": "Instanz migrieren",
+    "migrationDone": "Workflow-Instanz migriert",
+    "migrationLoadFailed": "Workflow-Instanz konnte nicht geladen werden",
+    "migrationFailed": "Workflow-Migration wurde abgelehnt"
   },
   "slaAdmin": {
     "title": "SLA-Richtlinien",

@@ -1272,7 +1272,17 @@
     "statesEmptyTitle": "No states",
     "statesEmptyHint": "This workflow has no declared states.",
     "transEmptyTitle": "No transitions",
-    "transEmptyHint": "This workflow has no transitions yet."
+    "transEmptyHint": "This workflow has no transitions yet.",
+    "migrationTitle": "Migrate active instance",
+    "migrationHint": "Load an object workflow, then move it to a compatible definition version without changing state.",
+    "objectType": "Object type",
+    "objectId": "Object ID",
+    "loadInstance": "Load instance",
+    "targetVersion": "Target version",
+    "migrate": "Migrate instance",
+    "migrationDone": "Workflow instance migrated",
+    "migrationLoadFailed": "Workflow instance could not be loaded",
+    "migrationFailed": "Workflow migration was rejected"
   },
   "slaAdmin": {
     "title": "SLA policies",

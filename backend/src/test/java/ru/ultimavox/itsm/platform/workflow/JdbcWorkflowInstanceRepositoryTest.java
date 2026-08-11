@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
 import java.util.UUID;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -36,5 +37,31 @@ class JdbcWorkflowInstanceRepositoryTest {
     verify(jdbc).query(sql.capture(), any(RowMapper.class), args.capture());
     assertThat(sql.getValue()).contains("org_id = ?");
     assertThat(args.getValue()[0]).isEqualTo("org-green");
+  }
+
+  @Test
+  void definitionMigrationUsesTenantAndOptimisticVersionPredicates() {
+    JdbcTemplate jdbc = Mockito.mock(JdbcTemplate.class);
+    Mockito.when(jdbc.update(Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any(),
+        Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(1);
+    SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(
+        Jwt.withTokenValue("token").header("alg", "none")
+            .claim("sub", "operator").claim("organization_id", "org-green").build()));
+    WorkflowInstance instance = new WorkflowInstance(UUID.randomUUID(), "change", "42",
+        "SUBMITTED", 1, 8, Instant.now());
+
+    WorkflowInstance migrated = new JdbcWorkflowInstanceRepository(jdbc)
+        .updateDefinitionVersion(instance, 2, 8);
+
+    ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+    verify(jdbc).update(sql.capture(), args.capture());
+    assertThat(sql.getValue()).contains("org_id=?").contains("version=?").contains("definition_version=?");
+    assertThat(args.getValue()[0]).isEqualTo(2);
+    assertThat(args.getValue()[3]).isEqualTo("org-green");
+    assertThat(args.getValue()[4]).isEqualTo(8);
+    assertThat(args.getValue()[5]).isEqualTo(1);
+    assertThat(migrated.definitionVersion()).isEqualTo(2);
+    assertThat(migrated.version()).isEqualTo(9);
   }
 }

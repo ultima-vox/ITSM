@@ -100,4 +100,25 @@ class JdbcWorkflowInstanceRepository implements WorkflowInstanceRepository {
                 now
         );
     }
+
+    @Override
+    public WorkflowInstance updateDefinitionVersion(
+            WorkflowInstance instance, int targetDefinitionVersion, int expectedVersion) {
+        Instant now = Instant.now();
+        int updated = jdbc.update(
+                """
+                UPDATE workflow_instance
+                SET definition_version=?, version=version+1, updated_at=?
+                WHERE id=? AND org_id=? AND version=? AND definition_version=?
+                """,
+                targetDefinitionVersion, Timestamp.from(now), instance.id(), OrganizationContext.current(),
+                expectedVersion, instance.definitionVersion()
+        );
+        if (updated == 0) {
+            throw new OptimisticLockingFailureException(
+                    "Workflow instance concurrent migration for " + instance.objectType() + "/" + instance.objectId());
+        }
+        return new WorkflowInstance(instance.id(), instance.objectType(), instance.objectId(), instance.state(),
+                targetDefinitionVersion, expectedVersion + 1, now);
+    }
 }

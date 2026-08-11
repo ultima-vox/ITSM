@@ -219,6 +219,11 @@ class WorkflowEngineTest {
         }
 
         @Override
+        public Optional<WorkflowDefinition> findByObjectKeyAndVersion(String objectKey, int version) {
+            return Optional.ofNullable(byKey.get(objectKey)).filter(d -> d.version() == version);
+        }
+
+        @Override
         public List<WorkflowDefinitionView> listAll() {
             return byKey.values().stream()
                 .map(d -> new WorkflowDefinitionView(d, true))
@@ -267,6 +272,19 @@ class WorkflowEngineTest {
                     expectedVersion + 1,
                     Instant.now()
             );
+            store.put(key(current.objectType(), current.objectId()), updated);
+            return updated;
+        }
+
+        @Override
+        public WorkflowInstance updateDefinitionVersion(
+                WorkflowInstance instance, int targetDefinitionVersion, int expectedVersion) {
+            WorkflowInstance current = store.get(key(instance.objectType(), instance.objectId()));
+            if (current == null || current.version() != expectedVersion) {
+                throw new IllegalStateException("optimistic lock");
+            }
+            WorkflowInstance updated = new WorkflowInstance(current.id(), current.objectType(), current.objectId(),
+                    current.state(), targetDefinitionVersion, expectedVersion + 1, Instant.now());
             store.put(key(current.objectType(), current.objectId()), updated);
             return updated;
         }

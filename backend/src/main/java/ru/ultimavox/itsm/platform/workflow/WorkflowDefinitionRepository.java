@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface WorkflowDefinitionRepository {
     Optional<WorkflowDefinition> findActiveByObjectKey(String objectKey);
 
+    Optional<WorkflowDefinition> findByObjectKeyAndVersion(String objectKey, int version);
+
     /** All versions for admin list. */
     List<WorkflowDefinitionView> listAll();
 

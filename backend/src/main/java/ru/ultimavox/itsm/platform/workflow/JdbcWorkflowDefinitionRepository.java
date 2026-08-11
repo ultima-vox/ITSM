@@ -76,6 +76,23 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
     }
 
     @Override
+    public Optional<WorkflowDefinition> findByObjectKeyAndVersion(String objectKey, int version) {
+        List<WorkflowDefinition> rows = jdbc.query(
+                """
+                SELECT id, object_key, version, definition::text
+                FROM workflow_definition
+                WHERE org_id IN (?, 'default') AND object_key=? AND version=?
+                ORDER BY (org_id = ?) DESC
+                LIMIT 1
+                """,
+                (rs, i) -> map(rs.getObject("id", UUID.class), rs.getString("object_key"),
+                        rs.getInt("version"), rs.getString("definition")),
+                OrganizationContext.current(), objectKey, version, OrganizationContext.current()
+        );
+        return rows.stream().findFirst();
+    }
+
+    @Override
     @Transactional
     public Optional<WorkflowDefinitionView> setActive(UUID id, boolean active) {
         String organization = OrganizationContext.current();

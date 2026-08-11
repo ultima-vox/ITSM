@@ -8,6 +8,7 @@ import org.mockito.Mockito;
 import org.springframework.security.core.Authentication;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinitionRepository;
+import ru.ultimavox.itsm.platform.workflow.WorkflowEngine;
 
 class WorkflowAdminControllerWriteTest {
   @Test void activationRequiresWorkflowWrite() {
@@ -18,7 +19,7 @@ class WorkflowAdminControllerWriteTest {
     UUID id = UUID.randomUUID();
 
     try {
-      new WorkflowAdminController(definitions, access)
+      new WorkflowAdminController(definitions, access, Mockito.mock(WorkflowEngine.class))
           .setActive(auth, id, new WorkflowAdminController.SetActiveRequest(true));
     } catch (RuntimeException ignored) {
       // Empty repository intentionally returns 404 after authorization.

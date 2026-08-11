@@ -27,6 +27,16 @@ interface BackendDefinition {
   transitions: BackendTransition[];
 }
 
+export interface WorkflowInstanceView {
+  id: string;
+  objectType: string;
+  objectId: string;
+  state: string;
+  definitionVersion: number;
+  version: number;
+  updatedAt: string;
+}
+
 function mapDef(dto: BackendDefinition): WorkflowDefinition {
   return {
     id: dto.id,
@@ -68,6 +78,25 @@ export async function setWorkflowActiveVersion(
     { method: 'PATCH', body: { active } },
   );
   return mapDef(changed);
+}
+
+export async function fetchWorkflowInstance(
+  objectType: string,
+  objectId: string,
+): Promise<WorkflowInstanceView> {
+  return apiRequest<WorkflowInstanceView>(
+    `/workflow/instances/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`,
+  );
+}
+
+export async function migrateWorkflowInstance(
+  instance: WorkflowInstanceView,
+  targetDefinitionVersion: number,
+): Promise<WorkflowInstanceView> {
+  return apiRequest<WorkflowInstanceView>(
+    `/workflow/instances/${encodeURIComponent(instance.objectType)}/${encodeURIComponent(instance.objectId)}/migrations`,
+    { method: 'POST', body: { targetDefinitionVersion, expectedVersion: instance.version } },
+  );
 }
 
 export function workflowDefinitionsWritable(): boolean {

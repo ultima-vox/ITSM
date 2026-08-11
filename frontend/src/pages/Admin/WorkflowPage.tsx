@@ -7,17 +7,26 @@ import {
   subscribeWorkflowDefinitions,
   isMockMode,
   workflowDefinitionsWritable,
+  fetchWorkflowInstance,
+  migrateWorkflowInstance,
 } from '@/api';
+import type { WorkflowInstanceView } from '@/api';
 import type { WorkflowDefinition } from '@/types';
-import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Toggle } from '@/components/ui';
+import { useToast } from '@/hooks/useToast';
 
 export function WorkflowPage() {
   const t = useT();
   const writable = workflowDefinitionsWritable();
   const liveMode = !isMockMode();
+  const { success, error } = useToast();
   const [defs, setDefs] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [migrationObjectType, setMigrationObjectType] = useState('work-item');
+  const [migrationObjectId, setMigrationObjectId] = useState('');
+  const [migrationInstance, setMigrationInstance] = useState<WorkflowInstanceView | null>(null);
+  const [migrationTarget, setMigrationTarget] = useState('');
 
   const reload = useCallback(async () => {
     try {
@@ -51,6 +60,28 @@ export function WorkflowPage() {
   const handleActiveToggle = (def: WorkflowDefinition, next: boolean) => {
     if (!writable) return;
     void setWorkflowActiveVersion(def.id, next).then(() => reload());
+  };
+
+  const loadMigrationInstance = async () => {
+    try {
+      const instance = await fetchWorkflowInstance(migrationObjectType, migrationObjectId.trim());
+      setMigrationInstance(instance);
+      setMigrationTarget(String(instance.definitionVersion));
+    } catch {
+      setMigrationInstance(null);
+      error(t('workflowAdmin.migrationLoadFailed'));
+    }
+  };
+
+  const migrateInstance = async () => {
+    if (!migrationInstance) return;
+    try {
+      const migrated = await migrateWorkflowInstance(migrationInstance, Number(migrationTarget));
+      setMigrationInstance(migrated);
+      success(t('workflowAdmin.migrationDone'));
+    } catch {
+      error(t('workflowAdmin.migrationFailed'));
+    }
   };
 
   if (loadError) {
@@ -90,6 +121,32 @@ export function WorkflowPage() {
           </span>
         </div>
       </div>
+
+      {liveMode && writable && (
+        <div className="panel mb-4">
+          <h2>{t('workflowAdmin.migrationTitle')}</h2>
+          <p className="page-subtitle">{t('workflowAdmin.migrationHint')}</p>
+          <div className="form-grid mt-3">
+            <Select id="workflow-migration-type" label={t('workflowAdmin.objectType')}
+              options={[...new Set(defs.map((d) => d.objectKey))].map((value) => ({ value, label: value }))}
+              value={migrationObjectType} onChange={(e) => { setMigrationObjectType(e.target.value); setMigrationInstance(null); }} />
+            <Input label={t('workflowAdmin.objectId')} value={migrationObjectId}
+              onChange={(e) => { setMigrationObjectId(e.target.value); setMigrationInstance(null); }} />
+            <Button disabled={!migrationObjectId.trim()} onClick={() => void loadMigrationInstance()}>
+              {t('workflowAdmin.loadInstance')}
+            </Button>
+            {migrationInstance && <>
+              <span className="chip">{migrationInstance.state} · v{migrationInstance.definitionVersion} · #{migrationInstance.version}</span>
+              <Select id="workflow-migration-target" label={t('workflowAdmin.targetVersion')}
+                options={defs.filter((d) => d.objectKey === migrationInstance.objectType)
+                  .map((d) => ({ value: String(d.version), label: `v${d.version}${d.active ? ' · active' : ''}` }))}
+                value={migrationTarget} onChange={(e) => setMigrationTarget(e.target.value)} />
+              <Button disabled={!migrationTarget || Number(migrationTarget) === migrationInstance.definitionVersion}
+                onClick={() => void migrateInstance()}>{t('workflowAdmin.migrate')}</Button>
+            </>}
+          </div>
+        </div>
+      )}
 
       <div className="workflow-admin-layout">
         <aside className="panel workflow-admin-list" aria-label={t('workflowAdmin.definitions')}>

@@ -108,6 +108,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow/instances/{objectType}/{objectId}/migrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Migrate an active workflow instance to a compatible definition version */
+        post: operations["migrateInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items": {
         parameters: {
             query?: never;
@@ -905,6 +922,23 @@ export interface paths {
         head?: never;
         /** Enable or disable an automation rule for current organization */
         patch: operations["setEnabled"];
+        trace?: never;
+    };
+    "/api/v1/workflow/instances/{objectType}/{objectId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get workflow instance state and pinned definition version */
+        get: operations["getInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/workflow/definitions": {
@@ -1713,6 +1747,25 @@ export interface components {
             key?: string;
             locale?: string;
             value?: string;
+            /** Format: int32 */
+            version?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        MigrateInstanceRequest: {
+            /** Format: int32 */
+            targetDefinitionVersion?: number;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
+        WorkflowInstance: {
+            /** Format: uuid */
+            id?: string;
+            objectType?: string;
+            objectId?: string;
+            state?: string;
+            /** Format: int32 */
+            definitionVersion?: number;
             /** Format: int32 */
             version?: number;
             /** Format: date-time */
@@ -2764,6 +2817,33 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TranslationView"];
+                };
+            };
+        };
+    };
+    migrateInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectType: string;
+                objectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrateInstanceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkflowInstance"];
                 };
             };
         };
@@ -4343,6 +4423,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RuleResponse"];
+                };
+            };
+        };
+    };
+    getInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectType: string;
+                objectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkflowInstance"];
                 };
             };
         };

@@ -1272,7 +1272,17 @@
     "statesEmptyTitle": "Нет состояний",
     "statesEmptyHint": "У этого workflow нет объявленных состояний.",
     "transEmptyTitle": "Нет переходов",
-    "transEmptyHint": "У этого workflow пока нет переходов."
+    "transEmptyHint": "У этого workflow пока нет переходов.",
+    "migrationTitle": "Миграция активного процесса",
+    "migrationHint": "Загрузите процесс объекта и переведите его на совместимую версию без изменения состояния.",
+    "objectType": "Тип объекта",
+    "objectId": "ID объекта",
+    "loadInstance": "Загрузить процесс",
+    "targetVersion": "Целевая версия",
+    "migrate": "Мигрировать процесс",
+    "migrationDone": "Процесс workflow мигрирован",
+    "migrationLoadFailed": "Не удалось загрузить процесс workflow",
+    "migrationFailed": "Миграция workflow отклонена"
   },
   "slaAdmin": {
     "title": "Политики SLA",
