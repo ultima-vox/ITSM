@@ -36,6 +36,7 @@ import ru.ultimavox.itsm.servicedesk.application.CreateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.EscalateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.GetWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.ListWorkItemComments;
+import ru.ultimavox.itsm.servicedesk.application.SubmitWorkItemSurvey;
 import ru.ultimavox.itsm.servicedesk.application.TransitionWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.UpdateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
@@ -72,6 +73,7 @@ class WorkItemController {
   private final WorkItemWatcherService watchers;
   private final WorkItemLinkService links;
   private final WorkItemCiLinkService ciLinks;
+  private final SubmitWorkItemSurvey surveys;
   private final AccessControl access;
 
   WorkItemController(
@@ -90,6 +92,7 @@ class WorkItemController {
       WorkItemWatcherService watchers,
       WorkItemLinkService links,
       WorkItemCiLinkService ciLinks,
+      SubmitWorkItemSurvey surveys,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -107,6 +110,7 @@ class WorkItemController {
     this.watchers = watchers;
     this.links = links;
     this.ciLinks = ciLinks;
+    this.surveys = surveys;
     this.access = access;
   }
 
@@ -234,6 +238,17 @@ class WorkItemController {
         ),
         actor
     ));
+  }
+
+  @PostMapping("/{id}/survey")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Submit requester satisfaction survey")
+  SubmitWorkItemSurvey.Result submitSurvey(
+      @PathVariable UUID id, @Valid @RequestBody SurveyRequest request, Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    return surveys.submit(id, request.rating(), request.comment(), actor);
   }
 
   @GetMapping("/{id}/comments")
@@ -436,6 +451,11 @@ class WorkItemController {
 
   record CommentRequest(
       @NotBlank @Size(max = 12000) String body
+  ) {}
+
+  record SurveyRequest(
+      @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(5) int rating,
+      @Size(max = 2000) String comment
   ) {}
 
   record CreateLinkRequest(

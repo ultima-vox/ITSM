@@ -1,5 +1,8 @@
 package ru.ultimavox.itsm.servicedesk.application;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,10 +19,9 @@ public class WorkItemStatsQuery {
         store.countOpen(),
         store.countSlaDueToday(),
         store.countSlaBreached(),
-        null
+        store.averageCsatSince(Instant.now().minus(30, ChronoUnit.DAYS))
     );
   }
 
-  /** csat is a placeholder until survey integration exists. */
   public record Stats(long open, long dueToday, long breached, Double csat) {}
 }

@@ -124,6 +124,13 @@ class WorkItemStore {
     return total == null ? 0L : total;
   }
 
+  Double averageCsatSince(Instant since) {
+    Double average = jdbc.queryForObject(
+        "SELECT avg(rating)::double precision * 20 FROM work_item_survey WHERE org_id = ? AND submitted_at >= ?",
+        Double.class, OrganizationContext.current(), Timestamp.from(since));
+    return average == null ? null : Math.round(average * 10.0) / 10.0;
+  }
+
   List<WorkItem> search(WorkItemQuery.Filter filter, int page, int size) {
     SqlAndArgs built = buildWhere(filter, OrganizationContext.current());
     int offset = Math.max(page, 0) * Math.max(size, 1);
