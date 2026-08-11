@@ -1563,6 +1563,8 @@
     "uploadPartial": "{n} von {total} Dateien hochgeladen",
     "submit": "Anfrage erstellen",
     "auditNote": "Ihre Anfrage ist geschützt und wird auditiert",
+    "possibleDuplicates": "Mögliche vorhandene Tickets",
+    "duplicateHint": "Treffer vor dem Senden prüfen. Ein separates Ticket kann weiterhin erstellt werden.",
     "successTitle": "Anfrage erstellt",
     "successText": "Wir haben Ihre Anfrage registriert und halten Sie auf dem Laufenden.",
     "validationTitle": "Kurzbeschreibung eingeben",

@@ -650,3 +650,16 @@ export async function submitWorkItemSurvey(
     method: 'POST', body: { rating, comment: comment?.trim() || null },
   });
 }
+
+export interface DuplicateWorkItemMatch {
+  id: string; number: string; title: string; state: string; priority: string;
+  score: number; reason: string;
+}
+
+export async function findDuplicateWorkItems(
+  title: string, description = '', signal?: AbortSignal,
+): Promise<DuplicateWorkItemMatch[]> {
+  if (isMockMode()) return [];
+  const params = new URLSearchParams({ title, description, limit: '5' });
+  return apiRequest<DuplicateWorkItemMatch[]>(`/work-items/duplicates?${params}`, { signal });
+}

@@ -1563,6 +1563,8 @@
     "uploadPartial": "Uploaded {n} of {total} files",
     "submit": "Create request",
     "auditNote": "Your request is protected and will be audited",
+    "possibleDuplicates": "Possible existing tickets",
+    "duplicateHint": "Review matches before submitting. You can still create a separate ticket.",
     "successTitle": "Request created",
     "successText": "We registered your request and will keep you updated.",
     "validationTitle": "Enter a short description",

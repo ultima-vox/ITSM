@@ -17,6 +17,8 @@ import {
   fetchFormDefinition,
   formatBytes,
   uploadAndLinkWorkItemAttachment,
+  findDuplicateWorkItems,
+  type DuplicateWorkItemMatch,
   type FormDefinition,
 } from '@/api';
 import type { CreateKind, ImpactLevel, UrgencyLevel } from '@/types';
@@ -58,6 +60,8 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [uploadNote, setUploadNote] = useState('');
+  const [duplicates, setDuplicates] = useState<DuplicateWorkItemMatch[]>([]);
+  const [duplicatesLoading, setDuplicatesLoading] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -73,6 +77,7 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
       setSubmitting(false);
       setSent(false);
       setUploadNote('');
+      setDuplicates([]);
       return;
     }
     setValues((v) => ({
@@ -88,6 +93,20 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
       cancelled = true;
     };
   }, [open, kind]);
+
+  useEffect(() => {
+    const title = values.title.trim();
+    if (!open || title.length < 8) { setDuplicates([]); setDuplicatesLoading(false); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setDuplicatesLoading(true);
+      void findDuplicateWorkItems(title, values.description.trim(), controller.signal)
+        .then(setDuplicates)
+        .catch((error: unknown) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setDuplicates([]); })
+        .finally(() => { if (!controller.signal.aborted) setDuplicatesLoading(false); });
+    }, 400);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [open, values.title, values.description]);
 
   if (!kind) return null;
 
@@ -252,6 +271,20 @@ export function CreateWorkItemModal({ kind, onClose }: Props) {
               />
             ) : (
               <p className="field__hint">{t('app.loading')}</p>
+            )}
+
+            {(duplicatesLoading || duplicates.length > 0) && (
+              <aside className="panel mt-4" aria-live="polite" aria-labelledby="duplicate-heading">
+                <h3 id="duplicate-heading">{t('create.possibleDuplicates')}</h3>
+                {duplicatesLoading ? <p className="field__hint">{t('app.loading')}</p> : (
+                  <ul className="attachment-list">{duplicates.map((match) => (
+                    <li key={match.id} className="attachment-chip"><a href={`/work-items/${match.id}`} target="_blank" rel="noreferrer">
+                      <b>{match.number}</b> · {match.title} · {Math.round(match.score * 100)}%
+                    </a></li>
+                  ))}</ul>
+                )}
+                <p className="field__hint">{t('create.duplicateHint')}</p>
+              </aside>
             )}
 
             <div className="form-row create-attachments-row">
