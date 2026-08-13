@@ -2,7 +2,7 @@
  * Mock automation rules + session-scoped enable/disable store.
  * Aligned with backend `AutomationRule` (WHEN event IF conditions THEN actions).
  */
-import type { AutomationRule } from '@/types';
+import type { AutomationExecution, AutomationRule } from '@/types';
 
 type Listener = () => void;
 
@@ -90,6 +90,37 @@ const SEED_RULES: AutomationRule[] = [
 /** Session-mutable copy of rules (enable flags flip without reload). */
 let rules: AutomationRule[] = SEED_RULES.map(cloneRule);
 
+/** Sample recent executions (mock; live data comes from the action log). */
+const SEED_EXECUTIONS: AutomationExecution[] = [
+  {
+    id: 'ex-001',
+    ruleKey: 'notify-on-critical-incident',
+    eventId: 'e-1001',
+    actionType: 'notify',
+    status: 'SUCCEEDED',
+    details: { channel: 'IN_APP', recipientSubject: 'oncall.primary' },
+    createdAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
+  },
+  {
+    id: 'ex-002',
+    ruleKey: 'index-on-work-item-resolved',
+    eventId: 'e-1002',
+    actionType: 'index',
+    status: 'SUCCEEDED',
+    details: { objectType: 'work-item' },
+    createdAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
+  },
+  {
+    id: 'ex-003',
+    ruleKey: 'escalate-on-sla-breach',
+    eventId: 'e-1003',
+    actionType: 'log',
+    status: 'FAILED',
+    details: { level: 'WARN', message: 'SLA breach — escalate to manager' },
+    createdAt: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
+  },
+];
+
 function cloneRule(r: AutomationRule): AutomationRule {
   return {
     ...r,
@@ -113,6 +144,13 @@ export function subscribeAutomationRules(listener: Listener): () => void {
 
 export function listAutomationRules(): AutomationRule[] {
   return rules.map(cloneRule);
+}
+
+export function listAutomationExecutions(): AutomationExecution[] {
+  return SEED_EXECUTIONS.map((e) => ({
+    ...e,
+    details: { ...e.details },
+  }));
 }
 
 export function getAutomationRule(id: string): AutomationRule | null {

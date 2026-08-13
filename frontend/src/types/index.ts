@@ -445,6 +445,22 @@ export interface AutomationAction {
   parameters: Record<string, unknown>;
 }
 
+export type AutomationExecutionStatus = 'STARTED' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * One persisted automation action run.
+ * Aligned with backend `AutomationActionLogEntry` (platform.automation).
+ */
+export interface AutomationExecution {
+  id: string;
+  ruleKey: string;
+  eventId: string;
+  actionType: string;
+  status: AutomationExecutionStatus;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
 /**
  * Deterministic workflow contract.
  * Aligned with backend `WorkflowDefinition` (platform.workflow).

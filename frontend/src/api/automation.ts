@@ -4,10 +4,11 @@
 import { apiRequest, delay, isMockMode } from './client';
 import {
   listAutomationRules as mockList,
+  listAutomationExecutions as mockExecutions,
   setAutomationRuleEnabled as mockSetEnabled,
   subscribeAutomationRules as mockSubscribe,
 } from '@/mock/automation';
-import type { AutomationRule } from '@/types';
+import type { AutomationExecution, AutomationRule } from '@/types';
 
 interface BackendCondition {
   field: string;
@@ -88,6 +89,54 @@ export async function setAutomationRuleEnabled(
 
 export function automationRulesWritable(): boolean {
   return true;
+}
+
+interface BackendExecution {
+  id: string;
+  ruleKey: string;
+  eventId: string;
+  actionType: string;
+  status: AutomationExecution['status'];
+  details?: Record<string, unknown>;
+  createdAt?: string;
+}
+
+function mapExecution(dto: BackendExecution): AutomationExecution {
+  return {
+    id: dto.id,
+    ruleKey: dto.ruleKey,
+    eventId: dto.eventId,
+    actionType: dto.actionType,
+    status: dto.status,
+    details: dto.details ?? {},
+    createdAt: dto.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export async function fetchAutomationExecutions(options?: {
+  ruleKey?: string;
+  status?: AutomationExecution['status'];
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<AutomationExecution[]> {
+  const limit = options?.limit ?? 100;
+
+  if (isMockMode()) {
+    await delay(140);
+    let list = mockExecutions();
+    if (options?.ruleKey) list = list.filter((e) => e.ruleKey === options.ruleKey);
+    if (options?.status) list = list.filter((e) => e.status === options.status);
+    return list.slice(0, limit);
+  }
+
+  const qs = new URLSearchParams();
+  if (options?.ruleKey) qs.set('ruleKey', options.ruleKey);
+  if (options?.status) qs.set('status', options.status);
+  qs.set('limit', String(limit));
+  const hits = await apiRequest<BackendExecution[]>(`/automation/executions?${qs}`, {
+    signal: options?.signal,
+  });
+  return (hits ?? []).map(mapExecution);
 }
 
 export function subscribeAutomationRules(listener: () => void): () => void {

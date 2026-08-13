@@ -1280,9 +1280,19 @@
     "eventType": "Ereignistyp",
     "conditionsJson": "Bedingungen (JSON)",
     "actionsJson": "Erlaubte Aktionen (JSON)",
-    "designerHint": "Regeln verwenden optimistische Versionen. Aktionen sind auf notify, log und index beschränkt.",
+    "designerHint": "Regeln verwenden optimistische Versionen. Aktionen sind auf eingebaute notify, log, index und registrierte Business-Adapter (z.B. assign) beschränkt.",
     "saved": "Automatisierungsregel gespeichert",
-    "saveFailed": "Regel ungültig oder von einem anderen Administrator geändert"
+    "saveFailed": "Regel ungültig oder von einem anderen Administrator geändert",
+    "executions": "Ausführungen",
+    "tabs": "Automatisierungsansichten",
+    "executionsSubtitle": "Letzte Ausführungen von Automatisierungsaktionen, neueste zuerst.",
+    "execColTime": "Zeit",
+    "execColRule": "Regel",
+    "execColAction": "Aktion",
+    "execColStatus": "Status",
+    "execColDetail": "Detail",
+    "executionsEmptyTitle": "Noch keine Ausführungen",
+    "executionsEmptyHint": "Ausführungen erscheinen hier, sobald Regeln Domain-Ereignisse erfüllen."
   },
   "workflowAdmin": {
     "title": "Workflow-Definitionen",

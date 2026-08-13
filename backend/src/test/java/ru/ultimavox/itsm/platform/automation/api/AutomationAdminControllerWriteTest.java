@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.core.Authentication;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
+import ru.ultimavox.itsm.platform.automation.AutomationActionLogQuery;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleRepository;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleAdminService;
 
@@ -19,7 +20,8 @@ class AutomationAdminControllerWriteTest {
     UUID id = UUID.randomUUID();
 
     try {
-      new AutomationAdminController(rules, Mockito.mock(AutomationRuleAdminService.class), access)
+      new AutomationAdminController(rules, Mockito.mock(AutomationRuleAdminService.class), access,
+              Mockito.mock(AutomationActionLogQuery.class))
           .setEnabled(auth, id, new AutomationAdminController.SetEnabledRequest(true));
     } catch (RuntimeException ignored) {
       // Empty repository intentionally returns 404 after authorization.

@@ -1280,9 +1280,19 @@
     "eventType": "Event type",
     "conditionsJson": "Conditions (JSON)",
     "actionsJson": "Allowlisted actions (JSON)",
-    "designerHint": "Rules use optimistic versions. Actions are limited to notify, log, and index.",
+    "designerHint": "Rules use optimistic versions. Actions are limited to built-in notify, log, index and registered business adapters (e.g. assign).",
     "saved": "Automation rule saved",
-    "saveFailed": "Rule invalid or changed by another administrator"
+    "saveFailed": "Rule invalid or changed by another administrator",
+    "executions": "Executions",
+    "tabs": "Automation views",
+    "executionsSubtitle": "Recent automation action runs, newest first.",
+    "execColTime": "Time",
+    "execColRule": "Rule",
+    "execColAction": "Action",
+    "execColStatus": "Status",
+    "execColDetail": "Detail",
+    "executionsEmptyTitle": "No executions yet",
+    "executionsEmptyHint": "Runs appear here once rules match domain events."
   },
   "workflowAdmin": {
     "title": "Workflow definitions",

@@ -2,6 +2,7 @@ package ru.ultimavox.itsm.platform.automation.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,8 +14,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
+import ru.ultimavox.itsm.platform.automation.AutomationActionLogEntry;
+import ru.ultimavox.itsm.platform.automation.AutomationActionLogQuery;
 import ru.ultimavox.itsm.platform.automation.AutomationRule;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleAdminService;
 import ru.ultimavox.itsm.platform.automation.AutomationRuleRepository;
@@ -27,11 +31,17 @@ class AutomationAdminController {
   private final AutomationRuleRepository rules;
   private final AccessControl access;
   private final AutomationRuleAdminService admin;
+  private final AutomationActionLogQuery executionQuery;
 
-  AutomationAdminController(AutomationRuleRepository rules, AutomationRuleAdminService admin, AccessControl access) {
+  AutomationAdminController(
+      AutomationRuleRepository rules,
+      AutomationRuleAdminService admin,
+      AccessControl access,
+      AutomationActionLogQuery executionQuery) {
     this.rules = rules;
     this.admin = admin;
     this.access = access;
+    this.executionQuery = executionQuery;
   }
 
   @GetMapping("/rules")
@@ -40,6 +50,22 @@ class AutomationAdminController {
     String actor = authentication != null ? authentication.getName() : null;
     access.require(actor, "automation.read", "automation_rule", null);
     return rules.listAll().stream().map(RuleResponse::from).toList();
+  }
+
+  @GetMapping("/executions")
+  @Operation(summary = "List recent automation action executions (newest first)")
+  List<ExecutionResponse> executions(
+      Authentication authentication,
+      @RequestParam(required = false) String ruleKey,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false, defaultValue = "100") int limit,
+      @RequestParam(required = false, defaultValue = "0") int offset
+  ) {
+    String actor = authentication != null ? authentication.getName() : null;
+    access.require(actor, "automation.read", "automation_rule", null);
+    return executionQuery.list(ruleKey, status, limit, offset).stream()
+        .map(ExecutionResponse::from)
+        .toList();
   }
 
   @PatchMapping("/rules/{id}")
@@ -108,4 +134,26 @@ class AutomationAdminController {
   record ConditionResponse(String field, String operator, String value) {}
 
   record ActionResponse(String type, Map<String, Object> parameters) {}
+
+  record ExecutionResponse(
+      UUID id,
+      String ruleKey,
+      UUID eventId,
+      String actionType,
+      String status,
+      Map<String, Object> details,
+      Instant createdAt
+  ) {
+    static ExecutionResponse from(AutomationActionLogEntry e) {
+      return new ExecutionResponse(
+          e.id(),
+          e.ruleKey(),
+          e.eventId(),
+          e.actionType(),
+          e.status(),
+          e.details(),
+          e.createdAt()
+      );
+    }
+  }
 }
