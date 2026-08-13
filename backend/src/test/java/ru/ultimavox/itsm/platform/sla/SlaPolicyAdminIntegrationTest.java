@@ -21,7 +21,7 @@ import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class SlaPolicyAdminIntegrationTest {
     @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
     static SlaPolicyAdminService admin;

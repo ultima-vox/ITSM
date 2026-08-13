@@ -22,7 +22,7 @@ import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.authorization.PermissionChecker;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class WorkflowTimerIntegrationTest {
   @Container
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");

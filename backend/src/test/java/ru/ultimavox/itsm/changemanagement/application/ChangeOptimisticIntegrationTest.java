@@ -21,7 +21,7 @@ import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class ChangeOptimisticIntegrationTest {
   @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
   static ChangeCommands commands;

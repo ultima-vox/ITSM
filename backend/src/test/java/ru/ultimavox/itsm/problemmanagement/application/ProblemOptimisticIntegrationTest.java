@@ -21,7 +21,7 @@ import ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway;
 import ru.ultimavox.itsm.problemmanagement.domain.Problem;
 import ru.ultimavox.itsm.servicedesk.WorkItemReferenceQuery;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class ProblemOptimisticIntegrationTest {
   @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
   static ProblemCommands commands;

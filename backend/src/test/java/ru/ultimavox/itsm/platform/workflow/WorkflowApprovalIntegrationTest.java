@@ -26,7 +26,7 @@ import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.workflow.WorkflowApprovalService.Decision;
 import ru.ultimavox.itsm.platform.workflow.WorkflowApprovalService.Status;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class WorkflowApprovalIntegrationTest {
   @Container
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");

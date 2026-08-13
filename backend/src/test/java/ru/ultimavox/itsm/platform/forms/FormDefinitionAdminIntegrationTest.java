@@ -24,7 +24,7 @@ import ru.ultimavox.itsm.platform.metadata.ObjectDefinition;
 import ru.ultimavox.itsm.platform.metadata.ObjectDefinitionService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class FormDefinitionAdminIntegrationTest {
     @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
     static FormDefinitionAdminService admin;
