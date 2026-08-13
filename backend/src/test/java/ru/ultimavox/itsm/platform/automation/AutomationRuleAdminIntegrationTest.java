@@ -31,8 +31,12 @@ class AutomationRuleAdminIntegrationTest {
         var ds = new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         Flyway.configure().dataSource(ds).load().migrate();
         var json = new ObjectMapper();
+        var executor = new AllowlistedActionExecutor(
+                mock(ru.ultimavox.itsm.platform.notification.NotificationService.class),
+                mock(ru.ultimavox.itsm.platform.search.SearchIndexService.class),
+                List.of());
         admin = new AutomationRuleAdminService(new JdbcAutomationRuleRepository(new JdbcTemplate(ds), json), json,
-                mock(AuditTrail.class), mock(IntegrationEventOutbox.class));
+                mock(AuditTrail.class), mock(IntegrationEventOutbox.class), executor);
     }
 
     @Test
