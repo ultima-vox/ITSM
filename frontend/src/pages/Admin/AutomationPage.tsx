@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bolt, Filter, Play, Zap, X } from 'lucide-react';
-import { useT } from '@/i18n';
+import { Bolt, Filter, History, Play, Zap, X } from 'lucide-react';
+import { useT, useI18n } from '@/i18n';
 import {
   automationRulesWritable,
   fetchAutomationRules,
+  fetchAutomationExecutions,
   setAutomationRuleEnabled,
   subscribeAutomationRules,
   isMockMode,
   saveAutomationRule,
 } from '@/api';
-import type { AutomationAction, AutomationRule } from '@/types';
-import { Badge, Button, EmptyState, ErrorState, Input, Modal, Toggle } from '@/components/ui';
+import type { AutomationAction, AutomationExecution, AutomationRule } from '@/types';
+import { Badge, Button, EmptyState, ErrorState, Input, Modal, Skeleton, Toggle } from '@/components/ui';
+import { formatDateTime, formatRelative } from '@/lib/format';
 import { useToast } from '@/hooks/useToast';
 
 function formatActionParams(action: AutomationAction): string {
@@ -19,11 +21,35 @@ function formatActionParams(action: AutomationAction): string {
   return entries.map(([k, v]) => `${k}: ${String(v)}`).join(' · ');
 }
 
+function executionTone(status: AutomationExecution['status']): 'mint' | 'rose' | 'amber' | 'neutral' {
+  switch (status) {
+    case 'SUCCEEDED':
+      return 'mint';
+    case 'FAILED':
+      return 'rose';
+    case 'STARTED':
+      return 'amber';
+    default:
+      return 'neutral';
+  }
+}
+
+function executionDetail(execution: AutomationExecution): string {
+  const entries = Object.entries(execution.details ?? {}).slice(0, 3);
+  if (!entries.length) return '—';
+  return entries.map(([k, v]) => `${k}: ${String(v)}`).join(' · ');
+}
+
 export function AutomationPage() {
   const t = useT();
+  const { locale } = useI18n();
   const writable = automationRulesWritable();
   const liveMode = !isMockMode();
+  const [tab, setTab] = useState<'rules' | 'executions'>('rules');
   const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [executions, setExecutions] = useState<AutomationExecution[]>([]);
+  const [execLoading, setExecLoading] = useState(false);
+  const [execError, setExecError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
@@ -46,12 +72,45 @@ export function AutomationPage() {
     }
   }, []);
 
+  const reloadExecutions = useCallback(async () => {
+    setExecLoading(true);
+    setExecError(false);
+    try {
+      const list = await fetchAutomationExecutions({ limit: 100 });
+      setExecutions(list);
+    } catch {
+      setExecError(true);
+    } finally {
+      setExecLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void reload();
     return subscribeAutomationRules(() => {
       void reload();
     });
   }, [reload]);
+
+  useEffect(() => {
+    if (tab !== 'executions') return;
+    let cancelled = false;
+    setExecLoading(true);
+    setExecError(false);
+    fetchAutomationExecutions({ limit: 100 })
+      .then((list) => {
+        if (!cancelled) setExecutions(list);
+      })
+      .catch(() => {
+        if (!cancelled) setExecError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setExecLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   const selected: AutomationRule | null = useMemo(() => {
     if (!rules.length) return null;
@@ -114,27 +173,108 @@ export function AutomationPage() {
           <p className="page-subtitle">{t('automation.subtitle')}</p>
         </div>
         <div className="page-head__meta">
-          {liveMode && <Button size="sm" onClick={() => openDesigner()}>{t('automation.newRule')}</Button>}
-          <span className="chip">
-            <Zap size={14} aria-hidden />
-            {t('automation.ruleCount', { n: rules.length })}
-          </span>
-          <span className="chip chip--muted">
-            {t('automation.enabledCount', { n: enabledCount })}
-          </span>
+          <div className="filter-chips" role="group" aria-label={t('automation.tabs')}>
+            <button
+              type="button"
+              className={`chip chip--toggle${tab === 'rules' ? ' is-on' : ''}`}
+              onClick={() => setTab('rules')}
+              aria-pressed={tab === 'rules'}
+            >
+              <Bolt size={14} aria-hidden />
+              {t('automation.rules')}
+            </button>
+            <button
+              type="button"
+              className={`chip chip--toggle${tab === 'executions' ? ' is-on' : ''}`}
+              onClick={() => setTab('executions')}
+              aria-pressed={tab === 'executions'}
+            >
+              <History size={14} aria-hidden />
+              {t('automation.executions')}
+            </button>
+          </div>
+          {tab === 'rules' && liveMode && <Button size="sm" onClick={() => openDesigner()}>{t('automation.newRule')}</Button>}
+          {tab === 'rules' && (
+            <>
+              <span className="chip">
+                <Zap size={14} aria-hidden />
+                {t('automation.ruleCount', { n: rules.length })}
+              </span>
+              <span className="chip chip--muted">
+                {t('automation.enabledCount', { n: enabledCount })}
+              </span>
+            </>
+          )}
           <span className={`chip${liveMode ? '' : ' chip--muted'}`}>
             {liveMode ? t('settings.apiModeLive') : t('automation.mockHint')}
           </span>
         </div>
       </div>
 
+      {tab === 'executions' && (
+        <div className="panel audit-table-wrap">
+          <div className="page-subtitle automation-exec__head">
+            <History size={14} aria-hidden />
+            {t('automation.executionsSubtitle')}
+          </div>
+          {execError && <ErrorState onRetry={() => void reloadExecutions()} />}
+          {execLoading && !execError && (
+            <div aria-busy="true">
+              <Skeleton height={36} />
+              <Skeleton height={36} className="mt-2" />
+              <Skeleton height={36} className="mt-2" />
+              <Skeleton height={36} className="mt-2" />
+            </div>
+          )}
+          {!execLoading && !execError && executions.length === 0 && (
+            <EmptyState
+              title={t('automation.executionsEmptyTitle')}
+              description={t('automation.executionsEmptyHint')}
+              icon={<History size={22} />}
+            />
+          )}
+          {!execLoading && !execError && executions.length > 0 && (
+            <table className="data-table data-table--dense">
+              <thead>
+                <tr>
+                  <th scope="col">{t('automation.execColTime')}</th>
+                  <th scope="col">{t('automation.execColRule')}</th>
+                  <th scope="col">{t('automation.execColAction')}</th>
+                  <th scope="col">{t('automation.execColStatus')}</th>
+                  <th scope="col">{t('automation.execColDetail')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {executions.map((execution) => (
+                  <tr key={execution.id}>
+                    <td>
+                      <time dateTime={execution.createdAt} title={formatDateTime(execution.createdAt, locale)}>
+                        {formatRelative(execution.createdAt, t)}
+                      </time>
+                    </td>
+                    <td><code className="mono">{execution.ruleKey}</code></td>
+                    <td><code className="meta-type-pill mono">{execution.actionType}</code></td>
+                    <td>
+                      <Badge tone={executionTone(execution.status)} dot>
+                        {execution.status}
+                      </Badge>
+                    </td>
+                    <td className="muted">{executionDetail(execution)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === 'rules' && (
       <div className="automation-layout">
         <aside className="panel automation-rules" aria-label={t('automation.rules')}>
           <div className="automation-rules__head">
             <Bolt size={16} aria-hidden />
             <h2>{t('automation.rules')}</h2>
-          </div>
-          {rules.length === 0 ? (
+          </div>          {rules.length === 0 ? (
             <EmptyState
               title={t('automation.emptyTitle')}
               description={t('automation.emptyHint')}
@@ -287,6 +427,8 @@ export function AutomationPage() {
           )}
         </div>
       </div>
+      )}
+
       <Modal open={designerOpen} onClose={() => setDesignerOpen(false)} size="lg" labelledBy="automation-designer-title">
         <div className="dialog-head"><div><p className="eyebrow">{t('automation.designer')}</p>
           <h2 id="automation-designer-title">{editing ? t('automation.editRule') : t('automation.newRule')}</h2></div>
