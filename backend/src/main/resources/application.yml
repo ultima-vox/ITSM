@@ -62,6 +62,10 @@ springdoc:
 itsm:
   outbox:
     poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
+    # Publish failures back off exponentially; rows exhausting the budget are quarantined.
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:10}
+    backoff-base: ${OUTBOX_BACKOFF_BASE:PT5S}
+    backoff-max: ${OUTBOX_BACKOFF_MAX:PT5M}
   search:
     # Periodic search projection reconciliation (safety net after index downtime/drift).
     reindex-interval: ${ITSM_SEARCH_REINDEX_INTERVAL:PT10M}
