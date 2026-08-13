@@ -62,6 +62,10 @@ springdoc:
 itsm:
   outbox:
     poll-interval: ${OUTBOX_POLL_INTERVAL:PT5S}
+  search:
+    # Periodic search projection reconciliation (safety net after index downtime/drift).
+    reindex-interval: ${ITSM_SEARCH_REINDEX_INTERVAL:PT10M}
+    reindex-initial-delay: ${ITSM_SEARCH_REINDEX_INITIAL_DELAY:PT2M}
   workflow:
     timers:
       poll-interval: ${WORKFLOW_TIMER_POLL_INTERVAL:PT5S}
