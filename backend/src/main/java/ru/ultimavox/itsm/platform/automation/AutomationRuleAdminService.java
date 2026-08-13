@@ -23,13 +23,16 @@ public class AutomationRuleAdminService {
     private final ObjectMapper json;
     private final AuditTrail audit;
     private final IntegrationEventOutbox outbox;
+    private final AllowlistedActionExecutor executor;
 
     public AutomationRuleAdminService(AutomationRuleRepository repository, ObjectMapper json,
-                                      AuditTrail audit, IntegrationEventOutbox outbox) {
+                                      AuditTrail audit, IntegrationEventOutbox outbox,
+                                      AllowlistedActionExecutor executor) {
         this.repository = repository;
         this.json = json;
         this.audit = audit;
         this.outbox = outbox;
+        this.executor = executor;
     }
 
     @Transactional
@@ -86,7 +89,7 @@ public class AutomationRuleAdminService {
         }
         HashSet<String> actionTypes = new HashSet<>();
         for (AutomationRule.Action action : actions) {
-            if (!AllowlistedActionExecutor.supports(action.type())) {
+            if (!executor.supports(action.type())) {
                 throw new IllegalArgumentException("Action type not allowlisted: " + action.type());
             }
             if (!actionTypes.add(action.type())) {

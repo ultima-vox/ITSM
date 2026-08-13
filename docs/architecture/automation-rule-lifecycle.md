@@ -9,4 +9,8 @@ and transactional outbox records.
 Runtime dispatch is idempotent per tenant, rule, event, and action type. A claimed action moves from
 `STARTED` to `SUCCEEDED` or `FAILED`; bounded failure text supports diagnosis without persisting a
 stack trace. Duplicate action types in one rule are rejected because they would share an idempotency
-identity. Executable scripts are forbidden; only `notify`, `log`, and `index` adapters are accepted.
+identity. Executable scripts are forbidden; only allowlisted adapters are accepted. Built-in adapters
+are `notify`, `log`, and `index`; business capabilities are contributed by modules through the
+`AutomationActionHandler` extension point (e.g. `assign` for service desk work items) and are
+validated against registered handlers at rule save time. Handler parameters may reference the
+triggering event with `{{data.field}}` or `{{event.field}}` placeholders.

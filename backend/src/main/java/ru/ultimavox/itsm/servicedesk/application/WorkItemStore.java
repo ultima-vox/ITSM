@@ -21,11 +21,11 @@ import ru.ultimavox.itsm.servicedesk.domain.WorkItemComment;
 
 /** JDBC persistence for Service Desk aggregates. */
 @Repository
-class WorkItemStore {
+public class WorkItemStore {
 
   private final JdbcTemplate jdbc;
 
-  WorkItemStore(JdbcTemplate jdbc) {
+  public WorkItemStore(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
   }
 

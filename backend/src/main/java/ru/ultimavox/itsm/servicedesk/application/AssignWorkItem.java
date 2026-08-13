@@ -25,7 +25,7 @@ public class AssignWorkItem {
   private final IntegrationEventOutbox outbox;
   private final NotificationService notifications;
 
-  AssignWorkItem(
+  public AssignWorkItem(
       WorkItemStore store,
       AuditTrail audit,
       IntegrationEventOutbox outbox,

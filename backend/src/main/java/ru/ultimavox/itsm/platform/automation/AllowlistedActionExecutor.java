@@ -11,40 +11,73 @@ import ru.ultimavox.itsm.platform.search.SearchDocument;
 import ru.ultimavox.itsm.platform.search.SearchIndexService;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Executes only allowlisted action types. Unknown types are rejected and logged.
+ * Executes only allowlisted action types. Unknown types are rejected and logged. Built-in
+ * adapters ({@code notify}, {@code log}, {@code index}) run here; business capabilities are
+ * provided by registered {@link AutomationActionHandler}s living in the owning modules.
  */
 @Component
 class AllowlistedActionExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AllowlistedActionExecutor.class);
 
-    private static final Set<String> ALLOWED = Set.of("notify", "log", "index");
-
-    static boolean supports(String type) {
-        return ALLOWED.contains(type);
-    }
+    private static final Set<String> BUILTIN = Set.of("notify", "log", "index");
 
     private final NotificationService notifications;
     private final SearchIndexService searchIndex;
+    private final Map<String, AutomationActionHandler> handlers;
 
-    AllowlistedActionExecutor(NotificationService notifications, SearchIndexService searchIndex) {
+    AllowlistedActionExecutor(
+            NotificationService notifications,
+            SearchIndexService searchIndex,
+            List<AutomationActionHandler> handlers) {
         this.notifications = notifications;
         this.searchIndex = searchIndex;
+        this.handlers = toMap(handlers);
+    }
+
+    private static Map<String, AutomationActionHandler> toMap(List<AutomationActionHandler> handlers) {
+        if (handlers == null || handlers.isEmpty()) return Map.of();
+        Map<String, AutomationActionHandler> byType = new java.util.HashMap<>();
+        for (AutomationActionHandler handler : handlers) {
+            if (handler.actionType() == null || handler.actionType().isBlank()) {
+                throw new IllegalStateException("Automation action handler must declare an actionType");
+            }
+            if (BUILTIN.contains(handler.actionType())) {
+                throw new IllegalStateException(
+                        "Automation action handler clashes with built-in type: " + handler.actionType());
+            }
+            if (byType.put(handler.actionType(), handler) != null) {
+                throw new IllegalStateException(
+                        "Duplicate automation action handler for type: " + handler.actionType());
+            }
+        }
+        return Map.copyOf(byType);
+    }
+
+    boolean supports(String type) {
+        return BUILTIN.contains(type) || handlers.containsKey(type);
     }
 
     void execute(Action action, DomainEvent event) {
-        if (!ALLOWED.contains(action.type())) {
-            throw new IllegalArgumentException("Action type not allowlisted: " + action.type());
+        String type = action.type();
+        AutomationActionHandler handler = handlers.get(type);
+        if (handler != null) {
+            handler.execute(event, action.parameters());
+            return;
         }
-        switch (action.type()) {
+        if (!BUILTIN.contains(type)) {
+            throw new IllegalArgumentException("Action type not allowlisted: " + type);
+        }
+        switch (type) {
             case "notify" -> executeNotify(action.parameters(), event);
             case "log" -> log.info("Automation log action for event {} payload={}", event.id(), action.parameters());
             case "index" -> executeIndex(action.parameters(), event);
-            default -> throw new IllegalArgumentException("Unhandled allowlisted action: " + action.type());
+            default -> throw new IllegalArgumentException("Unhandled allowlisted action: " + type);
         }
     }
 
