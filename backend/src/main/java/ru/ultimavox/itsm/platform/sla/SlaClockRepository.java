@@ -28,4 +28,11 @@ public interface SlaClockRepository {
 
     /** All organizations holding RUNNING clocks that are due or warning-due. */
     List<String> distinctOrgIdsWithDueOrWarnClocks();
+
+    /**
+     * Marks every active clock of the given aggregate as ACHIEVED and records history.
+     *
+     * @return number of clocks stopped
+     */
+    int achieveFor(UUID aggregateId, String actorId);
 }

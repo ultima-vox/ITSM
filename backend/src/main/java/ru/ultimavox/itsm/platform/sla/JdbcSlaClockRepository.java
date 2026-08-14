@@ -168,6 +168,19 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         );
     }
 
+    @Override
+    public int achieveFor(UUID aggregateId, String actorId) {
+        List<SlaClock> clocks = findActiveByAggregate(aggregateId);
+        for (SlaClock clock : clocks) {
+            jdbc.update(
+                    "UPDATE sla_clock SET state = 'ACHIEVED', paused_at = NULL, updated_at = now() WHERE id = ? AND org_id = ?",
+                    clock.id(), OrganizationContext.current()
+            );
+            appendHistory(clock.id(), "ACHIEVED", actorId, "{}");
+        }
+        return clocks.size();
+    }
+
     private SlaClock map(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp warning = rs.getTimestamp("warning_at");
         Timestamp paused = rs.getTimestamp("paused_at");

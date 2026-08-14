@@ -20,3 +20,12 @@ The default tenant ships an automation rule (`sla.escalate.breach`) that fires t
 CRITICAL, flagged `escalated`, moved to IN_PROGRESS if still NEW, reindexed, and its assignee is
 notified. Tenants may override the rule (same key) or disable it. The escalation is idempotent per
 event via the automation action log.
+
+## Clock lifecycle
+
+Clocks start when a work item is created (response SLA, `work-item.response.default` /
+`response` metric). When a work item is resolved, closed or cancelled, `TransitionWorkItem` stops
+every active clock for that item as `ACHIEVED` (with an `ACHIEVED` history record) in the same
+transaction, so closed items never keep running clocks and breach/reporting counts stay correct.
+Reopening a resolved item does not restart a stopped clock; a fresh policy measurement starts with
+the next matching creation.

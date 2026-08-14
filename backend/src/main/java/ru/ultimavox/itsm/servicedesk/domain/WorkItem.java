@@ -163,6 +163,11 @@ public record WorkItem(
     return state != State.CLOSED && state != State.CANCELLED;
   }
 
+  /** RESOLVED / CLOSED / CANCELLED — the item is no longer actively worked; SLA clocks stop. */
+  public boolean isTerminal() {
+    return state == State.RESOLVED || state == State.CLOSED || state == State.CANCELLED;
+  }
+
   static boolean allowedTransition(State from, State to) {
     return allowedTargets(from).contains(to);
   }

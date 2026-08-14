@@ -15,6 +15,7 @@ import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
+import ru.ultimavox.itsm.platform.sla.SlaClockRepository;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowEngine;
@@ -43,6 +44,7 @@ public class TransitionWorkItem {
   private final ObjectProvider<WorkflowEngine> workflowEngine;
   private final NotificationService notifications;
   private final WorkItemSearchIndexer searchIndexer;
+  private final SlaClockRepository slaClocks;
 
   TransitionWorkItem(
       WorkItemStore store,
@@ -50,7 +52,8 @@ public class TransitionWorkItem {
       IntegrationEventOutbox outbox,
       ObjectProvider<WorkflowEngine> workflowEngine,
       NotificationService notifications,
-      WorkItemSearchIndexer searchIndexer
+      WorkItemSearchIndexer searchIndexer,
+      SlaClockRepository slaClocks
   ) {
     this.store = store;
     this.audit = audit;
@@ -58,6 +61,7 @@ public class TransitionWorkItem {
     this.workflowEngine = workflowEngine;
     this.notifications = notifications;
     this.searchIndexer = searchIndexer;
+    this.slaClocks = slaClocks;
   }
 
   @Transactional
@@ -82,6 +86,13 @@ public class TransitionWorkItem {
         now
     );
     store.update(updated);
+
+    if (updated.isTerminal()) {
+      int stopped = slaClocks.achieveFor(id, actorId);
+      if (stopped > 0) {
+        log.debug("Stopped {} SLA clocks for resolved work item {}", stopped, id);
+      }
+    }
 
     Map<String, Object> before = CreateWorkItem.snapshot(existing);
     Map<String, Object> after = CreateWorkItem.snapshot(updated);

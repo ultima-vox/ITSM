@@ -23,6 +23,7 @@ import ru.ultimavox.itsm.platform.audit.AuditTrail;
 import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
+import ru.ultimavox.itsm.platform.sla.SlaClockRepository;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowEngine;
@@ -46,6 +47,7 @@ class TransitionWorkItemTest {
   @Mock WorkflowEngine workflowEngine;
   @Mock NotificationService notifications;
   @Mock WorkItemSearchIndexer searchIndexer;
+  @Mock SlaClockRepository slaClocks;
 
   private TransitionWorkItem service;
   private final UUID id = UUID.fromString("b2ff9175-7a70-4d16-b60b-051deb0d2e01");
@@ -55,7 +57,7 @@ class TransitionWorkItemTest {
   void setUp() {
     when(workflowEngineProvider.getIfAvailable()).thenReturn(null);
     service = new TransitionWorkItem(
-        store, audit, outbox, workflowEngineProvider, notifications, searchIndexer
+        store, audit, outbox, workflowEngineProvider, notifications, searchIndexer, slaClocks
     );
   }
 
@@ -194,6 +196,24 @@ class TransitionWorkItemTest {
 
     verify(workflowEngine, never()).applyTransition(any());
     verify(store, never()).update(any());
+  }
+
+  @Test
+  void resolving_work_item_stops_sla_clocks() {
+    when(store.requireById(id)).thenReturn(item(State.IN_PROGRESS));
+
+    service.transition(id, new TransitionWorkItem.Command(State.RESOLVED, "resolved", "Fixed"), "agent-1");
+
+    verify(slaClocks).achieveFor(id, "agent-1");
+  }
+
+  @Test
+  void non_terminal_transition_keeps_sla_clocks_running() {
+    when(store.requireById(id)).thenReturn(item(State.NEW));
+
+    service.transition(id, new TransitionWorkItem.Command(State.IN_PROGRESS, null, null), "agent-1");
+
+    verify(slaClocks, never()).achieveFor(any(), any());
   }
 
   private WorkItem item(State state) {
