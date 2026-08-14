@@ -129,6 +129,45 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         );
     }
 
+    @Override
+    public List<SlaClock> findDueForWarning(int limit) {
+        return jdbc.query(
+                """
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
+                FROM sla_clock
+                WHERE org_id = ? AND state = 'RUNNING'
+                  AND warning_at IS NOT NULL AND warned_at IS NULL
+                  AND warning_at <= now() AND due_at > now()
+                ORDER BY warning_at
+                LIMIT ?
+                """,
+                (rs, i) -> map(rs),
+                OrganizationContext.current(), limit
+        );
+    }
+
+    @Override
+    public void markWarned(UUID clockId) {
+        jdbc.update(
+                "UPDATE sla_clock SET warned_at = now(), updated_at = now() WHERE id = ? AND org_id = ? AND warned_at IS NULL",
+                clockId, OrganizationContext.current()
+        );
+    }
+
+    @Override
+    public List<String> distinctOrgIdsWithDueOrWarnClocks() {
+        return jdbc.query(
+                """
+                SELECT DISTINCT org_id FROM sla_clock
+                WHERE state = 'RUNNING'
+                  AND (due_at <= now()
+                       OR (warning_at IS NOT NULL AND warned_at IS NULL
+                           AND warning_at <= now() AND due_at > now()))
+                """,
+                (rs, i) -> rs.getString(1)
+        );
+    }
+
     private SlaClock map(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp warning = rs.getTimestamp("warning_at");
         Timestamp paused = rs.getTimestamp("paused_at");

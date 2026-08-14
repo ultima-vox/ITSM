@@ -11,13 +11,13 @@ import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.event.DomainEventEnvelope;
 
 @Component
-class JdbcIntegrationEventOutbox implements IntegrationEventOutbox {
+public class JdbcIntegrationEventOutbox implements IntegrationEventOutbox {
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper json;
   private final ApplicationEventPublisher events;
 
-  JdbcIntegrationEventOutbox(JdbcTemplate jdbc, ObjectMapper json, ApplicationEventPublisher events) {
+  public JdbcIntegrationEventOutbox(JdbcTemplate jdbc, ObjectMapper json, ApplicationEventPublisher events) {
     this.jdbc = jdbc;
     this.json = json;
     this.events = events;

@@ -19,12 +19,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-class JdbcAutomationRuleRepository implements AutomationRuleRepository {
+public class JdbcAutomationRuleRepository implements AutomationRuleRepository {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
-    JdbcAutomationRuleRepository(JdbcTemplate jdbc, ObjectMapper json) {
+    public JdbcAutomationRuleRepository(JdbcTemplate jdbc, ObjectMapper json) {
         this.jdbc = jdbc;
         this.json = json;
     }

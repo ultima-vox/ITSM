@@ -70,6 +70,10 @@ itsm:
     # Periodic search projection reconciliation (safety net after index downtime/drift).
     reindex-interval: ${ITSM_SEARCH_REINDEX_INTERVAL:PT10M}
     reindex-initial-delay: ${ITSM_SEARCH_REINDEX_INITIAL_DELAY:PT2M}
+  sla:
+    # How often the SLA breach/warning sweep runs, and its startup delay.
+    breach-interval: ${ITSM_SLA_BREACH_INTERVAL:PT1M}
+    breach-initial-delay: ${ITSM_SLA_BREACH_INITIAL_DELAY:PT1M}
   automation:
     # Failed actions retry with exponential backoff; rows exhausting the budget are quarantined.
     max-attempts: ${AUTOMATION_MAX_ATTEMPTS:5}

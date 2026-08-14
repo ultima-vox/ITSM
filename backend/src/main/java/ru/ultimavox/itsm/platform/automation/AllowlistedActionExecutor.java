@@ -21,7 +21,7 @@ import java.util.Set;
  * provided by registered {@link AutomationActionHandler}s living in the owning modules.
  */
 @Component
-class AllowlistedActionExecutor {
+public class AllowlistedActionExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AllowlistedActionExecutor.class);
 
@@ -31,7 +31,7 @@ class AllowlistedActionExecutor {
     private final SearchIndexService searchIndex;
     private final Map<String, AutomationActionHandler> handlers;
 
-    AllowlistedActionExecutor(
+    public AllowlistedActionExecutor(
             NotificationService notifications,
             SearchIndexService searchIndex,
             List<AutomationActionHandler> handlers) {

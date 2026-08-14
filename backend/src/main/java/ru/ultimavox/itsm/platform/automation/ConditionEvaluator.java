@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 /** Evaluates automation conditions against domain event payload data. */
 @Component
-class ConditionEvaluator {
+public class ConditionEvaluator {
 
     boolean matches(DomainEvent event, java.util.List<Condition> conditions) {
         if (conditions == null || conditions.isEmpty()) {

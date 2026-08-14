@@ -10,12 +10,12 @@ import java.util.Map;
 import java.util.UUID;
 
 @Repository
-class JdbcAutomationActionLogRepository implements AutomationActionLogRepository {
+public class JdbcAutomationActionLogRepository implements AutomationActionLogRepository {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
-    JdbcAutomationActionLogRepository(JdbcTemplate jdbc, ObjectMapper json) {
+    public JdbcAutomationActionLogRepository(JdbcTemplate jdbc, ObjectMapper json) {
         this.jdbc = jdbc;
         this.json = json;
     }

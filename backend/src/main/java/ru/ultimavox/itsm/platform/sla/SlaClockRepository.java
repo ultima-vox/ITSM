@@ -19,4 +19,13 @@ public interface SlaClockRepository {
     void appendHistory(UUID clockId, String action, String actorId, String detailsJson);
 
     List<SlaClock> findDueRunning(int limit);
+
+    /** RUNNING clocks that reached warning_at but are not yet due and have not been warned. */
+    List<SlaClock> findDueForWarning(int limit);
+
+    /** Idempotent marker so a warning is emitted once per clock. */
+    void markWarned(UUID clockId);
+
+    /** All organizations holding RUNNING clocks that are due or warning-due. */
+    List<String> distinctOrgIdsWithDueOrWarnClocks();
 }

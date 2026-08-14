@@ -218,6 +218,44 @@ public class SlaService {
         return count;
     }
 
+    /**
+     * Detects warning windows for RUNNING clocks that reached warning_at but are not yet due.
+     * Each clock is warned at most once (warned_at marker); emits {@code sla.warning} events.
+     *
+     * @return number of clocks warned
+     */
+    @Transactional
+    public int detectWarnings(int batchSize) {
+        Instant now = Instant.now();
+        int count = 0;
+        for (SlaClock clock : clocks.findDueForWarning(batchSize)) {
+            clocks.markWarned(clock.id());
+            clocks.appendHistory(clock.id(), "WARN", "system", writeDetails(Map.of(
+                    "warningAt", clock.warningAt() == null ? "" : clock.warningAt().toString(),
+                    "dueAt", clock.dueAt().toString(),
+                    "detectedAt", now.toString()
+            )));
+            outbox.record(new DomainEvent(
+                    UUID.randomUUID(),
+                    "sla.warning",
+                    1,
+                    now,
+                    UUID.randomUUID(),
+                    "sla-clock",
+                    clock.id().toString(),
+                    Map.of(
+                            "policyKey", clock.policyKey(),
+                            "aggregateId", clock.aggregateId().toString(),
+                            "metric", clock.metric(),
+                            "warningAt", clock.warningAt() == null ? "" : clock.warningAt().toString(),
+                            "dueAt", clock.dueAt().toString()
+                    )
+            ));
+            count++;
+        }
+        return count;
+    }
+
     @Transactional(readOnly = true)
     public List<SlaClock> activeClocks(UUID aggregateId) {
         return clocks.findActiveByAggregate(aggregateId);
