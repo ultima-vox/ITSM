@@ -2177,6 +2177,11 @@ export interface components {
             updatedAt?: string;
             /** Format: date-time */
             closedAt?: string;
+            slaState?: string;
+            /** Format: date-time */
+            slaDueAt?: string;
+            /** Format: date-time */
+            slaWarningAt?: string;
         };
         SurveyRequest: {
             /** Format: int32 */
