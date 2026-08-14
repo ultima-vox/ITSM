@@ -27,7 +27,7 @@ public class EscalateWorkItem {
   private final NotificationService notifications;
   private final WorkItemSearchIndexer searchIndexer;
 
-  EscalateWorkItem(
+  public EscalateWorkItem(
       WorkItemStore store,
       AuditTrail audit,
       IntegrationEventOutbox outbox,

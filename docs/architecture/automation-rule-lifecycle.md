@@ -13,7 +13,11 @@ identity. Executable scripts are forbidden; only allowlisted adapters are accept
 are `notify`, `log`, and `index`; business capabilities are contributed by modules through the
 `AutomationActionHandler` extension point (e.g. `assign` for service desk work items) and are
 validated against registered handlers at rule save time. Handler parameters may reference the
-triggering event with `{{data.field}}` or `{{event.field}}` placeholders.
+triggering event with `{{data.field}}` or `{{event.field}}` placeholders. `escalate` (contributed by
+the service desk module) raises a work item to CRITICAL, flags it escalated, and notifies its
+assignee; it is driven by `sla.breached` events, defaulting the target work item to
+`{{data.aggregateId}}`. The default tenant ships a rule (`sla.escalate.breach`, seeded by migration)
+that escalates every breached SLA clock.
 
 Failed actions are retried automatically. The runner records `FAILED` and schedules a retry row
 holding a snapshot of the event and action parameters (`automation_action_retry`); a scheduled sweep
