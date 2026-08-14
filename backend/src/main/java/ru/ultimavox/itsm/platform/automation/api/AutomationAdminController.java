@@ -142,6 +142,7 @@ class AutomationAdminController {
       String actionType,
       String status,
       Map<String, Object> details,
+      int attempts,
       Instant createdAt
   ) {
     static ExecutionResponse from(AutomationActionLogEntry e) {
@@ -152,6 +153,7 @@ class AutomationAdminController {
           e.actionType(),
           e.status(),
           e.details(),
+          e.attempts(),
           e.createdAt()
       );
     }

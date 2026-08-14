@@ -241,6 +241,7 @@ export function AutomationPage() {
                   <th scope="col">{t('automation.execColRule')}</th>
                   <th scope="col">{t('automation.execColAction')}</th>
                   <th scope="col">{t('automation.execColStatus')}</th>
+                  <th scope="col">{t('automation.execColAttempts')}</th>
                   <th scope="col">{t('automation.execColDetail')}</th>
                 </tr>
               </thead>
@@ -259,6 +260,7 @@ export function AutomationPage() {
                         {execution.status}
                       </Badge>
                     </td>
+                    <td className="muted mono">{execution.attempts}</td>
                     <td className="muted">{executionDetail(execution)}</td>
                   </tr>
                 ))}

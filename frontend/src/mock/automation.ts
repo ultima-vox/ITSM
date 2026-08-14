@@ -99,6 +99,7 @@ const SEED_EXECUTIONS: AutomationExecution[] = [
     actionType: 'notify',
     status: 'SUCCEEDED',
     details: { channel: 'IN_APP', recipientSubject: 'oncall.primary' },
+    attempts: 1,
     createdAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
   },
   {
@@ -108,6 +109,7 @@ const SEED_EXECUTIONS: AutomationExecution[] = [
     actionType: 'index',
     status: 'SUCCEEDED',
     details: { objectType: 'work-item' },
+    attempts: 2,
     createdAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
   },
   {
@@ -117,6 +119,7 @@ const SEED_EXECUTIONS: AutomationExecution[] = [
     actionType: 'log',
     status: 'FAILED',
     details: { level: 'WARN', message: 'SLA breach — escalate to manager' },
+    attempts: 3,
     createdAt: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
   },
 ];

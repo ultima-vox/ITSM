@@ -11,5 +11,10 @@ public interface AutomationActionLogRepository {
      */
     boolean tryLog(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details);
 
-    void complete(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details);
+    /**
+     * Transitions the log row to a terminal status ({@code SUCCEEDED} or {@code FAILED}).
+     *
+     * @param attempts total action attempts so far (initial execution counts as one)
+     */
+    void complete(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details, int attempts);
 }

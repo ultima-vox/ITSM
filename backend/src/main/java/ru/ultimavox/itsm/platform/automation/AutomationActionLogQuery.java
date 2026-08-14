@@ -36,7 +36,7 @@ public class AutomationActionLogQuery {
     boolean byStatus = statusFilter != null && !statusFilter.isBlank() && !"all".equalsIgnoreCase(statusFilter);
 
     StringBuilder sql = new StringBuilder("""
-        SELECT id, rule_key, event_id, action_type, status, details::text, created_at
+        SELECT id, rule_key, event_id, action_type, status, details::text, attempts, created_at
         FROM automation_action_log
         WHERE org_id = ?
         """);
@@ -66,6 +66,7 @@ public class AutomationActionLogQuery {
         rs.getString("action_type"),
         rs.getString("status"),
         readMap(rs.getString("details")),
+        rs.getInt("attempts"),
         ts == null ? Instant.EPOCH : ts.toInstant()
     );
   }

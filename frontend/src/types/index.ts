@@ -458,6 +458,7 @@ export interface AutomationExecution {
   actionType: string;
   status: AutomationExecutionStatus;
   details: Record<string, unknown>;
+  attempts: number;
   createdAt: string;
 }
 

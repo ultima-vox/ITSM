@@ -12,5 +12,6 @@ public record AutomationActionLogEntry(
     String actionType,
     String status,
     Map<String, Object> details,
+    int attempts,
     Instant createdAt
 ) {}

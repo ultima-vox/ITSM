@@ -1290,6 +1290,7 @@
     "execColRule": "Regel",
     "execColAction": "Aktion",
     "execColStatus": "Status",
+    "execColAttempts": "Versuche",
     "execColDetail": "Detail",
     "executionsEmptyTitle": "Noch keine Ausführungen",
     "executionsEmptyHint": "Ausführungen erscheinen hier, sobald Regeln Domain-Ereignisse erfüllen."

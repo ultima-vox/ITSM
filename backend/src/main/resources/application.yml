@@ -70,6 +70,13 @@ itsm:
     # Periodic search projection reconciliation (safety net after index downtime/drift).
     reindex-interval: ${ITSM_SEARCH_REINDEX_INTERVAL:PT10M}
     reindex-initial-delay: ${ITSM_SEARCH_REINDEX_INITIAL_DELAY:PT2M}
+  automation:
+    # Failed actions retry with exponential backoff; rows exhausting the budget are quarantined.
+    max-attempts: ${AUTOMATION_MAX_ATTEMPTS:5}
+    backoff-base: ${AUTOMATION_BACKOFF_BASE:PT30S}
+    backoff-max: ${AUTOMATION_BACKOFF_MAX:PT10M}
+    retry-interval: ${AUTOMATION_RETRY_INTERVAL:PT1M}
+    retry-initial-delay: ${AUTOMATION_RETRY_INITIAL_DELAY:PT1M}
   workflow:
     timers:
       poll-interval: ${WORKFLOW_TIMER_POLL_INTERVAL:PT5S}

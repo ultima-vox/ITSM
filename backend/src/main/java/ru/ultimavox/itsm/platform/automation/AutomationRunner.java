@@ -13,7 +13,8 @@ import java.util.Map;
 /**
  * In-process, transactional automation runner.
  * Evaluates enabled rules matching a {@link DomainEvent} and executes allowlisted actions
- * with an idempotent action log.
+ * with an idempotent action log. Failed actions are scheduled for automatic retry with
+ * exponential backoff via {@link AutomationActionRetryService}.
  */
 @Service
 public class AutomationRunner {
@@ -24,17 +25,20 @@ public class AutomationRunner {
     private final ConditionEvaluator conditions;
     private final AllowlistedActionExecutor executor;
     private final AutomationActionLogRepository actionLog;
+    private final AutomationActionRetryService retry;
 
     public AutomationRunner(
             AutomationRuleRepository rules,
             ConditionEvaluator conditions,
             AllowlistedActionExecutor executor,
-            AutomationActionLogRepository actionLog
+            AutomationActionLogRepository actionLog,
+            AutomationActionRetryService retry
     ) {
         this.rules = rules;
         this.conditions = conditions;
         this.executor = executor;
         this.actionLog = actionLog;
+        this.retry = retry;
     }
 
     @Transactional
@@ -64,15 +68,17 @@ public class AutomationRunner {
                 try {
                     executor.execute(action, event);
                     actionLog.complete(rule.ruleKey(), event.id(), action.type(), "SUCCEEDED",
-                            Map.of("eventType", event.type(), "aggregateId", event.aggregateId()));
+                            Map.of("eventType", event.type(), "aggregateId", event.aggregateId()), 1);
                     executed++;
                 } catch (RuntimeException ex) {
                     actionLog.complete(rule.ruleKey(), event.id(), action.type(), "FAILED",
                             Map.of("eventType", event.type(), "aggregateId", event.aggregateId(),
-                                    "error", safeMessage(ex)));
+                                    "error", safeMessage(ex)), 1);
                     log.error("Automation action failed rule={} action={} event={}: {}",
                             rule.ruleKey(), action.type(), event.id(), ex.getMessage());
-                    // row already logged as STARTED; leave for operator review / future retry table
+                    // Row already logged as FAILED; schedule an automatic retry with backoff so
+                    // transient downstream failures (search index, webhook) are re-driven.
+                    retry.schedule(event, rule.ruleKey(), action.type(), action.parameters(), safeMessage(ex));
                 }
             }
         }

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,9 @@ class AutomationAssignWorkItemIntegrationTest {
         ruleRepository, json, mock(AuditTrail.class), mock(IntegrationEventOutbox.class), executor);
     runner = new AutomationRunner(
         ruleRepository, new ConditionEvaluator(), executor,
-        new JdbcAutomationActionLogRepository(jdbc, json));
+        new JdbcAutomationActionLogRepository(jdbc, json),
+        new AutomationActionRetryService(jdbc, json, executor,
+            new JdbcAutomationActionLogRepository(jdbc, json), 5, Duration.ZERO, Duration.ofMinutes(10)));
   }
 
   @Test

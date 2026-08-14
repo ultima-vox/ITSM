@@ -43,15 +43,16 @@ class JdbcAutomationActionLogRepository implements AutomationActionLogRepository
     }
 
     @Override
-    public void complete(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details) {
+    public void complete(String ruleKey, UUID eventId, String actionType, String status, Map<String, Object> details, int attempts) {
         if (!"SUCCEEDED".equals(status) && !"FAILED".equals(status)) {
             throw new IllegalArgumentException("Automation terminal status must be SUCCEEDED or FAILED");
         }
         try {
             int changed = jdbc.update("""
-                    UPDATE automation_action_log SET status = ?, details = ?::jsonb
+                    UPDATE automation_action_log
+                    SET status = ?, details = ?::jsonb, attempts = ?
                     WHERE org_id = ? AND rule_key = ? AND event_id = ? AND action_type = ?
-                    """, status, json.writeValueAsString(details == null ? Map.of() : details),
+                    """, status, json.writeValueAsString(details == null ? Map.of() : details), attempts,
                     OrganizationContext.current(), ruleKey, eventId, actionType);
             if (changed != 1) throw new IllegalStateException("Automation action log row is missing");
         } catch (JsonProcessingException ex) {

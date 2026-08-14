@@ -98,6 +98,7 @@ interface BackendExecution {
   actionType: string;
   status: AutomationExecution['status'];
   details?: Record<string, unknown>;
+  attempts?: number;
   createdAt?: string;
 }
 
@@ -109,6 +110,7 @@ function mapExecution(dto: BackendExecution): AutomationExecution {
     actionType: dto.actionType,
     status: dto.status,
     details: dto.details ?? {},
+    attempts: dto.attempts ?? 1,
     createdAt: dto.createdAt ?? new Date().toISOString(),
   };
 }

@@ -14,3 +14,13 @@ are `notify`, `log`, and `index`; business capabilities are contributed by modul
 `AutomationActionHandler` extension point (e.g. `assign` for service desk work items) and are
 validated against registered handlers at rule save time. Handler parameters may reference the
 triggering event with `{{data.field}}` or `{{event.field}}` placeholders.
+
+Failed actions are retried automatically. The runner records `FAILED` and schedules a retry row
+holding a snapshot of the event and action parameters (`automation_action_retry`); a scheduled sweep
+(`itsm.automation.retry-interval`, default 1m) re-drives due rows with exponential backoff
+(`itsm.automation.backoff-base`/`backoff-max`, default 30s→10m). A successful retry rewrites the
+action-log row to `SUCCEEDED` with its attempt count, so the execution history shows the eventual
+outcome. Rows that exhaust the attempt budget (`itsm.automation.max-attempts`, default 5) are
+quarantined and stop being polled — the analog of the outbox relay's quarantine — so a poison
+action can never loop forever. Re-drives are idempotent: at most one retry row exists per
+(tenant, rule, event, action), and the original idempotency key is preserved.

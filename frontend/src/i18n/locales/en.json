@@ -1290,6 +1290,7 @@
     "execColRule": "Rule",
     "execColAction": "Action",
     "execColStatus": "Status",
+    "execColAttempts": "Attempts",
     "execColDetail": "Detail",
     "executionsEmptyTitle": "No executions yet",
     "executionsEmptyHint": "Runs appear here once rules match domain events."

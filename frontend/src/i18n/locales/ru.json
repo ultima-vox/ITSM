@@ -1290,6 +1290,7 @@
     "execColRule": "Правило",
     "execColAction": "Действие",
     "execColStatus": "Статус",
+    "execColAttempts": "Попытки",
     "execColDetail": "Детали",
     "executionsEmptyTitle": "Исполнений пока нет",
     "executionsEmptyHint": "Запуски появятся здесь, когда правила совпадут с событиями домена."
