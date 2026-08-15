@@ -181,6 +181,23 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         return clocks.size();
     }
 
+    @Override
+    public Optional<SlaClock> findActive(UUID aggregateId, String metric) {
+        List<SlaClock> rows = jdbc.query(
+                """
+                SELECT id, policy_key, aggregate_id, metric, started_at, due_at, warning_at, paused_at, state
+                FROM sla_clock
+                WHERE org_id = ? AND aggregate_id = ? AND metric = ?
+                  AND state IN ('RUNNING', 'PAUSED')
+                ORDER BY started_at DESC
+                LIMIT 1
+                """,
+                (rs, i) -> map(rs),
+                OrganizationContext.current(), aggregateId, metric
+        );
+        return rows.stream().findFirst();
+    }
+
     private SlaClock map(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp warning = rs.getTimestamp("warning_at");
         Timestamp paused = rs.getTimestamp("paused_at");

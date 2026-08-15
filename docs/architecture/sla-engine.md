@@ -29,3 +29,11 @@ every active clock for that item as `ACHIEVED` (with an `ACHIEVED` history recor
 transaction, so closed items never keep running clocks and breach/reporting counts stay correct.
 Reopening a resolved item does not restart a stopped clock; a fresh policy measurement starts with
 the next matching creation.
+
+## API / UI visibility
+
+`WorkItemResponse` exposes the live response-clock status as `slaState` (`on_track | at_risk |
+breached | met`) plus `slaDueAt` / `slaWarningAt`, derived by `WorkItemSlaStateResolver` from the
+item's active clock (terminal items report `met`; items without a clock return no snapshot and the
+UI falls back to the legacy derived state). The API therefore drives the SLA chrome on the work-item
+detail instead of client-side guesses.

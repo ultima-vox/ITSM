@@ -35,6 +35,9 @@ export interface BackendWorkItem {
   resolutionCode?: string | null;
   resolutionNotes?: string | null;
   escalated?: boolean | null;
+  slaState?: SlaState | null;
+  slaDueAt?: string | null;
+  slaWarningAt?: string | null;
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
@@ -245,7 +248,9 @@ export function mapWorkItem(dto: BackendWorkItem): WorkItem {
     requester,
     service: dto.service,
     slaTarget: slaTargetFor(priority, status),
-    slaState: deriveSlaState(status, priority),
+    slaState: dto.slaState ?? deriveSlaState(status, priority),
+    slaDueAt: dto.slaDueAt ?? undefined,
+    slaWarningAt: dto.slaWarningAt ?? undefined,
     updatedAt: dto.updatedAt,
     createdAt: dto.createdAt,
     teamId: dto.teamId ?? undefined,

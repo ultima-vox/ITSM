@@ -7,6 +7,7 @@ import java.util.UUID;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemSlaStateResolver;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItemComment;
@@ -34,9 +35,16 @@ final class WorkItemResponses {
       boolean escalated,
       Instant createdAt,
       Instant updatedAt,
-      Instant closedAt
+      Instant closedAt,
+      String slaState,
+      Instant slaDueAt,
+      Instant slaWarningAt
   ) {
     static WorkItemResponse from(WorkItem item) {
+      return from(item, null);
+    }
+
+    static WorkItemResponse from(WorkItem item, WorkItemSlaStateResolver.SlaSnapshot sla) {
       return new WorkItemResponse(
           item.id(),
           item.number(),
@@ -56,7 +64,10 @@ final class WorkItemResponses {
           item.escalated(),
           item.createdAt(),
           item.updatedAt(),
-          item.closedAt()
+          item.closedAt(),
+          sla == null ? null : sla.state(),
+          sla == null ? null : sla.dueAt(),
+          sla == null ? null : sla.warningAt()
       );
     }
   }

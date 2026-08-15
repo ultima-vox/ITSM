@@ -42,6 +42,9 @@ export interface WorkItem {
   service: string;
   slaTarget: string;
   slaState: SlaState;
+  /** Live clock deadlines from the backend (absent for lists and clock-less items). */
+  slaDueAt?: string;
+  slaWarningAt?: string;
   updatedAt: string;
   createdAt: string;
   queue?: string;

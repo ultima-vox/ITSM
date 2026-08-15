@@ -35,4 +35,7 @@ public interface SlaClockRepository {
      * @return number of clocks stopped
      */
     int achieveFor(UUID aggregateId, String actorId);
+
+    /** The most recent active clock of the given aggregate for the given metric, if any. */
+    Optional<SlaClock> findActive(UUID aggregateId, String metric);
 }

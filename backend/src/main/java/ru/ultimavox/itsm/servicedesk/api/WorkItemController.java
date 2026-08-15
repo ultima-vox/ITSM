@@ -51,6 +51,7 @@ import ru.ultimavox.itsm.servicedesk.application.UpdateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemSlaStateResolver;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
 import ru.ultimavox.itsm.servicedesk.application.DuplicateWorkItemQuery;
@@ -90,6 +91,7 @@ class WorkItemController {
   private final AccessControl access;
   private final ApiIdempotencyService idempotency;
   private final FieldAccessControl fieldAccess;
+  private final WorkItemSlaStateResolver slaStateResolver;
 
   WorkItemController(
       CreateWorkItem createWorkItem,
@@ -113,7 +115,8 @@ class WorkItemController {
       BulkWorkItemService bulkWorkItems,
       AccessControl access,
       ApiIdempotencyService idempotency,
-      FieldAccessControl fieldAccess
+      FieldAccessControl fieldAccess,
+      WorkItemSlaStateResolver slaStateResolver
   ) {
     this.createWorkItem = createWorkItem;
     this.workItemQuery = workItemQuery;
@@ -137,6 +140,7 @@ class WorkItemController {
     this.access = access;
     this.idempotency = idempotency;
     this.fieldAccess = fieldAccess;
+    this.slaStateResolver = slaStateResolver;
   }
 
   @PostMapping
@@ -196,7 +200,7 @@ class WorkItemController {
   @GetMapping("/{id}")
   @Operation(summary = "Get work item by id")
   WorkItemResponse get(@PathVariable UUID id, Authentication authentication) {
-    return WorkItemResponse.from(requireRead(authentication.getName(), id));
+    return response(requireRead(authentication.getName(), id));
   }
 
   @PatchMapping("/{id}")
@@ -208,7 +212,7 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.update", "work-item", id.toString());
-    return WorkItemResponse.from(updateWorkItem.update(
+    return response(updateWorkItem.update(
         id,
         new UpdateWorkItem.Command(
             request.title(),
@@ -230,7 +234,7 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.assign", "work-item", id.toString());
-    return WorkItemResponse.from(assignWorkItem.assign(
+    return response(assignWorkItem.assign(
         id,
         new AssignWorkItem.Command(request.assigneeId(), request.teamId()),
         actor
@@ -243,7 +247,7 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.transition", "work-item", id.toString());
     try {
-      return WorkItemResponse.from(escalateWorkItem.escalate(id, actor));
+      return response(escalateWorkItem.escalate(id, actor));
     } catch (IllegalStateException ex) {
       throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -265,7 +269,7 @@ class WorkItemController {
     if (request.resolutionNotes() != null) {
       fieldAccess.requireWrite(actor, "work-item", id.toString(), "resolutionNotes", targetState);
     }
-    return WorkItemResponse.from(transitionWorkItem.transition(
+    return response(transitionWorkItem.transition(
         id,
         new TransitionWorkItem.Command(
             request.targetState(),
@@ -587,6 +591,10 @@ class WorkItemController {
     var item = getWorkItem.get(id);
     access.requireOwned(actor, "work-item.read", "work-item", id.toString(), item.requesterId());
     return item;
+  }
+
+  private WorkItemResponse response(ru.ultimavox.itsm.servicedesk.domain.WorkItem item) {
+    return WorkItemResponse.from(item, slaStateResolver.forWorkItem(item));
   }
 
   record SurveyRequest(
