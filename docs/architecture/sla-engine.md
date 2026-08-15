@@ -21,6 +21,16 @@ CRITICAL, flagged `escalated`, moved to IN_PROGRESS if still NEW, reindexed, and
 notified. Tenants may override the rule (same key) or disable it. The escalation is idempotent per
 event via the automation action log.
 
+## Warning response
+
+The default tenant ships a second rule (`sla.warning.notify`) that fires the allowlisted
+`sla-warning-notify` action on every `sla.warning` event. The action resolves the owning work item
+(from the event's `aggregateId`), looks up its owner — the assignee, or the requester when
+unassigned — and sends an in-app `sla.warning` notification carrying the item number, title and
+deadline. Because the sweep marks each clock `warned_at` before emitting the event, the warning
+(and thus the notification) is delivered at most once per clock. Items without any owner are
+skipped; recipient channel preferences still apply.
+
 ## Clock lifecycle
 
 Clocks start when a work item is created (response SLA, `work-item.response.default` /
