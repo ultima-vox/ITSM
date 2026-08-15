@@ -113,6 +113,21 @@ public class SlaService {
     }
 
     /**
+     * True when any active clock of the aggregate has a policy that lists the given business state
+     * as pauseable. Used by callers to decide whether a transition pauses or resumes clocks.
+     */
+    @Transactional(readOnly = true)
+    public boolean isPauseable(UUID aggregateId, String businessState) {
+        for (SlaClock clock : clocks.findActiveByAggregate(aggregateId)) {
+            Optional<SlaPolicy> policy = policies.findByKey(clock.policyKey());
+            if (policy.isPresent() && policy.get().pauseStates().contains(businessState)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Pauses all active clocks for the aggregate whose policy lists the given business state as pauseable.
      */
     @Transactional
@@ -155,6 +170,21 @@ public class SlaService {
                 "resumedAt", now.toString(),
                 "dueAt", dueAt.toString()
         )));
+        return resumed;
+    }
+
+    /**
+     * Resumes every PAUSED clock of the aggregate (idempotent when none are paused). The inverse
+     * of {@link #pauseForState}: called when an aggregate leaves a pauseable business state.
+     */
+    @Transactional
+    public List<SlaClock> resumeAll(UUID aggregateId, String actorId) {
+        List<SlaClock> resumed = new ArrayList<>();
+        for (SlaClock clock : clocks.findActiveByAggregate(aggregateId)) {
+            if (clock.state() == SlaClock.State.PAUSED) {
+                resumed.add(resume(clock.id(), actorId));
+            }
+        }
         return resumed;
     }
 

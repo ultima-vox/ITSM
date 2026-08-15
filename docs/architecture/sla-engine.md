@@ -30,6 +30,18 @@ transaction, so closed items never keep running clocks and breach/reporting coun
 Reopening a resolved item does not restart a stopped clock; a fresh policy measurement starts with
 the next matching creation.
 
+## Pause / resume
+
+When a work item enters a pauseable business state, the response clock must not keep counting.
+`TransitionWorkItem` decides this per transition: after any non-terminal transition it asks
+`SlaService.isPauseable(workItemId, targetState)` — true when the item's active clock policy lists
+the target state in `pauseStates` — and then either pauses (`SlaService.pauseForState`) or resumes
+(`SlaService.resumeAll`). The default `work-item.response.default` policy lists `PENDING`, so moving
+IN_PROGRESS → PENDING pauses the clock and PENDING → IN_PROGRESS resumes it, recalculating the
+deadline from business time actually spent so a wait never extends the countdown. Pausing/resuming
+writes `PAUSE` / `RESUME` history records; resume rewrites `due_at` / `warning_at` from the
+calendar. Terminal transitions still achieve clocks as described above.
+
 ## API / UI visibility
 
 `WorkItemResponse` exposes the live response-clock status as `slaState` (`on_track | at_risk |

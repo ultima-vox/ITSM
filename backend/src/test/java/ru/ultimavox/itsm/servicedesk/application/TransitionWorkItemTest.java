@@ -24,6 +24,7 @@ import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
 import ru.ultimavox.itsm.platform.sla.SlaClockRepository;
+import ru.ultimavox.itsm.platform.sla.SlaService;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowDefinition.Transition;
 import ru.ultimavox.itsm.platform.workflow.WorkflowEngine;
@@ -48,6 +49,7 @@ class TransitionWorkItemTest {
   @Mock NotificationService notifications;
   @Mock WorkItemSearchIndexer searchIndexer;
   @Mock SlaClockRepository slaClocks;
+  @Mock SlaService sla;
 
   private TransitionWorkItem service;
   private final UUID id = UUID.fromString("b2ff9175-7a70-4d16-b60b-051deb0d2e01");
@@ -57,7 +59,7 @@ class TransitionWorkItemTest {
   void setUp() {
     when(workflowEngineProvider.getIfAvailable()).thenReturn(null);
     service = new TransitionWorkItem(
-        store, audit, outbox, workflowEngineProvider, notifications, searchIndexer, slaClocks
+        store, audit, outbox, workflowEngineProvider, notifications, searchIndexer, slaClocks, sla
     );
   }
 
@@ -214,6 +216,28 @@ class TransitionWorkItemTest {
     service.transition(id, new TransitionWorkItem.Command(State.IN_PROGRESS, null, null), "agent-1");
 
     verify(slaClocks, never()).achieveFor(any(), any());
+  }
+
+  @Test
+  void pending_transition_pauses_sla_clocks() {
+    when(store.requireById(id)).thenReturn(item(State.IN_PROGRESS));
+    when(sla.isPauseable(id, "PENDING")).thenReturn(true);
+
+    service.transition(id, new TransitionWorkItem.Command(State.PENDING, null, null), "agent-1");
+
+    verify(sla).pauseForState(id, "PENDING", "agent-1");
+    verify(sla, never()).resumeAll(any(), any());
+  }
+
+  @Test
+  void leaving_pending_resumes_sla_clocks() {
+    when(store.requireById(id)).thenReturn(item(State.PENDING));
+    when(sla.isPauseable(id, "IN_PROGRESS")).thenReturn(false);
+
+    service.transition(id, new TransitionWorkItem.Command(State.IN_PROGRESS, null, null), "agent-1");
+
+    verify(sla).resumeAll(id, "agent-1");
+    verify(sla, never()).pauseForState(any(), any(), any());
   }
 
   private WorkItem item(State state) {
