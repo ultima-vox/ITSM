@@ -16,3 +16,7 @@ vite.config.d.ts
 playwright-report/
 test-results/
 
+# Local runtime and agent artifacts
+*.log
+/INST.MD
+/build/
