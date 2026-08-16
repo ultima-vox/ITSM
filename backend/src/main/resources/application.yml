@@ -113,6 +113,15 @@ itsm:
   security:
     # Must stay false outside profile dev; ProductionSafetyGuard enforces
     permit-unauthenticated: ${ITSM_PERMIT_UNAUTHENTICATED:false}
+  ai:
+    # AI copilot provider. Set itsm.ai.ollama.url to an OpenAI-compatible endpoint
+    # (e.g. http://localhost:11434/v1 for Ollama) to enable a real model provider.
+    # When unset, a deterministic advisory logging gateway remains active.
+    ollama:
+      url: ${ITSM_AI_OLLAMA_URL:}
+      model: ${ITSM_AI_OLLAMA_MODEL:}
+      connect-timeout: ${ITSM_AI_OLLAMA_CONNECT_TIMEOUT:PT2S}
+      read-timeout: ${ITSM_AI_OLLAMA_READ_TIMEOUT:PT120S}
   storage:
     # local = metadata-only NoOp for dev; s3 = MinIO/AWS S3-compatible
     type: ${ITSM_STORAGE_TYPE:local}

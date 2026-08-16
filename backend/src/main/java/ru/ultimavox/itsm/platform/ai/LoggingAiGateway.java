@@ -3,13 +3,16 @@ package ru.ultimavox.itsm.platform.ai;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 /**
- * Deterministic local AI adapter used until a real provider is wired.
- * Logs prompt metadata only (not full content by default) and never writes domain tables.
+ * Deterministic advisory fallback used when no real AI provider is configured
+ * ({@code itsm.ai.ollama.url} unset). Logs prompt metadata only (not full content
+ * by default) and never writes domain tables.
  */
 @Component
+@Conditional(OllamaDisabledCondition.class)
 public class LoggingAiGateway implements AiGateway {
   private static final Logger log = LoggerFactory.getLogger(LoggingAiGateway.class);
   private static final String PROVIDER = "logging-stub";
