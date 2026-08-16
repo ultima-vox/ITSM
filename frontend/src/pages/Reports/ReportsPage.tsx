@@ -20,7 +20,12 @@ import {
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
-import { fetchDashboardMetrics, fetchWorkItems } from '@/api';
+import {
+  fetchDashboardMetrics,
+  fetchWorkItems,
+  fetchWorkloadReport,
+  useMock,
+} from '@/api';
 import { getActivities } from '@/mock/store';
 import type { Priority, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
 import { Button, ErrorState, Select, Skeleton } from '@/components/ui';
@@ -229,9 +234,11 @@ function computeFilteredCsat(list: WorkItem[]): number | null {
 export function ReportsPage() {
   const t = useT();
   const { locale } = useI18n();
+  const liveMode = !useMock();
   const metrics = useAsync(() => fetchDashboardMetrics(), []);
   const items = useAsync(() => fetchWorkItems(), []);
-  useWorkItemsSync(metrics.reload, items.reload);
+  const workload = useAsync(() => fetchWorkloadReport(), []);
+  useWorkItemsSync(metrics.reload, items.reload, workload.reload);
 
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -357,7 +364,9 @@ export function ReportsPage() {
           <p className="page-subtitle">{t('reports.subtitle')}</p>
         </div>
         <div className="page-head__meta">
-          <span className="chip">{t('reports.liveChip')}</span>
+          <span className="chip">
+            {liveMode ? t('reports.liveChip') : t('reports.derivedChip')}
+          </span>
           <Button
             variant="secondary"
             size="sm"

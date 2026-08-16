@@ -45,14 +45,47 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public List<WorkflowDefinitionView> listAll() {
+        return jdbc.query(
+                """
+                SELECT id, object_key, version, active, definition::text
+                FROM workflow_definition
+                ORDER BY object_key, version DESC
+                """,
+                (rs, i) -> new WorkflowDefinitionView(
+                        map(
+                                rs.getObject("id", UUID.class),
+                                rs.getString("object_key"),
+                                rs.getInt("version"),
+                                rs.getString("definition")
+                        ),
+                        rs.getBoolean("active")
+                )
+        );
+    }
+
     private WorkflowDefinition map(UUID id, String objectKey, int version, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);
-            String initialState = root.path("initialState").asText(null);
+            // Seeds use either "initialState" (work-item) or "initial" (catalog-request).
+            String initialState = textOrNull(root, "initialState");
+            if (initialState == null) {
+                initialState = textOrNull(root, "initial");
+            }
             Set<String> states = new HashSet<>();
             JsonNode statesNode = root.get("states");
             if (statesNode != null && statesNode.isArray()) {
                 statesNode.forEach(n -> states.add(n.asText()));
+            }
+            if (initialState == null && !states.isEmpty()) {
+                initialState = states.iterator().next();
+            }
+            if (initialState == null) {
+                initialState = "NEW";
+            }
+            if (!states.contains(initialState)) {
+                states.add(initialState);
             }
 
             List<Transition> transitions = new ArrayList<>();
@@ -72,6 +105,15 @@ class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
         } catch (Exception ex) {
             throw new IllegalStateException("Cannot parse workflow_definition for key=" + objectKey, ex);
         }
+    }
+
+    private static String textOrNull(JsonNode root, String field) {
+        JsonNode n = root.get(field);
+        if (n == null || n.isNull()) {
+            return null;
+        }
+        String v = n.asText(null);
+        return v == null || v.isBlank() ? null : v;
     }
 
     private Set<String> readStringSet(JsonNode node) {

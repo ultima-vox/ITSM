@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.context.annotation.Conditional;
@@ -17,11 +18,13 @@ class OpenSearchHealthIndicator implements HealthIndicator {
   private final ItsmOpenSearchProperties props;
   private final OpenSearchHttpClient http;
 
+  @Autowired
   OpenSearchHealthIndicator(ItsmOpenSearchProperties props) {
     this(props, OpenSearchHttpClient.jdk(
         props.getConnectTimeout() == null ? Duration.ofSeconds(2) : props.getConnectTimeout()));
   }
 
+  /** Package-private for unit tests. */
   OpenSearchHealthIndicator(ItsmOpenSearchProperties props, OpenSearchHttpClient http) {
     this.props = props;
     this.http = http;

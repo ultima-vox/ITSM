@@ -46,7 +46,7 @@ public class RecordHelpfulnessVote {
             INSERT INTO knowledge_feedback (id, article_id, revision, subject_id, helpful, comment, created_at)
             VALUES (?,?,?,?,?,?,?)
             """,
-        feedbackId, articleId, article.version(), actor, helpful, comment, now
+        feedbackId, articleId, article.version(), actor, helpful, comment, java.sql.Timestamp.from(now)
     );
 
     Map<String, Object> state = Map.of(

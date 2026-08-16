@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Clock, Save, Timer } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useToast } from '@/hooks/useToast';
 import {
+  fetchSlaPolicies,
   getWorkingCalendar,
-  listSlaPolicies,
   listWorkingCalendars,
   setSlaPolicyEnabled,
+  slaPoliciesWritable,
   subscribeSlaPolicies,
   updateSlaPolicyTargets,
-} from '@/mock/sla';
+  useMock,
+} from '@/api';
 import { reseedOpenWorkItemSlaFromPolicies } from '@/mock/store';
 import type { SlaPolicy, SlaTarget, WorkingCalendarMock } from '@/types';
 import { Badge, Button, EmptyState, ErrorState, Input } from '@/components/ui';
@@ -23,7 +25,9 @@ function dayLabel(day: string, t: (k: string) => string): string {
 export function SlaPage() {
   const t = useT();
   const { success } = useToast();
-  const [policies, setPolicies] = useState<SlaPolicy[]>(() => listSlaPolicies());
+  const writable = slaPoliciesWritable();
+  const liveMode = !useMock();
+  const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [draftTargets, setDraftTargets] = useState<SlaTarget[]>([]);
@@ -31,22 +35,22 @@ export function SlaPage() {
 
   const calendars = useMemo(() => listWorkingCalendars(), []);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     try {
-      setPolicies(listSlaPolicies());
+      const list = await fetchSlaPolicies();
+      setPolicies(list);
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
-    return subscribeSlaPolicies(() => {
-      try {
-        setPolicies(listSlaPolicies());
-        setLoadError(false);
-      } catch {
-        setLoadError(true);
-      }
-    });
   }, []);
+
+  useEffect(() => {
+    void reload();
+    return subscribeSlaPolicies(() => {
+      void reload();
+    });
+  }, [reload]);
 
   const selected: SlaPolicy | null = useMemo(() => {
     if (!policies.length) return null;
@@ -92,26 +96,36 @@ export function SlaPage() {
     setDirty(true);
   };
 
-  const handleSave = () => {
-    if (!selected) return;
-    const updated = updateSlaPolicyTargets(selected.id, draftTargets);
-    if (updated) {
-      setDirty(false);
-      reseedOpenWorkItemSlaFromPolicies();
-      success(t('slaAdmin.savedReseedToast'));
+  const handleSave = async () => {
+    if (!selected || !writable) return;
+    try {
+      const updated = await updateSlaPolicyTargets(selected.id, draftTargets);
+      if (updated) {
+        setDirty(false);
+        reseedOpenWorkItemSlaFromPolicies();
+        success(t('slaAdmin.savedReseedToast'));
+        await reload();
+      }
+    } catch {
+      setLoadError(true);
     }
   };
 
-  const handleToggleEnabled = () => {
-    if (!selected) return;
-    const updated = setSlaPolicyEnabled(selected.id, !selected.enabled);
-    if (updated) {
-      reseedOpenWorkItemSlaFromPolicies();
-      success(
-        updated.enabled
-          ? t('slaAdmin.enabledToast')
-          : t('slaAdmin.disabledToast'),
-      );
+  const handleToggleEnabled = async () => {
+    if (!selected || !writable) return;
+    try {
+      const updated = await setSlaPolicyEnabled(selected.id, !selected.enabled);
+      if (updated) {
+        reseedOpenWorkItemSlaFromPolicies();
+        success(
+          updated.enabled
+            ? t('slaAdmin.enabledToast')
+            : t('slaAdmin.disabledToast'),
+        );
+        await reload();
+      }
+    } catch {
+      setLoadError(true);
     }
   };
 
@@ -124,16 +138,7 @@ export function SlaPage() {
             <p className="page-subtitle">{t('slaAdmin.subtitle')}</p>
           </div>
         </div>
-        <ErrorState
-          onRetry={() => {
-            try {
-              setPolicies(listSlaPolicies());
-              setLoadError(false);
-            } catch {
-              setLoadError(true);
-            }
-          }}
-        />
+        <ErrorState onRetry={() => void reload()} />
       </section>
     );
   }
@@ -150,7 +155,9 @@ export function SlaPage() {
             <Timer size={14} aria-hidden />
             {t('slaAdmin.policyCount', { n: policies.length })}
           </span>
-          <span className="chip chip--muted">{t('slaAdmin.mockHint')}</span>
+          <span className={`chip${liveMode ? '' : ' chip--muted'}`}>
+            {liveMode ? t('settings.apiModeLive') : t('slaAdmin.mockHint')}
+          </span>
         </div>
       </div>
 
@@ -225,22 +232,25 @@ export function SlaPage() {
                     type="button"
                     className={`chip chip--toggle${selected.enabled ? ' is-on' : ''}`}
                     aria-pressed={selected.enabled}
-                    onClick={handleToggleEnabled}
+                    onClick={() => void handleToggleEnabled()}
                     title={t('slaAdmin.toggleEnabled')}
+                    disabled={!writable}
                   >
                     {selected.enabled
                       ? t('slaAdmin.statusEnabled')
                       : t('slaAdmin.statusDisabled')}
                   </button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={<Save size={14} />}
-                    onClick={handleSave}
-                    disabled={!dirty}
-                  >
-                    {t('slaAdmin.save')}
-                  </Button>
+                  {writable && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<Save size={14} />}
+                      onClick={() => void handleSave()}
+                      disabled={!dirty}
+                    >
+                      {t('slaAdmin.save')}
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -329,6 +339,7 @@ export function SlaPage() {
                               min={0.01}
                               step={0.01}
                               value={String(row.targetHours)}
+                              disabled={!writable}
                               onChange={(e) =>
                                 handleTargetChange(i, 'targetHours', e.target.value)
                               }
@@ -343,6 +354,7 @@ export function SlaPage() {
                               min={0}
                               step={0.01}
                               value={String(row.warningBeforeHours)}
+                              disabled={!writable}
                               onChange={(e) =>
                                 handleTargetChange(
                                   i,

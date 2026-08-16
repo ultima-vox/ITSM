@@ -45,14 +45,15 @@ public class LinkAssetToCi {
 
     jdbc.update(
         "UPDATE asset SET configuration_item_id = ?, updated_at = ? WHERE id = ?",
-        linked.configurationItemId(), now, linked.id()
+        linked.configurationItemId(), java.sql.Timestamp.from(now), linked.id()
     );
     jdbc.update(
         """
             INSERT INTO asset_lifecycle_history (asset_id, occurred_at, actor_id, from_status, to_status, owner_subject, details)
             VALUES (?,?,?,?,?,?,?::jsonb)
             """,
-        linked.id(), now, actor, current.status().name(), linked.status().name(), linked.ownerSubject(),
+        linked.id(), java.sql.Timestamp.from(now), actor, current.status().name(), linked.status().name(),
+        linked.ownerSubject(),
         "{\"action\":\"link-ci\",\"configurationItemId\":\"" + configurationItemId + "\"}"
     );
 

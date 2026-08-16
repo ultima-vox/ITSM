@@ -1,9 +1,11 @@
-import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
+import { delay, useMock, apiRequest, getApiActorId } from './client';
 import {
   mapAsset,
+  mapCiRelationship,
   mapConfigurationItem,
   type BackendAsset,
   type BackendCi,
+  type BackendCiRelationship,
 } from './mappers/cmdb';
 import { ciImpactScenario } from '@/mock/data';
 import {
@@ -47,13 +49,29 @@ export async function fetchCiRelations(): Promise<CiRelation[]> {
     await delay(120);
     return listCiRelations();
   }
-  // Backend may not expose relations yet — empty graph is honest
   try {
-    const list = await apiRequest<CiRelation[]>('/cmdb/relations');
-    return list ?? [];
+    const list = await apiRequest<BackendCiRelationship[]>('/cmdb/relations');
+    return (list ?? []).map(mapCiRelationship);
   } catch {
     return [];
   }
+}
+
+/** CIs with zero relationships — live orphan detection. */
+export async function fetchOrphanCis(): Promise<ConfigurationItem[]> {
+  if (useMock()) {
+    await delay(80);
+    const cis = listConfigurationItems();
+    const rels = listCiRelations();
+    const linked = new Set<string>();
+    for (const r of rels) {
+      linked.add(r.fromId);
+      linked.add(r.toId);
+    }
+    return cis.filter((c) => !linked.has(c.id));
+  }
+  const list = await apiRequest<BackendCi[]>('/cmdb/orphans?limit=200');
+  return (list ?? []).map(mapConfigurationItem);
 }
 
 export async function createCiRelation(input: {
@@ -66,11 +84,18 @@ export async function createCiRelation(input: {
     return storeAddCiRelation(input);
   }
   try {
-    const relation = await apiRequest<CiRelation>('/cmdb/relations', {
+    const dto = await apiRequest<BackendCiRelationship>('/cmdb/relations', {
       method: 'POST',
-      body: input,
+      body: {
+        fromId: input.fromId,
+        toId: input.toId,
+        sourceCiId: input.fromId,
+        targetCiId: input.toId,
+        relationType: input.type,
+        type: input.type?.toUpperCase?.() ?? input.type,
+      },
     });
-    return { ok: true, relation };
+    return { ok: true, relation: mapCiRelationship(dto) };
   } catch {
     return { ok: false, errorKey: 'cmdb.relForm.error' };
   }
@@ -110,7 +135,10 @@ export async function updateCiRelation(
   }
 }
 
-export async function fetchCiImpact(): Promise<{
+export async function fetchCiImpact(options?: {
+  rootCiId?: string;
+  hops?: number;
+}): Promise<{
   changeKey: string;
   rootCiId: string;
   entries: CiImpactEntry[];
@@ -119,14 +147,41 @@ export async function fetchCiImpact(): Promise<{
     await delay(160);
     return {
       changeKey: ciImpactScenario.changeKey,
-      rootCiId: ciImpactScenario.rootCiId,
+      rootCiId: options?.rootCiId || ciImpactScenario.rootCiId,
       entries: ciImpactScenario.entries.map((e) => ({ ...e })),
     };
   }
-  try {
-    return await apiRequest('/cmdb/impact');
-  } catch {
+  const root = options?.rootCiId?.trim();
+  if (!root) {
     return { changeKey: 'cmdb.impact.changePg', rootCiId: '', entries: [] };
+  }
+  try {
+    const hops = options?.hops ?? 3;
+    const result = await apiRequest<{
+      rootCiId?: string;
+      rootName?: string;
+      hops?: number;
+      impacted?: Array<{
+        id: string;
+        name?: string | null;
+        hop: number;
+        viaRelationship?: string | null;
+      }>;
+    }>(`/cmdb/cis/${encodeURIComponent(root)}/impact?hops=${hops}`);
+    const entries: CiImpactEntry[] = (result.impacted ?? []).map((n) => ({
+      ciId: String(n.id),
+      hop: (n.hop <= 1 ? 1 : 2) as 1 | 2,
+      impact: n.hop <= 1 ? 'high' : 'medium',
+    }));
+    return {
+      changeKey: result.rootName
+        ? `Impact: ${result.rootName}`
+        : 'cmdb.impact.changePg',
+      rootCiId: String(result.rootCiId ?? root),
+      entries,
+    };
+  } catch {
+    return { changeKey: 'cmdb.impact.changePg', rootCiId: root, entries: [] };
   }
 }
 
@@ -142,7 +197,13 @@ export async function createConfigurationItem(input: {
   }
   const created = await apiRequest<BackendCi>('/cmdb/cis', {
     method: 'POST',
-    body: input,
+    body: {
+      name: input.name,
+      classKey: input.kindKey,
+      kindKey: input.kindKey,
+      status: (input.status ?? 'operational').toUpperCase(),
+      owner: input.owner,
+    },
   });
   return mapConfigurationItem(created);
 }
@@ -164,11 +225,28 @@ export async function createAsset(payload: CreateAssetPayload): Promise<Asset> {
     await delay(180);
     return storeAddAsset(payload);
   }
+  const kind = mapFrontendAssetKind(payload.typeKey);
   const created = await apiRequest<BackendAsset>('/assets', {
     method: 'POST',
-    body: payload,
+    body: {
+      assetTag: payload.tag ?? payload.name,
+      tag: payload.tag ?? payload.name,
+      kind,
+      status: 'IN_STOCK',
+      ownerSubject: payload.assignedTo ?? null,
+      acquiredOn: payload.purchasedAt ?? null,
+    },
   });
   return mapAsset(created);
+}
+
+function mapFrontendAssetKind(typeKey?: string): string {
+  const k = (typeKey ?? '').toLowerCase();
+  if (k.includes('laptop')) return 'LAPTOP';
+  if (k.includes('monitor')) return 'MONITOR';
+  if (k.includes('phone') || k.includes('mobile')) return 'MOBILE_DEVICE';
+  if (k.includes('server')) return 'SERVER';
+  return 'OTHER';
 }
 
 export async function transitionAssetStatus(
@@ -198,8 +276,21 @@ export async function bulkAssignAssets(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignAssets(ids);
   }
-  // No live bulk-assign endpoint — refuse (S23). Never fake ids.length.
-  refuseLiveFeature('module.errors.bulkLiveUnsupported');
+  const actor = getApiActorId();
+  const settled = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await apiRequest(`/assets/${id}/assign`, {
+          method: 'POST',
+          body: { ownerSubject: actor },
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return settled.filter(Boolean).length;
 }
 
 export async function bulkSetAssetStatus(
@@ -210,6 +301,34 @@ export async function bulkSetAssetStatus(
     await delay(80);
     return storeBulkSetAssetStatus(ids, status);
   }
-  // No live asset status write — refuse (S23). Never fake ids.length.
-  refuseLiveFeature('module.errors.bulkLiveUnsupported');
+  const backendStatus = mapAssetStatusToBackend(status);
+  const settled = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await apiRequest(`/assets/${id}/transition`, {
+          method: 'POST',
+          body: { status: backendStatus },
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return settled.filter(Boolean).length;
+}
+
+function mapAssetStatusToBackend(status: AssetStatus): string {
+  switch (status) {
+    case 'in_use':
+      return 'IN_USE';
+    case 'stock':
+      return 'IN_STOCK';
+    case 'repair':
+      return 'REPAIRED';
+    case 'retired':
+      return 'RETIRED';
+    default:
+      return 'IN_STOCK';
+  }
 }

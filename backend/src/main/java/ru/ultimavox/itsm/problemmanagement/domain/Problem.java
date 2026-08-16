@@ -4,7 +4,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Problem aggregate keeps root cause and workaround separate from individual incidents.
+ * Problem aggregate keeps root cause, workaround, and resolution separate from incidents.
  */
 public record Problem(
     UUID id,
@@ -13,26 +13,52 @@ public record Problem(
     Status status,
     String rootCause,
     String workaround,
+    String resolution,
     Set<UUID> linkedWorkItems
 ) {
   public Problem {
     linkedWorkItems = linkedWorkItems == null ? Set.of() : Set.copyOf(linkedWorkItems);
   }
 
+  /** Backward-compatible constructor without resolution. */
+  public Problem(
+      UUID id,
+      String number,
+      String title,
+      Status status,
+      String rootCause,
+      String workaround,
+      Set<UUID> linkedWorkItems
+  ) {
+    this(id, number, title, status, rootCause, workaround, null, linkedWorkItems);
+  }
+
   public Problem transition(Status target) {
     if (!allowed(status, target)) {
       throw new IllegalStateException("Transition %s -> %s is not allowed".formatted(status, target));
     }
-    if (target == Status.ROOT_CAUSE_IDENTIFIED && (rootCause == null || rootCause.isBlank())) {
+    if (target == Status.ROOT_CAUSE_IDENTIFIED && isBlank(rootCause)) {
       throw new IllegalStateException("Root cause is required before ROOT_CAUSE_IDENTIFIED");
     }
-    if (target == Status.KNOWN_ERROR && (workaround == null || workaround.isBlank())) {
+    if (target == Status.KNOWN_ERROR && isBlank(workaround)) {
       throw new IllegalStateException("Workaround is required before KNOWN_ERROR");
     }
-    return new Problem(id, number, title, target, rootCause, workaround, linkedWorkItems);
+    if (target == Status.RESOLVED) {
+      if (isBlank(rootCause)) {
+        throw new IllegalStateException("Root cause is required before RESOLVED");
+      }
+      if (isBlank(resolution)) {
+        throw new IllegalStateException("Resolution is required before RESOLVED");
+      }
+    }
+    return new Problem(id, number, title, target, rootCause, workaround, resolution, linkedWorkItems);
   }
 
   public Problem withInvestigationNotes(String rootCause, String workaround) {
+    return withInvestigationNotes(rootCause, workaround, null);
+  }
+
+  public Problem withInvestigationNotes(String rootCause, String workaround, String resolution) {
     return new Problem(
         id,
         number,
@@ -40,6 +66,7 @@ public record Problem(
         status,
         rootCause != null ? rootCause : this.rootCause,
         workaround != null ? workaround : this.workaround,
+        resolution != null ? resolution : this.resolution,
         linkedWorkItems
     );
   }
@@ -50,7 +77,11 @@ public record Problem(
     }
     var next = new java.util.HashSet<>(linkedWorkItems);
     next.add(workItemId);
-    return new Problem(id, number, title, status, rootCause, workaround, next);
+    return new Problem(id, number, title, status, rootCause, workaround, resolution, next);
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   private static boolean allowed(Status from, Status to) {

@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Service;
 
@@ -38,10 +39,12 @@ public class OpenSearchSearchIndexService implements SearchIndexService {
   private final ObjectMapper json;
   private final OpenSearchHttpClient http;
 
+  @Autowired
   public OpenSearchSearchIndexService(ItsmOpenSearchProperties props, ObjectMapper json) {
     this(props, json, OpenSearchHttpClient.jdk(props.getConnectTimeout()));
   }
 
+  /** Package-private for unit tests. */
   OpenSearchSearchIndexService(
       ItsmOpenSearchProperties props,
       ObjectMapper json,

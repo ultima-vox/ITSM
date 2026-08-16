@@ -80,7 +80,7 @@ class WorkItemAttachmentServiceTest {
   private static WorkItem sample(UUID id, Instant now) {
     return new WorkItem(
         id, "INC-1", Type.INCIDENT, "t", "d", "s", State.NEW, Priority.MEDIUM,
-        Impact.MEDIUM, Urgency.MEDIUM, null, "req", null, null, null, now, now, null
+        Impact.MEDIUM, Urgency.MEDIUM, null, "req", null, null, null, false, now, now, null
     );
   }
 }

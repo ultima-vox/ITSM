@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ import ru.ultimavox.itsm.servicedesk.api.WorkItemResponses.WorkItemResponse;
 import ru.ultimavox.itsm.servicedesk.application.AddWorkItemComment;
 import ru.ultimavox.itsm.servicedesk.application.AssignWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.CreateWorkItem;
+import ru.ultimavox.itsm.servicedesk.application.EscalateWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.GetWorkItem;
 import ru.ultimavox.itsm.servicedesk.application.ListWorkItemComments;
 import ru.ultimavox.itsm.servicedesk.application.TransitionWorkItem;
@@ -40,6 +42,10 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemActivityQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemAttachmentService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemStatsQuery;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.State;
@@ -56,12 +62,16 @@ class WorkItemController {
   private final GetWorkItem getWorkItem;
   private final UpdateWorkItem updateWorkItem;
   private final AssignWorkItem assignWorkItem;
+  private final EscalateWorkItem escalateWorkItem;
   private final TransitionWorkItem transitionWorkItem;
   private final AddWorkItemComment addWorkItemComment;
   private final ListWorkItemComments listWorkItemComments;
   private final WorkItemActivityQuery activityQuery;
   private final WorkItemStatsQuery statsQuery;
   private final WorkItemAttachmentService workItemAttachments;
+  private final WorkItemWatcherService watchers;
+  private final WorkItemLinkService links;
+  private final WorkItemCiLinkService ciLinks;
   private final AccessControl access;
 
   WorkItemController(
@@ -70,12 +80,16 @@ class WorkItemController {
       GetWorkItem getWorkItem,
       UpdateWorkItem updateWorkItem,
       AssignWorkItem assignWorkItem,
+      EscalateWorkItem escalateWorkItem,
       TransitionWorkItem transitionWorkItem,
       AddWorkItemComment addWorkItemComment,
       ListWorkItemComments listWorkItemComments,
       WorkItemActivityQuery activityQuery,
       WorkItemStatsQuery statsQuery,
       WorkItemAttachmentService workItemAttachments,
+      WorkItemWatcherService watchers,
+      WorkItemLinkService links,
+      WorkItemCiLinkService ciLinks,
       AccessControl access
   ) {
     this.createWorkItem = createWorkItem;
@@ -83,12 +97,16 @@ class WorkItemController {
     this.getWorkItem = getWorkItem;
     this.updateWorkItem = updateWorkItem;
     this.assignWorkItem = assignWorkItem;
+    this.escalateWorkItem = escalateWorkItem;
     this.transitionWorkItem = transitionWorkItem;
     this.addWorkItemComment = addWorkItemComment;
     this.listWorkItemComments = listWorkItemComments;
     this.activityQuery = activityQuery;
     this.statsQuery = statsQuery;
     this.workItemAttachments = workItemAttachments;
+    this.watchers = watchers;
+    this.links = links;
+    this.ciLinks = ciLinks;
     this.access = access;
   }
 
@@ -186,6 +204,18 @@ class WorkItemController {
     ));
   }
 
+  @PostMapping("/{id}/escalate")
+  @Operation(summary = "Escalate work item (HIGH/HIGH priority, start work if NEW)")
+  WorkItemResponse escalate(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.transition", "work-item", id.toString());
+    try {
+      return WorkItemResponse.from(escalateWorkItem.escalate(id, actor));
+    } catch (IllegalStateException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
   @PostMapping("/{id}/transitions")
   @Operation(summary = "Transition work item state")
   WorkItemResponse transition(
@@ -275,6 +305,103 @@ class WorkItemController {
     workItemAttachments.unlink(id, attachmentId, actor);
   }
 
+  @GetMapping("/{id}/watchers")
+  @Operation(summary = "List subjects watching a work item")
+  List<String> listWatchers(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return watchers.list(id);
+  }
+
+  @PostMapping("/{id}/watchers/me")
+  @Operation(summary = "Watch a work item as the authenticated actor")
+  List<String> watch(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    return watchers.watch(id, actor);
+  }
+
+  @DeleteMapping("/{id}/watchers/me")
+  @Operation(summary = "Stop watching a work item")
+  List<String> unwatch(@PathVariable UUID id, Authentication authentication) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    return watchers.unwatch(id, actor);
+  }
+
+  @GetMapping("/{id}/links")
+  @Operation(summary = "List related work item links")
+  List<LinkResponse> listLinks(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return links.listFor(id).stream().map(LinkResponse::from).toList();
+  }
+
+  @PostMapping("/{id}/links")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Create a related / duplicate / caused-by link")
+  LinkResponse createLink(
+      @PathVariable UUID id,
+      @Valid @RequestBody CreateLinkRequest request,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    try {
+      return LinkResponse.from(links.link(id, request.targetId(), request.linkType(), actor));
+    } catch (IllegalArgumentException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    } catch (IllegalStateException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping("/{id}/links/{linkId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Remove a work item link")
+  void deleteLink(
+      @PathVariable UUID id,
+      @PathVariable UUID linkId,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    links.unlink(id, linkId, actor);
+  }
+
+  @GetMapping("/{id}/configuration-items")
+  @Operation(summary = "List configuration items linked to a work item")
+  List<UUID> listConfigurationItems(@PathVariable UUID id, Authentication authentication) {
+    access.require(authentication.getName(), "work-item.read", "work-item", id.toString());
+    return ciLinks.listCiIds(id);
+  }
+
+  @PostMapping("/{id}/configuration-items")
+  @Operation(summary = "Link a configuration item to a work item")
+  List<UUID> linkConfigurationItem(
+      @PathVariable UUID id,
+      @Valid @RequestBody LinkCiRequest request,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    try {
+      return ciLinks.link(id, request.configurationItemId(), actor);
+    } catch (IllegalArgumentException ex) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
+  @DeleteMapping("/{id}/configuration-items/{ciId}")
+  @Operation(summary = "Unlink a configuration item from a work item")
+  List<UUID> unlinkConfigurationItem(
+      @PathVariable UUID id,
+      @PathVariable UUID ciId,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.update", "work-item", id.toString());
+    return ciLinks.unlink(id, ciId, actor);
+  }
+
   record CreateRequest(
       @NotNull Type type,
       @NotBlank @Size(max = 240) String title,
@@ -310,4 +437,31 @@ class WorkItemController {
   record CommentRequest(
       @NotBlank @Size(max = 12000) String body
   ) {}
+
+  record CreateLinkRequest(
+      @NotNull UUID targetId,
+      @NotNull WorkItemLink.Type linkType
+  ) {}
+
+  record LinkCiRequest(@NotNull UUID configurationItemId) {}
+
+  record LinkResponse(
+      UUID id,
+      UUID sourceId,
+      UUID targetId,
+      String linkType,
+      String createdBy,
+      Instant createdAt
+  ) {
+    static LinkResponse from(WorkItemLink link) {
+      return new LinkResponse(
+          link.id(),
+          link.sourceId(),
+          link.targetId(),
+          link.linkType().name(),
+          link.createdBy(),
+          link.createdAt()
+      );
+    }
+  }
 }

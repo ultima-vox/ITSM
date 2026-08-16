@@ -96,6 +96,7 @@ public class CreateWorkItem {
         command.teamId(),
         null,
         null,
+        false,
         now,
         now,
         null
@@ -198,6 +199,7 @@ public class CreateWorkItem {
     map.put("teamId", item.teamId());
     map.put("resolutionCode", item.resolutionCode());
     map.put("resolutionNotes", item.resolutionNotes());
+    map.put("escalated", item.escalated());
     map.put("closedAt", item.closedAt() == null ? null : item.closedAt().toString());
     map.put("updatedAt", item.updatedAt().toString());
     return map;

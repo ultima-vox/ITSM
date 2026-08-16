@@ -1,8 +1,17 @@
 spring:
-  application: { name: vox-itsm }
-  datasource: { url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/itsm}, username: ${DATABASE_USER:itsm}, password: ${DATABASE_PASSWORD:itsm} }
-  security: { oauth2: { resourceserver: { jwt: { issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/itsm} } } } }
-  flyway: { enabled: true }
+  application:
+    name: vox-itsm
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/itsm}
+    username: ${DATABASE_USER:itsm}
+    password: ${DATABASE_PASSWORD:itsm}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/itsm}
+  flyway:
+    enabled: true
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -16,11 +25,19 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 management:
-  endpoints: { web: { exposure: { include: health,info,metrics } } }
-  endpoint: { health: { probes: { enabled: true }, show-details: when_authorized } }
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
   health:
     # Custom redisCache / opensearch indicators register only when integrations are on.
-    defaults: { enabled: true }
+    defaults:
+      enabled: true
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -49,6 +66,17 @@ itsm:
     index: ${OPENSEARCH_INDEX:itsm}
     connect-timeout: ${OPENSEARCH_CONNECT_TIMEOUT:PT2S}
     read-timeout: ${OPENSEARCH_READ_TIMEOUT:PT5S}
+  notifications:
+    # Purge rows older than N days (0 = retention job no-op)
+    retention-days: ${ITSM_NOTIFICATION_RETENTION_DAYS:90}
+    retention-cron: ${ITSM_NOTIFICATION_RETENTION_CRON:0 30 3 * * *}
+    webhook:
+      # Set ITSM_NOTIFICATION_WEBHOOK_URL to enable EMAIL/WEBHOOK HTTP fan-out.
+      # Do not set an empty url key — bean is conditional on property presence.
+      timeout: ${ITSM_NOTIFICATION_WEBHOOK_TIMEOUT:PT3S}
+  security:
+    # Must stay false outside profile dev; ProductionSafetyGuard enforces
+    permit-unauthenticated: ${ITSM_PERMIT_UNAUTHENTICATED:false}
   storage:
     # local = metadata-only NoOp for dev; s3 = MinIO/AWS S3-compatible
     type: ${ITSM_STORAGE_TYPE:local}

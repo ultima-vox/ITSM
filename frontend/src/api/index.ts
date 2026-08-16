@@ -13,3 +13,8 @@ export * from './platform';
 export * from './metadata';
 export * from './ai';
 export * from './notifications';
+export * from './reports';
+export * from './sla';
+export * from './automation';
+export * from './workflow';
+export * from './rbac';

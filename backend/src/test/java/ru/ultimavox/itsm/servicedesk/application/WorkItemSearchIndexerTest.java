@@ -34,7 +34,7 @@ class WorkItemSearchIndexerTest {
     WorkItem item = new WorkItem(
         id, "INC-001000", Type.INCIDENT, "VPN down", "Cannot connect",
         "Workplace", State.NEW, Priority.HIGH, Impact.HIGH, Urgency.HIGH,
-        null, "actor", null, null, null, now, now, null
+        null, "actor", null, null, null, false, now, now, null
     );
 
     indexer.index(item);
@@ -57,7 +57,7 @@ class WorkItemSearchIndexerTest {
     Instant now = Instant.now();
     WorkItem item = new WorkItem(
         id, "INC-1", Type.INCIDENT, "t", "d", "s", State.NEW, Priority.LOW,
-        Impact.LOW, Urgency.LOW, null, "a", null, null, null, now, now, null
+        Impact.LOW, Urgency.LOW, null, "a", null, null, null, false, now, now, null
     );
     indexer.index(item); // must not throw
   }

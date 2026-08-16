@@ -34,8 +34,8 @@ class WorkItemStore {
         INSERT INTO work_item (
           id, number, type, title, description, service, state, priority,
           impact, urgency, assignee_id, requester_id, team_id,
-          resolution_code, resolution_notes, created_at, updated_at, closed_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         item.id(),
         item.number(),
@@ -52,6 +52,7 @@ class WorkItemStore {
         item.teamId(),
         item.resolutionCode(),
         item.resolutionNotes(),
+        item.escalated(),
         Timestamp.from(item.createdAt()),
         Timestamp.from(item.updatedAt()),
         item.closedAt() == null ? null : Timestamp.from(item.closedAt())
@@ -64,7 +65,8 @@ class WorkItemStore {
         UPDATE work_item SET
           title = ?, description = ?, service = ?, state = ?, priority = ?,
           impact = ?, urgency = ?, assignee_id = ?, team_id = ?,
-          resolution_code = ?, resolution_notes = ?, updated_at = ?, closed_at = ?
+          resolution_code = ?, resolution_notes = ?, escalated = ?,
+          updated_at = ?, closed_at = ?
         WHERE id = ?
         """,
         item.title(),
@@ -78,6 +80,7 @@ class WorkItemStore {
         item.teamId(),
         item.resolutionCode(),
         item.resolutionNotes(),
+        item.escalated(),
         Timestamp.from(item.updatedAt()),
         item.closedAt() == null ? null : Timestamp.from(item.closedAt()),
         item.id()
@@ -92,7 +95,7 @@ class WorkItemStore {
         """
         SELECT id, number, type, title, description, service, state, priority,
                impact, urgency, assignee_id, requester_id, team_id,
-               resolution_code, resolution_notes, created_at, updated_at, closed_at
+               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
         FROM work_item WHERE id = ?
         """,
         (rs, rowNum) -> mapWorkItem(rs),
@@ -125,7 +128,7 @@ class WorkItemStore {
         """
         SELECT id, number, type, title, description, service, state, priority,
                impact, urgency, assignee_id, requester_id, team_id,
-               resolution_code, resolution_notes, created_at, updated_at, closed_at
+               resolution_code, resolution_notes, escalated, created_at, updated_at, closed_at
         FROM work_item
         """
             + built.sql()
@@ -166,6 +169,53 @@ class WorkItemStore {
         ),
         workItemId
     );
+  }
+
+  void addWatcher(UUID workItemId, String subjectId, Instant watchedAt) {
+    jdbc.update(
+        """
+        INSERT INTO work_item_watcher (work_item_id, subject_id, watched_at)
+        VALUES (?,?,?)
+        ON CONFLICT (work_item_id, subject_id) DO NOTHING
+        """,
+        workItemId,
+        subjectId,
+        Timestamp.from(watchedAt)
+    );
+  }
+
+  boolean removeWatcher(UUID workItemId, String subjectId) {
+    int n = jdbc.update(
+        "DELETE FROM work_item_watcher WHERE work_item_id = ? AND subject_id = ?",
+        workItemId,
+        subjectId
+    );
+    return n > 0;
+  }
+
+  List<String> listWatchers(UUID workItemId) {
+    return jdbc.query(
+        """
+        SELECT subject_id FROM work_item_watcher
+        WHERE work_item_id = ?
+        ORDER BY watched_at ASC
+        """,
+        (rs, i) -> rs.getString("subject_id"),
+        workItemId
+    );
+  }
+
+  boolean isWatching(UUID workItemId, String subjectId) {
+    Integer n = jdbc.queryForObject(
+        """
+        SELECT COUNT(*) FROM work_item_watcher
+        WHERE work_item_id = ? AND subject_id = ?
+        """,
+        Integer.class,
+        workItemId,
+        subjectId
+    );
+    return n != null && n > 0;
   }
 
   long countOpen() {
@@ -258,6 +308,7 @@ class WorkItemStore {
         rs.getString("team_id"),
         rs.getString("resolution_code"),
         rs.getString("resolution_notes"),
+        rs.getBoolean("escalated"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("updated_at").toInstant(),
         closedAt

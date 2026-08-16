@@ -68,6 +68,140 @@ export async function fetchWorkItems(params?: {
   return (page.items ?? []).map(mapWorkItem);
 }
 
+export type WorkItemLinkType =
+  | 'RELATED'
+  | 'DUPLICATE_OF'
+  | 'CAUSED_BY'
+  | 'CHILD_OF';
+
+export interface WorkItemLinkDto {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  linkType: WorkItemLinkType | string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+function otherLinkedId(link: WorkItemLinkDto, selfId: string): string {
+  return link.sourceId === selfId ? link.targetId : link.sourceId;
+}
+
+export async function fetchWorkItemLinks(
+  id: string,
+): Promise<WorkItemLinkDto[]> {
+  if (useMock()) {
+    await delay(40);
+    const wi = getWorkItem(id);
+    return (wi?.relatedIds ?? []).map((rid, i) => ({
+      id: `mock-link-${id}-${i}`,
+      sourceId: id,
+      targetId: rid,
+      linkType: 'RELATED',
+    }));
+  }
+  const list = await apiRequest<WorkItemLinkDto[]>(`/work-items/${id}/links`);
+  return list ?? [];
+}
+
+export async function createWorkItemLink(
+  id: string,
+  targetId: string,
+  linkType: WorkItemLinkType = 'RELATED',
+): Promise<WorkItemLinkDto> {
+  if (useMock()) {
+    await delay(80);
+    const wi = getWorkItem(id);
+    if (!wi) throw new Error('not found');
+    const related = [...(wi.relatedIds ?? [])];
+    if (!related.includes(targetId)) related.push(targetId);
+    storeUpdate(id, { relatedIds: related });
+    return {
+      id: `mock-link-${id}-${targetId}`,
+      sourceId: id,
+      targetId,
+      linkType,
+    };
+  }
+  return apiRequest<WorkItemLinkDto>(`/work-items/${id}/links`, {
+    method: 'POST',
+    body: { targetId, linkType },
+  });
+}
+
+export async function fetchWorkItemCiIds(id: string): Promise<string[]> {
+  if (useMock()) {
+    await delay(40);
+    return getWorkItem(id)?.ciIds ?? [];
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items`,
+  );
+  return (list ?? []).map(String);
+}
+
+export async function linkWorkItemCi(
+  id: string,
+  configurationItemId: string,
+): Promise<string[]> {
+  if (useMock()) {
+    await delay(80);
+    const wi = getWorkItem(id);
+    if (!wi) return [];
+    const next = [...new Set([...(wi.ciIds ?? []), configurationItemId])];
+    storeUpdate(id, { ciIds: next });
+    return next;
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items`,
+    {
+      method: 'POST',
+      body: { configurationItemId },
+    },
+  );
+  return (list ?? []).map(String);
+}
+
+export async function unlinkWorkItemCi(
+  id: string,
+  configurationItemId: string,
+): Promise<string[]> {
+  if (useMock()) {
+    await delay(60);
+    const wi = getWorkItem(id);
+    if (!wi) return [];
+    const next = (wi.ciIds ?? []).filter((c) => c !== configurationItemId);
+    storeUpdate(id, { ciIds: next });
+    return next;
+  }
+  const list = await apiRequest<string[]>(
+    `/work-items/${id}/configuration-items/${encodeURIComponent(configurationItemId)}`,
+    { method: 'DELETE' },
+  );
+  return (list ?? []).map(String);
+}
+
+export async function deleteWorkItemLink(
+  id: string,
+  linkId: string,
+): Promise<void> {
+  if (useMock()) {
+    await delay(60);
+    const wi = getWorkItem(id);
+    if (!wi) return;
+    // mock link ids are mock-link-{id}-{index|target}
+    const target = linkId.replace(`mock-link-${id}-`, '');
+    const related = (wi.relatedIds ?? []).filter(
+      (rid, i) => rid !== target && String(i) !== target,
+    );
+    storeUpdate(id, { relatedIds: related });
+    return;
+  }
+  await apiRequest<void>(`/work-items/${id}/links/${encodeURIComponent(linkId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   if (useMock()) {
     await delay();
@@ -75,7 +209,38 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   }
   try {
     const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
-    return mapWorkItem(dto);
+    let item = mapWorkItem(dto);
+    try {
+      const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers`);
+      item = {
+        ...item,
+        watchers: (subjects ?? []).map((sid) => ({
+          id: sid,
+          name: sid,
+          initials: sid.slice(0, 2).toUpperCase(),
+        })),
+      };
+    } catch {
+      /* watchers optional */
+    }
+    try {
+      const links = await fetchWorkItemLinks(id);
+      const relatedIds = [
+        ...new Set(links.map((l) => otherLinkedId(l, id)).filter(Boolean)),
+      ];
+      item = { ...item, relatedIds };
+    } catch {
+      /* links optional */
+    }
+    try {
+      const ciIds = await apiRequest<string[]>(
+        `/work-items/${id}/configuration-items`,
+      );
+      item = { ...item, ciIds: (ciIds ?? []).map(String) };
+    } catch {
+      /* CI links optional */
+    }
+    return item;
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
       return null;
@@ -288,23 +453,10 @@ export async function escalateWorkItem(id: string): Promise<WorkItem | null> {
     await delay(120);
     return storeEscalate(id);
   }
-  // No /escalate endpoint: raise impact/urgency (→ CRITICAL/HIGH) and start work if NEW
-  const current = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
-  let dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`, {
-    method: 'PATCH',
-    body: {
-      impact: 'HIGH',
-      urgency: 'HIGH',
-    },
+  const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}/escalate`, {
+    method: 'POST',
   });
-  if (current.state === 'NEW') {
-    dto = await apiRequest<BackendWorkItem>(`/work-items/${id}/transitions`, {
-      method: 'POST',
-      body: { targetState: 'IN_PROGRESS' },
-    });
-  }
-  const item = mapWorkItem(dto);
-  return { ...item, escalated: true, priority: item.priority === 'critical' ? 'critical' : 'high' };
+  return mapWorkItem(dto);
 }
 
 export async function resolveWorkItem(
@@ -416,8 +568,19 @@ export async function watchWorkItem(id: string): Promise<WorkItem | null> {
     await delay(80);
     return storeAddWatcher(id);
   }
-  // No watch endpoint on backend yet — return current item unchanged
-  return fetchWorkItem(id);
+  const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers/me`, {
+    method: 'POST',
+  });
+  const item = await fetchWorkItem(id);
+  if (!item) return null;
+  return {
+    ...item,
+    watchers: (subjects ?? []).map((sid) => ({
+      id: sid,
+      name: sid,
+      initials: sid.slice(0, 2).toUpperCase(),
+    })),
+  };
 }
 
 export async function unwatchWorkItem(id: string): Promise<WorkItem | null> {
@@ -425,7 +588,19 @@ export async function unwatchWorkItem(id: string): Promise<WorkItem | null> {
     await delay(80);
     return storeRemoveWatcher(id, currentUser.id);
   }
-  return fetchWorkItem(id);
+  const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers/me`, {
+    method: 'DELETE',
+  });
+  const item = await fetchWorkItem(id);
+  if (!item) return null;
+  return {
+    ...item,
+    watchers: (subjects ?? []).map((sid) => ({
+      id: sid,
+      name: sid,
+      initials: sid.slice(0, 2).toUpperCase(),
+    })),
+  };
 }
 
 /** Transition helper for live mode (targetState uses backend enum names). */

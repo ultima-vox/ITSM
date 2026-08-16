@@ -70,6 +70,15 @@ class WorkItemTest {
   }
 
   @Test
+  void escalate_raises_priority_and_flag() {
+    WorkItem escalated = sample(State.NEW).escalate(now);
+    assertThat(escalated.escalated()).isTrue();
+    assertThat(escalated.priority()).isEqualTo(Priority.CRITICAL);
+    assertThat(escalated.impact()).isEqualTo(Impact.HIGH);
+    assertThat(escalated.urgency()).isEqualTo(Urgency.HIGH);
+  }
+
+  @Test
   void resolve_requires_resolution_code() {
     WorkItem inProgress = sample(State.NEW).transition(State.IN_PROGRESS, null, null, now);
     assertThatThrownBy(() -> inProgress.transition(State.RESOLVED, null, "notes", now))
@@ -78,12 +87,34 @@ class WorkItemTest {
   }
 
   @Test
-  void closed_is_terminal() {
+  void reopen_from_resolved_and_closed() {
+    WorkItem resolved = sample(State.NEW)
+        .transition(State.IN_PROGRESS, null, null, now)
+        .transition(State.RESOLVED, "FIXED", "done", now);
+    WorkItem reopened = resolved.transition(State.IN_PROGRESS, null, null, now);
+    assertThat(reopened.state()).isEqualTo(State.IN_PROGRESS);
+    assertThat(reopened.closedAt()).isNull();
+
+    Instant closedAt = Instant.parse("2026-07-30T12:00:00Z");
+    WorkItem closed = reopened.transition(State.RESOLVED, "FIXED", "again", now)
+        .transition(State.CLOSED, "FIXED", "ok", closedAt);
+    assertThat(closed.closedAt()).isEqualTo(closedAt);
+    WorkItem reopenedClosed = closed.transition(State.IN_PROGRESS, null, null, now);
+    assertThat(reopenedClosed.state()).isEqualTo(State.IN_PROGRESS);
+    assertThat(reopenedClosed.closedAt()).isNull();
+  }
+
+  @Test
+  void cancelled_is_terminal_but_closed_can_reopen() {
     WorkItem closed = sample(State.NEW)
         .transition(State.IN_PROGRESS, null, null, now)
         .transition(State.RESOLVED, "FIXED", "done", now)
         .transition(State.CLOSED, "FIXED", "done", now);
-    assertThatThrownBy(() -> closed.transition(State.IN_PROGRESS, null, null, now))
+    assertThat(closed.transition(State.IN_PROGRESS, null, null, now).state())
+        .isEqualTo(State.IN_PROGRESS);
+
+    WorkItem cancelled = sample(State.NEW).transition(State.CANCELLED, "DUP", null, now);
+    assertThatThrownBy(() -> cancelled.transition(State.IN_PROGRESS, null, null, now))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -104,6 +135,7 @@ class WorkItemTest {
         null,
         null,
         null,
+        false,
         now,
         now,
         null

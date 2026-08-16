@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.problemmanagement.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +44,8 @@ public class ProblemCommands {
             INSERT INTO problem (id, number, title, status, root_cause, workaround, created_at, updated_at)
             VALUES (?,?,?,?,?,?,?,?)
             """,
-        id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(), now, now
+        id, number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
+        Timestamp.from(now), Timestamp.from(now)
     );
 
     Map<String, Object> state = Map.of(
@@ -60,28 +62,83 @@ public class ProblemCommands {
     return problem;
   }
 
+  /** Update RCA fields without changing lifecycle status. */
   @Transactional
-  public Problem transition(UUID id, Problem.Status target, String rootCause, String workaround, String actor) {
+  public Problem updateNotes(
+      UUID id,
+      String rootCause,
+      String workaround,
+      String resolution,
+      String actor
+  ) {
     Problem current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
-    Problem updated = current.withInvestigationNotes(rootCause, workaround).transition(target);
+    Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution);
+    Instant now = Instant.now();
+    UUID correlationId = UUID.randomUUID();
+    jdbc.update(
+        """
+            UPDATE problem
+            SET root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
+            WHERE id = ?
+            """,
+        updated.rootCause(),
+        updated.workaround(),
+        updated.resolution(),
+        Timestamp.from(now),
+        id
+    );
+    Map<String, Object> after = Map.of(
+        "rootCause", String.valueOf(updated.rootCause()),
+        "workaround", String.valueOf(updated.workaround()),
+        "resolution", String.valueOf(updated.resolution())
+    );
+    audit.append(new AuditTrail.Entry(
+        actor, "problem.notes-updated", "problem", id.toString(),
+        Map.of("status", current.status().name()), after, correlationId, now
+    ));
+    outbox.record(new DomainEvent(
+        UUID.randomUUID(), "problem.notes-updated", 1, now, correlationId,
+        "problem", id.toString(), after
+    ));
+    return updated;
+  }
+
+  @Transactional
+  public Problem transition(
+      UUID id,
+      Problem.Status target,
+      String rootCause,
+      String workaround,
+      String resolution,
+      String actor
+  ) {
+    Problem current = query.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
+    Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution).transition(target);
     Instant now = Instant.now();
     UUID correlationId = UUID.randomUUID();
 
     jdbc.update(
         """
             UPDATE problem
-            SET status = ?, root_cause = ?, workaround = ?, updated_at = ?
+            SET status = ?, root_cause = ?, workaround = ?, resolution = ?, updated_at = ?
             WHERE id = ?
             """,
-        updated.status().name(), updated.rootCause(), updated.workaround(), now, id
+        updated.status().name(),
+        updated.rootCause(),
+        updated.workaround(),
+        updated.resolution(),
+        Timestamp.from(now),
+        id
     );
 
     Map<String, Object> before = Map.of("status", current.status().name());
     Map<String, Object> after = Map.of(
         "status", updated.status().name(),
         "rootCause", String.valueOf(updated.rootCause()),
-        "workaround", String.valueOf(updated.workaround())
+        "workaround", String.valueOf(updated.workaround()),
+        "resolution", String.valueOf(updated.resolution())
     );
     audit.append(new AuditTrail.Entry(
         actor, "problem.transitioned", "problem", id.toString(), before, after, correlationId, now
@@ -116,7 +173,7 @@ public class ProblemCommands {
             VALUES (?,?,?,?)
             ON CONFLICT DO NOTHING
             """,
-        problemId, workItemId, now, actor
+        problemId, workItemId, Timestamp.from(now), actor
     );
 
     Map<String, Object> after = Map.of(

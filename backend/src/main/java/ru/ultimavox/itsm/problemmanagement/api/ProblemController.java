@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -68,6 +69,23 @@ class ProblemController {
     return ResponseEntity.created(URI.create("/api/v1/problems/" + created.id())).body(created);
   }
 
+  @PatchMapping("/{id}")
+  @Operation(summary = "Update problem investigation notes without status change")
+  Problem patchNotes(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @Valid @RequestBody PatchNotesRequest body
+  ) {
+    access.require(authentication.getName(), "problem.write", "problem", id.toString());
+    try {
+      return commands.updateNotes(
+          id, body.rootCause(), body.workaround(), body.resolution(), authentication.getName()
+      );
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+  }
+
   @PostMapping("/{id}/transitions")
   @Operation(summary = "Transition problem lifecycle status")
   Problem transition(
@@ -77,7 +95,14 @@ class ProblemController {
   ) {
     access.require(authentication.getName(), "problem.write", "problem", id.toString());
     try {
-      return commands.transition(id, body.target(), body.rootCause(), body.workaround(), authentication.getName());
+      return commands.transition(
+          id,
+          body.target(),
+          body.rootCause(),
+          body.workaround(),
+          body.resolution(),
+          authentication.getName()
+      );
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
     } catch (IllegalStateException ex) {
@@ -109,7 +134,14 @@ class ProblemController {
   record TransitionRequest(
       @NotNull Problem.Status target,
       @Size(max = 12000) String rootCause,
-      @Size(max = 12000) String workaround
+      @Size(max = 12000) String workaround,
+      @Size(max = 12000) String resolution
+  ) {}
+
+  record PatchNotesRequest(
+      @Size(max = 12000) String rootCause,
+      @Size(max = 12000) String workaround,
+      @Size(max = 12000) String resolution
   ) {}
 
   record LinkWorkItemRequest(@NotNull UUID workItemId) {}

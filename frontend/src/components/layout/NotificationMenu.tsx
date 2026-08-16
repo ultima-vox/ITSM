@@ -114,7 +114,9 @@ export function NotificationMenu() {
     if (liveMode && liveItems) {
       setLiveItems(liveItems.map((n) => ({ ...n, unread: false })));
     }
-    markAllNotificationsRead();
+    void markAllNotificationsRead().catch(() => {
+      /* keep optimistic UI; next fetch corrects */
+    });
   };
 
   const openItem = (n: AppNotification) => {
@@ -123,7 +125,9 @@ export function NotificationMenu() {
         liveItems.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
       );
     }
-    markNotificationRead(n.id);
+    void markNotificationRead(n.id).catch(() => {
+      /* keep optimistic UI; next fetch corrects */
+    });
     setOpen(false);
     navigate(n.href);
   };

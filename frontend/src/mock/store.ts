@@ -370,6 +370,8 @@ export type WorkItemPatch = Partial<
     | 'assignee'
     | 'resolutionNotes'
     | 'watchers'
+    | 'relatedIds'
+    | 'ciIds'
   >
 >;
 

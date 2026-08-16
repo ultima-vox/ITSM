@@ -46,6 +46,23 @@ class JdbcAutomationRuleRepository implements AutomationRuleRepository {
         );
     }
 
+    @Override
+    public List<AutomationRule> listAll() {
+        return jdbc.query(
+                """
+                SELECT id, rule_key, enabled, definition::text
+                FROM automation_rule
+                ORDER BY rule_key
+                """,
+                (rs, i) -> map(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("rule_key"),
+                        rs.getBoolean("enabled"),
+                        rs.getString("definition")
+                )
+        );
+    }
+
     private AutomationRule map(UUID id, String ruleKey, boolean enabled, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);

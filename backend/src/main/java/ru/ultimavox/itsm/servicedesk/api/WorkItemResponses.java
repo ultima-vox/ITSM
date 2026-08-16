@@ -31,6 +31,7 @@ final class WorkItemResponses {
       String teamId,
       String resolutionCode,
       String resolutionNotes,
+      boolean escalated,
       Instant createdAt,
       Instant updatedAt,
       Instant closedAt
@@ -52,6 +53,7 @@ final class WorkItemResponses {
           item.teamId(),
           item.resolutionCode(),
           item.resolutionNotes(),
+          item.escalated(),
           item.createdAt(),
           item.updatedAt(),
           item.closedAt()

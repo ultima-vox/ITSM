@@ -26,6 +26,7 @@ public record WorkItem(
     String teamId,
     String resolutionCode,
     String resolutionNotes,
+    boolean escalated,
     Instant createdAt,
     Instant updatedAt,
     Instant closedAt
@@ -81,7 +82,7 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, newTitle, newDescription, newService, state, newPriority,
         newImpact, newUrgency, assigneeId, requesterId, teamId,
-        resolutionCode, resolutionNotes, createdAt, now, closedAt
+        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt
     );
   }
 
@@ -89,7 +90,23 @@ public record WorkItem(
     return new WorkItem(
         id, number, type, title, description, service, state, priority,
         impact, urgency, newAssigneeId, requesterId, newTeamId,
-        resolutionCode, resolutionNotes, createdAt, now, closedAt
+        resolutionCode, resolutionNotes, escalated, createdAt, now, closedAt
+    );
+  }
+
+  /**
+   * Raise to CRITICAL priority (HIGH/HIGH) and mark escalated.
+   * Does not change state — callers may transition NEW → IN_PROGRESS.
+   */
+  public WorkItem escalate(Instant now) {
+    if (!isOpen()) {
+      throw new IllegalStateException("Cannot escalate a closed or cancelled work item");
+    }
+    Priority newPriority = derivePriority(Impact.HIGH, Urgency.HIGH);
+    return new WorkItem(
+        id, number, type, title, description, service, state, newPriority,
+        Impact.HIGH, Urgency.HIGH, assigneeId, requesterId, teamId,
+        resolutionCode, resolutionNotes, true, createdAt, now, closedAt
     );
   }
 
@@ -109,13 +126,21 @@ public record WorkItem(
         throw new IllegalArgumentException("resolutionCode is required when resolving or closing");
       }
     }
-    Instant newClosedAt = (target == State.CLOSED || target == State.CANCELLED) ? now : closedAt;
+    // Reopen from RESOLVED/CLOSED clears closedAt so SLA/reporting treat item as active again
+    Instant newClosedAt;
+    if (target == State.CLOSED || target == State.CANCELLED) {
+      newClosedAt = now;
+    } else if (target == State.IN_PROGRESS && (state == State.RESOLVED || state == State.CLOSED)) {
+      newClosedAt = null;
+    } else {
+      newClosedAt = closedAt;
+    }
     String code = newResolutionCode != null ? newResolutionCode : resolutionCode;
     String notes = newResolutionNotes != null ? newResolutionNotes : resolutionNotes;
     return new WorkItem(
         id, number, type, title, description, service, target, priority,
         impact, urgency, assigneeId, requesterId, teamId,
-        code, notes, createdAt, now, newClosedAt
+        code, notes, escalated, createdAt, now, newClosedAt
     );
   }
 
@@ -133,7 +158,8 @@ public record WorkItem(
       case IN_PROGRESS -> EnumSet.of(State.PENDING, State.RESOLVED, State.CANCELLED);
       case PENDING -> EnumSet.of(State.IN_PROGRESS, State.RESOLVED, State.CANCELLED);
       case RESOLVED -> EnumSet.of(State.CLOSED, State.IN_PROGRESS);
-      case CLOSED, CANCELLED -> EnumSet.noneOf(State.class);
+      case CLOSED -> EnumSet.of(State.IN_PROGRESS); // reopen
+      case CANCELLED -> EnumSet.noneOf(State.class);
     };
   }
 

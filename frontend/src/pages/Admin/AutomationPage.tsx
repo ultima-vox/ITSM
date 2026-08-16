@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bolt, Filter, Play, Zap } from 'lucide-react';
 import { useT } from '@/i18n';
 import {
-  listAutomationRules,
+  automationRulesWritable,
+  fetchAutomationRules,
   setAutomationRuleEnabled,
   subscribeAutomationRules,
-} from '@/mock/automation';
+  useMock,
+} from '@/api';
 import type { AutomationAction, AutomationRule } from '@/types';
 import { Badge, EmptyState, ErrorState, Toggle } from '@/components/ui';
 
@@ -17,26 +19,28 @@ function formatActionParams(action: AutomationAction): string {
 
 export function AutomationPage() {
   const t = useT();
-  const [rules, setRules] = useState<AutomationRule[]>(() => listAutomationRules());
+  const writable = automationRulesWritable();
+  const liveMode = !useMock();
+  const [rules, setRules] = useState<AutomationRule[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     try {
-      setRules(listAutomationRules());
+      const list = await fetchAutomationRules();
+      setRules(list);
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
-    return subscribeAutomationRules(() => {
-      try {
-        setRules(listAutomationRules());
-        setLoadError(false);
-      } catch {
-        setLoadError(true);
-      }
-    });
   }, []);
+
+  useEffect(() => {
+    void reload();
+    return subscribeAutomationRules(() => {
+      void reload();
+    });
+  }, [reload]);
 
   const selected: AutomationRule | null = useMemo(() => {
     if (!rules.length) return null;
@@ -47,7 +51,8 @@ export function AutomationPage() {
   const enabledCount = rules.filter((r) => r.enabled).length;
 
   const handleToggle = (rule: AutomationRule, next: boolean) => {
-    setAutomationRuleEnabled(rule.id, next);
+    if (!writable) return;
+    void setAutomationRuleEnabled(rule.id, next).then(() => reload());
   };
 
   if (loadError) {
@@ -59,16 +64,7 @@ export function AutomationPage() {
             <p className="page-subtitle">{t('automation.subtitle')}</p>
           </div>
         </div>
-        <ErrorState
-          onRetry={() => {
-            try {
-              setRules(listAutomationRules());
-              setLoadError(false);
-            } catch {
-              setLoadError(true);
-            }
-          }}
-        />
+        <ErrorState onRetry={() => void reload()} />
       </section>
     );
   }
@@ -88,7 +84,9 @@ export function AutomationPage() {
           <span className="chip chip--muted">
             {t('automation.enabledCount', { n: enabledCount })}
           </span>
-          <span className="chip chip--muted">{t('automation.mockHint')}</span>
+          <span className={`chip${liveMode ? '' : ' chip--muted'}`}>
+            {liveMode ? t('settings.apiModeLive') : t('automation.mockHint')}
+          </span>
         </div>
       </div>
 
@@ -166,6 +164,7 @@ export function AutomationPage() {
                     id={`auto-enable-${selected.id}`}
                     checked={selected.enabled}
                     onChange={(next) => handleToggle(selected, next)}
+                    disabled={!writable}
                     label={
                       selected.enabled
                         ? t('automation.disable')

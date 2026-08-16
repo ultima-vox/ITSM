@@ -1,6 +1,9 @@
 package ru.ultimavox.itsm.platform.storage;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -8,6 +11,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AttachmentService {
+
+  /** Bytes read for signature scan before streaming remainder to storage. */
+  static final int SCAN_PREFIX_BYTES = 256 * 1024;
 
   private final AttachmentStorage storage;
   private final AttachmentRepository repository;
@@ -33,25 +39,38 @@ public class AttachmentService {
     if (filename == null || filename.isBlank()) {
       throw new IllegalArgumentException("filename is required");
     }
+    if (sizeBytes < 0) {
+      throw new IllegalArgumentException("sizeBytes must be >= 0");
+    }
+
     UUID id = UUID.randomUUID();
     String storageKey = "attachments/" + id + "/" + sanitizeFilename(filename);
     String type = contentType == null || contentType.isBlank()
         ? "application/octet-stream"
         : contentType;
 
+    PrefixAndStream prepared = readPrefix(content, sizeBytes);
+    MalwareScanPort.ScanResult scan = malwareScan.scan(
+        new MalwareScanPort.ScanRequest(
+            filename,
+            type,
+            sizeBytes,
+            storageKey,
+            prepared.prefix()
+        )
+    );
+
+    // Store bytes even when infected so quarantine / forensics retain the object;
+    // download remains blocked via scan_status.
     storage.store(new AttachmentStorage.StoreRequest(
         storageKey,
         type,
         sizeBytes,
         filename,
-        content
+        prepared.forStore()
     ));
 
     Instant now = Instant.now();
-    MalwareScanPort.ScanResult scan = malwareScan.scan(
-        new MalwareScanPort.ScanRequest(filename, type, sizeBytes, storageKey)
-    );
-
     Attachment attachment = new Attachment(
         id,
         filename,
@@ -95,4 +114,36 @@ public class AttachmentService {
     }
     return name.length() > 200 ? name.substring(0, 200) : name;
   }
+
+  /**
+   * Reads up to {@link #SCAN_PREFIX_BYTES} for scanning and returns a stream that still
+   * yields the full original content for storage.
+   */
+  static PrefixAndStream readPrefix(InputStream content, long sizeBytes) {
+    if (content == null) {
+      return new PrefixAndStream(new byte[0], InputStream.nullInputStream());
+    }
+    try {
+      int toRead = SCAN_PREFIX_BYTES;
+      if (sizeBytes >= 0 && sizeBytes < toRead) {
+        toRead = (int) sizeBytes;
+      }
+      byte[] buf = content.readNBytes(toRead);
+      if (buf.length < SCAN_PREFIX_BYTES && sizeBytes > buf.length) {
+        // stream ended early — still fine
+      }
+      if (buf.length < SCAN_PREFIX_BYTES || (sizeBytes >= 0 && sizeBytes <= buf.length)) {
+        return new PrefixAndStream(buf, new ByteArrayInputStream(buf));
+      }
+      InputStream forStore = new SequenceInputStream(
+          new ByteArrayInputStream(buf),
+          content
+      );
+      return new PrefixAndStream(buf, forStore);
+    } catch (IOException ex) {
+      throw new IllegalStateException("Failed to read attachment content for scan", ex);
+    }
+  }
+
+  record PrefixAndStream(byte[] prefix, InputStream forStore) {}
 }

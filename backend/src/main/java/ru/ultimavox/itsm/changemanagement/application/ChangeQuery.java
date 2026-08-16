@@ -23,7 +23,7 @@ public class ChangeQuery {
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
             FROM change_request
-            WHERE (? IS NULL OR status = ?)
+            WHERE (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
             """,
         (rs, i) -> map(rs),
@@ -42,6 +42,35 @@ public class ChangeQuery {
         id
     );
     return rows.stream().findFirst();
+  }
+
+  /**
+   * Changes whose planned window overlaps {@code [start, end]} (half-open overlap rule).
+   * Excludes terminal REJECTED and the optional self id.
+   */
+  public List<Change> findScheduleConflicts(Instant start, Instant end, UUID excludeId) {
+    if (start == null || end == null || !end.isAfter(start)) {
+      return List.of();
+    }
+    return jdbc.query(
+        """
+            SELECT id, number, type, risk, status, title, planned_start, planned_end,
+                   implementation_plan, rollback_plan, business_justification, cab_notes, cab_risk_level
+            FROM change_request
+            WHERE status NOT IN ('REJECTED', 'CLOSED', 'DRAFT')
+              AND planned_start IS NOT NULL
+              AND planned_end IS NOT NULL
+              AND planned_start < ?
+              AND planned_end > ?
+              AND (?::uuid IS NULL OR id <> ?)
+            ORDER BY planned_start ASC
+            """,
+        (rs, i) -> map(rs),
+        java.sql.Timestamp.from(end),
+        java.sql.Timestamp.from(start),
+        excludeId,
+        excludeId
+    );
   }
 
   private static Change map(java.sql.ResultSet rs) throws java.sql.SQLException {

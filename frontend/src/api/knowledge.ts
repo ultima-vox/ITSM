@@ -1,4 +1,4 @@
-import { delay, useMock, apiRequest, refuseLiveFeature } from './client';
+import { delay, useMock, apiRequest } from './client';
 import {
   deriveKnowledgeTopics,
   mapKnowledgeArticle,
@@ -21,13 +21,36 @@ import type {
   UpdateKnowledgeArticlePayload,
 } from '@/types';
 
+interface BackendArticleDetail extends BackendArticleSummary {
+  body?: string | null;
+  authorSubject?: string | null;
+  revisionCreatedAt?: string | null;
+}
+
+function mapDetail(dto: BackendArticleDetail): KnowledgeArticle {
+  const base = mapKnowledgeArticle(dto);
+  return {
+    ...base,
+    body: dto.body ?? base.body,
+    summary: dto.summary ?? base.summary,
+  };
+}
+
 export async function fetchKnowledgeArticles(): Promise<KnowledgeArticle[]> {
   if (useMock()) {
     await delay(220);
     return listKnowledgeArticles();
   }
-  const list = await apiRequest<BackendArticleSummary[]>('/knowledge/articles');
-  return (list ?? []).map(mapKnowledgeArticle);
+  // CMS list includes drafts when caller has knowledge.write
+  try {
+    const list = await apiRequest<BackendArticleSummary[]>(
+      '/knowledge/articles?publishedOnly=false',
+    );
+    return (list ?? []).map(mapKnowledgeArticle);
+  } catch {
+    const list = await apiRequest<BackendArticleSummary[]>('/knowledge/articles');
+    return (list ?? []).map(mapKnowledgeArticle);
+  }
 }
 
 export async function fetchKnowledgeTopics(): Promise<KnowledgeTopic[]> {
@@ -35,9 +58,7 @@ export async function fetchKnowledgeTopics(): Promise<KnowledgeTopic[]> {
     await delay(180);
     return knowledgeTopics;
   }
-  // Backend has no topics resource — derive from articles
-  const list = await apiRequest<BackendArticleSummary[]>('/knowledge/articles');
-  const articles = (list ?? []).map(mapKnowledgeArticle);
+  const articles = await fetchKnowledgeArticles();
   return deriveKnowledgeTopics(articles);
 }
 
@@ -54,7 +75,6 @@ export async function submitKnowledgeVote(
       method: 'POST',
       body: { helpful: vote === 'yes' },
     });
-    // Backend returns vote receipt, not article — re-list is too heavy; no-op UI keeps prior score
     return null;
   } catch {
     return null;
@@ -73,8 +93,16 @@ export async function createKnowledgeArticle(
     await delay(180);
     return storeAddArticle(payload);
   }
-  // S25: no live write API — refuse split-brain ghost articles
-  refuseLiveFeature('knowledge.cmsLiveUnsupported');
+  const created = await apiRequest<BackendArticleDetail>('/knowledge/articles', {
+    method: 'POST',
+    body: {
+      title: payload.title,
+      body: payload.body,
+      summary: payload.title,
+      locale: 'ru',
+    },
+  });
+  return mapDetail(created);
 }
 
 export async function updateKnowledgeArticle(
@@ -85,7 +113,19 @@ export async function updateKnowledgeArticle(
     await delay(140);
     return storeUpdateArticle(id, payload);
   }
-  refuseLiveFeature('knowledge.cmsLiveUnsupported');
+  const updated = await apiRequest<BackendArticleDetail>(
+    `/knowledge/articles/${encodeURIComponent(id)}`,
+    {
+      method: 'PUT',
+      body: {
+        title: payload.title,
+        body: payload.body,
+        versionNote: payload.versionNote,
+        locale: 'ru',
+      },
+    },
+  );
+  return mapDetail(updated);
 }
 
 export async function publishKnowledgeArticle(
@@ -95,7 +135,11 @@ export async function publishKnowledgeArticle(
     await delay(140);
     return storePublishArticle(id);
   }
-  refuseLiveFeature('knowledge.cmsLiveUnsupported');
+  const published = await apiRequest<BackendArticleDetail>(
+    `/knowledge/articles/${encodeURIComponent(id)}/publish`,
+    { method: 'POST' },
+  );
+  return mapDetail(published);
 }
 
 export { subscribeKnowledge };

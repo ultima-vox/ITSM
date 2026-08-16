@@ -170,6 +170,7 @@ export function ProblemsPage() {
   const [validation, setValidation] = useState<string | null>(null);
   const [rootCauseDraft, setRootCauseDraft] = useState('');
   const [workaroundDraft, setWorkaroundDraft] = useState('');
+  const [resolutionDraft, setResolutionDraft] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Bumps when admin toggles active workflow version (session store). */
   const [workflowTick, setWorkflowTick] = useState(0);
@@ -271,6 +272,7 @@ export function ProblemsPage() {
     if (selected) {
       setRootCauseDraft(selected.rootCause ?? '');
       setWorkaroundDraft(selected.workaround ?? '');
+      setResolutionDraft(selected.resolution ?? '');
     }
   }, [selected?.id]);
 
@@ -330,6 +332,7 @@ export function ProblemsPage() {
     const result = await transitionProblemStatus(selected.id, next, {
       rootCause: rootCauseDraft,
       workaround: workaroundDraft,
+      resolution: resolutionDraft,
     });
     if (!result.ok) {
       setValidation(t(result.errorKey));
@@ -750,6 +753,13 @@ export function ProblemsPage() {
                   value={workaroundDraft}
                   onChange={(e) => setWorkaroundDraft(e.target.value)}
                   rows={2}
+                />
+                <Textarea
+                  label={t('problems.resolution')}
+                  value={resolutionDraft}
+                  onChange={(e) => setResolutionDraft(e.target.value)}
+                  rows={2}
+                  hint={t('problems.resolutionHint')}
                 />
                 <div className="module-rca__actions">
                   <Button size="sm" variant="secondary" onClick={() => void saveRca()}>

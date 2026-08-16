@@ -77,18 +77,13 @@ public class AssignWorkItem {
         after
     ));
     notifyAssigned(updated, actorId, correlationId);
+    notifyWatchers(updated, actorId, correlationId);
     return updated;
   }
 
   private void notifyAssigned(WorkItem item, String actorId, UUID correlationId) {
     try {
-      Map<String, Object> variables = new HashMap<>();
-      variables.put("workItemId", item.id().toString());
-      variables.put("number", item.number());
-      variables.put("title", item.title());
-      variables.put("assigneeId", item.assigneeId());
-      variables.put("teamId", item.teamId());
-      variables.put("actorId", actorId);
+      Map<String, Object> variables = baseAssignVars(item, actorId);
       notifications.send(new NotificationRequest(
           correlationId,
           "work-item.assigned",
@@ -100,6 +95,46 @@ public class AssignWorkItem {
     } catch (Exception ex) {
       log.warn("Notification failed for work-item assign {}: {}", item.id(), ex.toString());
     }
+  }
+
+  private void notifyWatchers(WorkItem item, String actorId, UUID correlationId) {
+    try {
+      java.util.List<String> watcherList = store.listWatchers(item.id());
+      if (watcherList == null || watcherList.isEmpty()) {
+        return;
+      }
+      for (String watcher : watcherList) {
+        if (watcher == null || watcher.isBlank()) {
+          continue;
+        }
+        if (watcher.equals(item.assigneeId()) || watcher.equals(actorId)) {
+          continue;
+        }
+        Map<String, Object> variables = baseAssignVars(item, actorId);
+        variables.put("watcherSubject", watcher);
+        notifications.send(new NotificationRequest(
+            correlationId,
+            "work-item.assigned.watcher",
+            watcher,
+            "ru",
+            variables,
+            NotificationRequest.Channel.IN_APP
+        ));
+      }
+    } catch (Exception ex) {
+      log.warn("Watcher notification failed for work-item assign {}: {}", item.id(), ex.toString());
+    }
+  }
+
+  private static Map<String, Object> baseAssignVars(WorkItem item, String actorId) {
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("workItemId", item.id().toString());
+    variables.put("number", item.number());
+    variables.put("title", item.title());
+    variables.put("assigneeId", item.assigneeId());
+    variables.put("teamId", item.teamId());
+    variables.put("actorId", actorId);
+    return variables;
   }
 
   public record Command(String assigneeId, String teamId) {}

@@ -245,6 +245,7 @@ export interface Problem {
   description?: string;
   rootCause?: string;
   workaround?: string;
+  resolution?: string;
   service?: string;
   relatedWorkItemIds?: string[];
   relatedCiIds?: string[];
@@ -316,6 +317,8 @@ export interface CreateAssetPayload {
   model?: string;
   vendor?: string;
   notes?: string;
+  /** ISO date (yyyy-MM-dd) when asset was acquired */
+  purchasedAt?: string;
 }
 
 export interface CreateProblemPayload {
@@ -326,6 +329,7 @@ export interface CreateProblemPayload {
   knownError?: boolean;
   rootCause?: string;
   workaround?: string;
+  resolution?: string;
 }
 
 export interface CreateChangePayload {

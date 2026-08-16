@@ -55,7 +55,8 @@ public class SubmitCatalogRequest {
             INSERT INTO catalog_request (id, number, catalog_item_id, requester_id, status, form_payload, created_at, updated_at)
             VALUES (?,?,?,?,?,?::jsonb,?,?)
             """,
-        id, number, item.id(), actor, "SUBMITTED", payloadJson, now, now
+        id, number, item.id(), actor, "SUBMITTED", payloadJson,
+        java.sql.Timestamp.from(now), java.sql.Timestamp.from(now)
     );
 
     Map<String, Object> state = Map.of(

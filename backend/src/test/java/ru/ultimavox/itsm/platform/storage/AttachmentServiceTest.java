@@ -34,7 +34,7 @@ class AttachmentServiceTest {
         return Optional.ofNullable(db.get(id));
       }
     };
-    service = new AttachmentService(storage, repo, new AllowlistMalwareScan());
+    service = new AttachmentService(storage, repo, new ContentSignatureMalwareScan());
   }
 
   @Test
@@ -55,7 +55,7 @@ class AttachmentServiceTest {
     assertThat(saved.storageKey()).startsWith("attachments/" + saved.id() + "/");
     assertThat(saved.uploadedBy()).isEqualTo("agent-1");
     assertThat(saved.scanStatus()).isEqualTo(ScanStatus.CLEAN);
-    assertThat(saved.scanEngine()).isEqualTo(AllowlistMalwareScan.ENGINE);
+    assertThat(saved.scanEngine()).isEqualTo(ContentSignatureMalwareScan.ENGINE);
     assertThat(service.findById(saved.id())).contains(saved);
     assertThat(storage.find(saved.storageKey())).isPresent();
   }
@@ -73,6 +73,21 @@ class AttachmentServiceTest {
     assertThat(saved.scanStatus()).isEqualTo(ScanStatus.INFECTED);
     assertThat(saved.isDownloadAllowed()).isFalse();
     assertThat(service.openContent(saved)).isEmpty();
+  }
+
+  @Test
+  void upload_marks_eicar_content_infected_even_with_safe_name() {
+    byte[] bytes = ContentSignatureMalwareScan.EICAR.getBytes(StandardCharsets.US_ASCII);
+    Attachment saved = service.upload(
+        "agent-1",
+        "readme.txt",
+        "text/plain",
+        bytes.length,
+        new ByteArrayInputStream(bytes)
+    );
+    assertThat(saved.scanStatus()).isEqualTo(ScanStatus.INFECTED);
+    assertThat(saved.scanDetail()).containsIgnoringCase("EICAR");
+    assertThat(saved.isDownloadAllowed()).isFalse();
   }
 
   @Test
