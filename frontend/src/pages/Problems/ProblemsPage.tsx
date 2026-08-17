@@ -53,8 +53,8 @@ import {
   workflowStateLabelKey,
   type ProblemRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import { getModuleActivities } from '@/mock/store';
-import type { Priority, Problem, WorkItemStatus } from '@/types';
+import { fetchModuleActivity } from '@/api/audit';
+import type { ModuleActivity, Priority, Problem, WorkItemStatus } from '@/types';
 
 type TranslateFn = (
   key: string,
@@ -278,9 +278,9 @@ export function ProblemsPage() {
     }
   }, [selected]);
 
-  const activities = useMemo(
-    () => (selected ? getModuleActivities(selected.id) : []),
-    [selected],
+  const { data: activities } = useAsync(
+    () => (selected ? fetchModuleActivity('problem', selected.id) : Promise.resolve([] as ModuleActivity[])),
+    [selected?.id],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {
@@ -696,8 +696,8 @@ export function ProblemsPage() {
             </>
           }
           validationMessage={validation}
-          activities={activities}
-          history={activities.filter(
+          activities={activities ?? []}
+          history={(activities ?? []).filter(
             (a) => a.kind === 'field' || a.kind === 'status',
           )}
           related={related}

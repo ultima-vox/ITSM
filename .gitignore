@@ -1,10 +1,12 @@
 .grok/
 .codex/
+.cursor/
 .tools/
 node_modules/
 *.log
 dist/
 .idea/
+.opencode/
 *.iml
 .env
 .env.*

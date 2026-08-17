@@ -32,7 +32,7 @@ import {
   summarizeCopilot,
   isMockMode,
 } from '@/api';
-import { currentUser } from '@/mock/data';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getQueueCopilotStats } from '@/mock/store';
 import { Button, ErrorState, Skeleton, Toggle } from '@/components/ui';
 import {
@@ -95,8 +95,8 @@ function firstName(full: string): string {
   return trimmed.split(/\s+/)[0] ?? trimmed;
 }
 
-function matchesMyWork(w: WorkItem): boolean {
-  return w.assignee?.id === currentUser.id;
+function matchesMyWork(w: WorkItem, userId: string): boolean {
+  return w.assignee?.id === userId;
 }
 
 export function OverviewPage() {
@@ -108,6 +108,7 @@ export function OverviewPage() {
   const { info } = useToast();
   const { isAuthenticated, user } = useAuth();
   const { isCompact } = useDensity();
+  const currentUser = useCurrentUser();
   const metrics = useAsync(() => fetchDashboardMetrics(), []);
   const items = useAsync(() => fetchWorkItems(), []);
   useWorkItemsSync(metrics.reload, items.reload);
@@ -180,7 +181,7 @@ export function OverviewPage() {
   }, [items.data]);
 
   const visible = useMemo(() => {
-    if (queueFilter === 'my') return sorted.filter(matchesMyWork);
+    if (queueFilter === 'my') return sorted.filter((w) => matchesMyWork(w, currentUser.id));
     if (queueFilter === 'unassigned') return sorted.filter((w) => !w.assignee);
     if (queueFilter === 'breached')
       return sorted.filter((w) => w.slaState === 'breached');
@@ -190,7 +191,7 @@ export function OverviewPage() {
   const queueFilterCounts = useMemo(() => {
     const list = items.data ?? [];
     return {
-      my: list.filter(matchesMyWork).length,
+      my: list.filter((w) => matchesMyWork(w, currentUser.id)).length,
       unassigned: list.filter((w) => !w.assignee).length,
       breached: list.filter((w) => w.slaState === 'breached').length,
     };

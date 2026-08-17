@@ -68,12 +68,13 @@ import {
   workflowStateLabelKey,
   type ChangeRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import { getModuleActivities } from '@/mock/store';
+import { fetchModuleActivity } from '@/api/audit';
 import type {
   CabVoteDecision,
   Change,
   ChangeStatus,
   ChangeType,
+  ModuleActivity,
   Priority,
 } from '@/types';
 
@@ -416,9 +417,9 @@ export function ChangesPage() {
     }
   }, [selected]);
 
-  const activities = useMemo(
-    () => (selected ? getModuleActivities(selected.id) : []),
-    [selected],
+  const { data: activities } = useAsync(
+    () => (selected ? fetchModuleActivity('change', selected.id) : Promise.resolve([] as ModuleActivity[])),
+    [selected?.id],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {
@@ -1171,8 +1172,8 @@ export function ChangesPage() {
             </>
           }
           validationMessage={validation}
-          activities={activities}
-          history={activities.filter(
+          activities={activities ?? []}
+          history={(activities ?? []).filter(
             (a) => a.kind === 'field' || a.kind === 'status',
           )}
           related={related}

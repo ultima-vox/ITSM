@@ -43,9 +43,9 @@ import {
   resolveRelatedHref,
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
+import { fetchModuleActivity } from '@/api/audit';
 import { people } from '@/mock/data';
-import { getModuleActivities } from '@/mock/store';
-import type { Asset, AssetStatus } from '@/types';
+import type { Asset, AssetStatus, ModuleActivity } from '@/types';
 
 const ASSIGNEE_OPTIONS = Object.values(people)
   .filter((p) => p.id !== 'system')
@@ -162,9 +162,9 @@ export function AssetsPage() {
     }
   };
 
-  const activities = useMemo(
-    () => (selected ? getModuleActivities(selected.id) : []),
-    [selected],
+  const { data: activities } = useAsync(
+    () => (selected ? fetchModuleActivity('asset', selected.id) : Promise.resolve([] as ModuleActivity[])),
+    [selected?.id],
   );
 
   const related: ModuleRelatedItem[] = useMemo(() => {
@@ -377,8 +377,8 @@ export function AssetsPage() {
           title={selected.name}
           chips={<StatusChip status={selected.status} />}
           validationMessage={validation}
-          activities={activities}
-          history={activities.filter((a) => a.kind === 'field' || a.kind === 'status')}
+          activities={activities ?? []}
+          history={(activities ?? []).filter((a) => a.kind === 'field' || a.kind === 'status')}
           related={related}
           relatedEmptyHint={t('module.relatedEmptyHint')}
           relatedEmptyAction={{

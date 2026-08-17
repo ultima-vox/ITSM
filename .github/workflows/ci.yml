@@ -19,7 +19,7 @@ concurrency:
 jobs:
   frontend:
     name: Frontend build + e2e
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     defaults:
       run:
         working-directory: frontend
@@ -71,9 +71,16 @@ jobs:
           CI: true
           VITE_USE_MOCK: true
 
+      - name: Cleanup frontend artifacts
+        if: always()
+        run: |
+          rm -rf frontend/dist frontend/node_modules/.cache
+          npx playwright install --dry-run 2>/dev/null || true
+          rm -rf ~/.cache/ms-playwright
+
   backend:
     name: Backend tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     defaults:
       run:
         working-directory: backend
@@ -95,9 +102,15 @@ jobs:
       - name: Run backend tests
         run: ./gradlew test --no-daemon
 
+      - name: Cleanup backend artifacts
+        if: always()
+        run: |
+          ./gradlew clean --no-daemon 2>/dev/null || true
+          rm -rf backend/build backend/.gradle
+
   live-e2e:
     name: Live PostgreSQL full-stack E2E
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     services:
       postgres:
         image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
@@ -184,9 +197,21 @@ jobs:
           name: live-e2e-backend-log
           path: /tmp/itsm-backend.log
 
+      - name: Cleanup live-e2e artifacts
+        if: always()
+        run: |
+          # Stop backend process
+          if [ -f /tmp/itsm-backend.pid ]; then
+            kill "$(cat /tmp/itsm-backend.pid)" 2>/dev/null || true
+            rm -f /tmp/itsm-backend.pid
+          fi
+          rm -f /tmp/itsm-backend.log /tmp/openapi-live.json /tmp/openapi-snapshot.json
+          rm -rf backend/build backend/.gradle frontend/dist frontend/node_modules/.cache
+          rm -rf ~/.cache/ms-playwright
+
   scripts:
     name: Scripts lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
       - name: Shell syntax check
@@ -205,7 +230,7 @@ jobs:
 
   kubernetes:
     name: Kubernetes manifests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
       - name: Render Kustomize base
@@ -228,10 +253,15 @@ jobs:
             check rules /observability/prometheus-rules.yml
           jq -e '.uid and (.panels | length > 0)' \
             deploy/observability/grafana-dashboard.json >/dev/null
+      - name: Cleanup Kubernetes test artifacts
+        if: always()
+        run: |
+          rm -f /tmp/itsm-kubernetes.yaml
+          docker image prune -f 2>/dev/null || true
 
   security:
     name: Security + SBOM
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
 
@@ -258,9 +288,13 @@ jobs:
           name: sbom-spdx
           path: sbom.spdx.json
 
+      - name: Cleanup SBOM artifacts
+        if: always()
+        run: rm -f sbom.spdx.json
+
   sast:
     name: CodeQL SAST (${{ matrix.language }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     permissions:
       contents: read
       security-events: write
@@ -290,7 +324,7 @@ jobs:
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v5.0.0
@@ -299,7 +333,7 @@ jobs:
 
   container-security:
     name: Container image scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     strategy:
       fail-fast: false
       matrix:
@@ -328,11 +362,15 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
+      - name: Cleanup container image
+        if: always()
+        run: docker rmi ${{ matrix.image }} 2>/dev/null || true
+
   # Optional full stack — manual only (slow / resource heavy)
   compose-smoke:
     name: Compose integrations smoke
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
       - name: Start compose stack
@@ -353,3 +391,55 @@ jobs:
           REDIS_HOST: 127.0.0.1
           MINIO_URL: http://127.0.0.1:9000/minio/health/live
           BASE_URL: http://127.0.0.1:8080
+      - name: Teardown compose stack
+        if: always()
+        run: |
+          docker compose down -v --remove-orphans 2>/dev/null || true
+          docker image prune -f 2>/dev/null || true
+
+  # Self-hosted runner maintenance — runs after every CI trigger
+  runner-cleanup:
+    name: Runner disk cleanup
+    if: always()
+    runs-on: [self-hosted, linux]
+    needs:
+      - frontend
+      - backend
+      - live-e2e
+      - scripts
+      - kubernetes
+      - security
+      - sast
+      - dependency-review
+      - container-security
+      - compose-smoke
+    steps:
+      - name: Stop lingering Java processes
+        run: |
+          pkill -f 'gradlew' 2>/dev/null || true
+          pkill -f 'GradleDaemon' 2>/dev/null || true
+          pkill -f 'bootRun' 2>/dev/null || true
+
+      - name: Stop lingering Node processes
+        run: |
+          pkill -f 'vite' 2>/dev/null || true
+          pkill -f 'playwright' 2>/dev/null || true
+
+      - name: Prune Docker system
+        run: |
+          docker system prune -af --volumes 2>/dev/null || true
+          docker builder prune -af 2>/dev/null || true
+
+      - name: Clean build caches
+        run: |
+          rm -rf /tmp/itsm-*
+          rm -rf ~/.gradle/caches/build-cache-* 2>/dev/null || true
+          rm -rf ~/.npm/_cacache 2>/dev/null || true
+          rm -rf ~/.cache/ms-playwright 2>/dev/null || true
+
+      - name: Report disk usage
+        run: |
+          echo "=== Disk usage after cleanup ==="
+          df -h /
+          echo "=== Docker disk usage ==="
+          docker system df 2>/dev/null || true

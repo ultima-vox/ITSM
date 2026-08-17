@@ -137,13 +137,31 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
   return extractList(payload).map(mapLiveNotification);
 }
 
+/**
+ * Subscribe to notification changes.
+ * - Mock mode: in-memory subscriber.
+ * - Live mode: polls backend every 30s (SSE optional future enhancement).
+ */
 export function subscribeNotifications(listener: () => void): () => void {
-  return subscribeMock(listener);
+  if (isMockMode()) return subscribeMock(listener);
+
+  const interval = setInterval(() => {
+    listener();
+  }, 30_000);
+  return () => clearInterval(interval);
 }
 
+/**
+ * Synchronous notification list for components that need immediate data.
+ * - Mock mode: reads in-memory store.
+ * - Live mode: returns empty array (use async `fetchNotifications` instead).
+ */
 export function listNotifications(): AppNotification[] {
-  ensureNotificationCenter();
-  return listMockNotifications();
+  if (isMockMode()) {
+    ensureNotificationCenter();
+    return listMockNotifications();
+  }
+  return [];
 }
 
 export async function markNotificationRead(id: string): Promise<void> {

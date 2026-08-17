@@ -7,7 +7,7 @@ import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
 import { fetchWorkItems } from '@/api';
-import { currentUser } from '@/mock/data';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   isBreached,
   isEscalated,
@@ -86,6 +86,7 @@ export function QueuesPage() {
   const [params, setParams] = useSearchParams();
   const [savedViews, setSavedViews] = useState<QueueSavedView[]>(loadSavedViews);
   const [viewsOpen, setViewsOpen] = useState(false);
+  const currentUser = useCurrentUser();
 
   const tab: QueueTab = isQueueTab(params.get('tab'))
     ? (params.get('tab') as QueueTab)

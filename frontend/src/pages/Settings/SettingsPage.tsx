@@ -26,7 +26,7 @@ import {
   fetchNotificationPreferences,
   updateNotificationPreferences,
 } from '@/api';
-import { currentUser } from '@/mock/data';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { resetDemoData } from '@/mock/store';
 import { Button, Tabs, Toggle, SkeletonRows, ErrorState } from '@/components/ui';
 import type { LocaleCode, NotificationPrefs } from '@/types';
@@ -73,6 +73,7 @@ export function SettingsPage() {
     logout,
     loading: authLoading,
   } = useAuth();
+  const currentUser = useCurrentUser();
   const hasToken = Boolean(getApiToken());
   const [section, setSection] = useState<SettingsSection>('profile');
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadNotificationPrefs);

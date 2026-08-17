@@ -104,3 +104,51 @@ export function listAuditActionKeys(): string[] {
   const set = new Set(seedAudit.map((e) => e.action));
   return [...set].sort();
 }
+
+/* ── Module activity timeline (used by Assets, Problems, Changes drawers) ── */
+
+import type { ModuleActivity } from '@/types';
+
+function mapLiveModuleActivity(dto: BackendAuditEvent): ModuleActivity {
+  const actor = mapActor(dto);
+  const kind: ModuleActivity['kind'] =
+    dto.action.includes('status') ? 'status'
+    : dto.action.includes('field') || dto.action.includes('update') ? 'field'
+    : 'system';
+  return {
+    id: String(dto.id),
+    at: dto.at ?? dto.occurredAt ?? new Date().toISOString(),
+    actor,
+    kind,
+    textKey: `module.activity.${dto.action}`,
+    detail: dto.detail ?? dto.objectLabel ?? undefined,
+  };
+}
+
+/**
+ * Fetch activity timeline for a specific entity (asset, problem, change, etc.).
+ * Live: uses audit trail filtered by objectType + objectId.
+ * Mock: falls back to in-memory store.
+ */
+export async function fetchModuleActivity(
+  entityType: string,
+  entityId: string,
+  opts?: { limit?: number; signal?: AbortSignal },
+): Promise<ModuleActivity[]> {
+  if (isMockMode()) {
+    // Import dynamically to avoid circular deps
+    const { getModuleActivities } = await import('@/mock/store');
+    return getModuleActivities(entityId);
+  }
+  const limit = opts?.limit ?? 50;
+  const qs = new URLSearchParams({
+    objectType: entityType,
+    objectId: entityId,
+    limit: String(limit),
+  });
+  const hits = await apiRequest<BackendAuditEvent[]>(
+    `/audit?${qs}`,
+    { signal: opts?.signal },
+  );
+  return (hits ?? []).map(mapLiveModuleActivity);
+}

@@ -90,7 +90,7 @@ import {
   missingRequiredPermissions,
   type WorkItemRuntimeTransition,
 } from '@/lib/workflowRuntime';
-import { currentUser } from '@/mock/data';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type {
   ImpactLevel,
   Priority,
@@ -273,6 +273,7 @@ const MORE_INFO_TEMPLATE =
 
 export function WorkItemDetailPage() {
   const { user: authUser } = useAuth();
+  const currentUser = useCurrentUser();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const t = useT();

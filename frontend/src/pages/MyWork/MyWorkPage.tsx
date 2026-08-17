@@ -5,7 +5,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useDensity } from '@/hooks/useDensity';
 import { fetchWorkItems } from '@/api';
-import { currentUser } from '@/mock/data';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ErrorState, Tabs } from '@/components/ui';
 import { OperatorGrid } from '@/components/data-display';
 
@@ -15,10 +15,11 @@ export function MyWorkPage() {
   const t = useT();
   const navigate = useNavigate();
   const { isCompact, toggleDensity } = useDensity();
+  const currentUser = useCurrentUser();
   const [filter, setFilter] = useState<Filter>('all');
   const { data, loading, error, reload } = useAsync(
     () => fetchWorkItems({ assigneeId: currentUser.id }),
-    [],
+    [currentUser.id],
   );
   useWorkItemsSync(reload);
 
