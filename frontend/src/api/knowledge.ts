@@ -81,9 +81,18 @@ export async function submitKnowledgeVote(
   }
 }
 
-export function readKnowledgeVote(id: string): 'yes' | 'no' | null {
-  if (!isMockMode()) return null;
-  return getKnowledgeVote(id);
+export async function readKnowledgeVote(id: string): Promise<'yes' | 'no' | null> {
+  if (isMockMode()) return getKnowledgeVote(id);
+  try {
+    const resp = await apiRequest<{ helpful: boolean | null }>(
+      `/knowledge/articles/${encodeURIComponent(id)}/votes/me`,
+    );
+    if (resp.helpful === true) return 'yes';
+    if (resp.helpful === false) return 'no';
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function createKnowledgeArticle(

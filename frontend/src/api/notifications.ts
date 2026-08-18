@@ -1,4 +1,4 @@
-import { delay, isMockMode, apiRequest } from './client';
+import { delay, isMockMode, apiRequest, getBaseUrl, getApiToken } from './client';
 import {
   ensureNotificationCenter,
   listNotifications as listMockNotifications,
@@ -140,15 +140,69 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
 /**
  * Subscribe to notification changes.
  * - Mock mode: in-memory subscriber.
- * - Live mode: polls backend every 30s (SSE optional future enhancement).
+ * - Live mode: SSE stream via /notifications/stream, with polling fallback.
  */
 export function subscribeNotifications(listener: () => void): () => void {
   if (isMockMode()) return subscribeMock(listener);
 
-  const interval = setInterval(() => {
-    listener();
-  }, 30_000);
-  return () => clearInterval(interval);
+  // Try SSE first
+  const baseUrl = getBaseUrl();
+  const token = getApiToken();
+  const url = `${baseUrl}/notifications/stream`;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let es: EventSource | null = null;
+  let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+  try {
+    // EventSource doesn't support custom headers natively; use withCredentials for cookie auth
+    // or fall back to polling if Bearer token is needed
+    if (token) {
+      // Bearer token auth — EventSource can't send headers, use fetch-based SSE
+      const controller = new AbortController();
+      fetch(url, {
+        headers,
+        signal: controller.signal,
+      }).then((resp) => {
+        const reader = resp.body?.getReader();
+        if (!reader) return;
+        const decoder = new TextDecoder();
+        const pump = (): void => {
+          reader.read().then(({ done, value }) => {
+            if (done) return;
+            const text = decoder.decode(value);
+            // Parse SSE events from the stream
+            if (text.includes('event: domain-event') || text.includes('data:')) {
+              listener();
+            }
+            pump();
+          }).catch(() => {/* stream closed */});
+        };
+        pump();
+      }).catch(() => {/* fall through to polling */});
+    } else {
+      // Cookie-based auth — EventSource works
+      es = new EventSource(url, { withCredentials: true });
+      es.addEventListener('domain-event', () => listener());
+      es.onerror = () => {
+        // SSE failed — fall back to polling
+        es?.close();
+        es = null;
+        if (!fallbackInterval) {
+          fallbackInterval = setInterval(listener, 30_000);
+        }
+      };
+    }
+  } catch {
+    // SSE setup failed — fall back to polling
+    fallbackInterval = setInterval(listener, 30_000);
+  }
+
+  return () => {
+    es?.close();
+    if (fallbackInterval) clearInterval(fallbackInterval);
+  };
 }
 
 /**

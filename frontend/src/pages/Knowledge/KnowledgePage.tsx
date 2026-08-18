@@ -515,7 +515,7 @@ function ArticleReader({
   const { success, error: toastError } = useToast();
   const ref = useRef<HTMLElement>(null);
   const [feedback, setFeedback] = useState<'yes' | 'no' | null>(
-    () => readKnowledgeVote(article.id) ?? article.userVote ?? null,
+    article.userVote ?? null,
   );
   const [scorePulse, setScorePulse] = useState(false);
   const [liveScore, setLiveScore] = useState(article.helpfulScore);
@@ -550,12 +550,13 @@ function ArticleReader({
   }, [onClose, editing]);
 
   useEffect(() => {
-    setFeedback(readKnowledgeVote(article.id) ?? article.userVote ?? null);
     setLiveScore(article.helpfulScore);
     setLiveYes(article.helpfulYes ?? 0);
     setLiveNo(article.helpfulNo ?? 0);
     setScorePulse(false);
     setEditing(false);
+    // Async vote read for live mode
+    readKnowledgeVote(article.id).then((v) => setFeedback(v ?? article.userVote ?? null)).catch(() => {});
   }, [article.id, article.helpfulScore, article.helpfulYes, article.helpfulNo, article.userVote]);
 
   const bodyText = articleBody(article, t);

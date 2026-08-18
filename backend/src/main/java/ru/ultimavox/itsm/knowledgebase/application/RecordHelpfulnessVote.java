@@ -66,4 +66,14 @@ public class RecordHelpfulnessVote {
   }
 
   public record Voted(UUID feedbackId, UUID articleId, int revision, boolean helpful) {}
+
+  /** Read the current user's most recent vote for an article, if any. */
+  public Boolean readMyVote(UUID articleId, String subjectId) {
+    var result = jdbc.query(
+        "SELECT helpful FROM knowledge_feedback WHERE article_id = ? AND subject_id = ? ORDER BY created_at DESC LIMIT 1",
+        (rs, rowNum) -> rs.getBoolean("helpful"),
+        articleId, subjectId
+    );
+    return result.isEmpty() ? null : result.get(0);
+  }
 }

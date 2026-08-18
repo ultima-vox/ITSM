@@ -154,6 +154,19 @@ class KnowledgeController {
     }
   }
 
+  @GetMapping("/articles/{id}/votes/me")
+  @Operation(summary = "Read current user's vote for an article")
+  VoteResponse readMyVote(
+      Authentication authentication,
+      @PathVariable UUID id
+  ) {
+    access.require(authentication.getName(), "knowledge.read", "knowledge-article", id.toString());
+    Boolean helpful = vote.readMyVote(id, authentication.getName());
+    return new VoteResponse(helpful);
+  }
+
+  record VoteResponse(Boolean helpful) {}
+
   record VoteRequest(@NotNull Boolean helpful, @Size(max = 2000) String comment) {}
 
   record CreateArticleRequest(

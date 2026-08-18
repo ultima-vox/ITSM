@@ -2,11 +2,13 @@ package ru.ultimavox.itsm.platform.notification.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import ru.ultimavox.itsm.platform.authorization.OrganizationContext;
 import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationStore;
 import ru.ultimavox.itsm.platform.notification.StoredNotification;
@@ -31,9 +35,22 @@ import ru.ultimavox.itsm.platform.authorization.SelfScopedEndpoint;
 class NotificationController {
 
   private final NotificationStore store;
+  private final SseEventBroadcaster broadcaster;
 
-  NotificationController(NotificationStore store) {
+  NotificationController(NotificationStore store, SseEventBroadcaster broadcaster) {
     this.store = store;
+    this.broadcaster = broadcaster;
+  }
+
+  @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @Operation(summary = "SSE stream of real-time domain events for the authenticated user")
+  SseEmitter stream(Authentication authentication) {
+    String actor = requireActor(authentication);
+    String orgId = OrganizationContext.current();
+    String key = orgId + ":" + actor;
+    SseEmitter emitter = new SseEmitter(Duration.ofMinutes(30).toMillis());
+    broadcaster.register(key, emitter);
+    return emitter;
   }
 
   @GetMapping
