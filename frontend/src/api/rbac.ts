@@ -2,6 +2,7 @@
  * RBAC catalog — live roles/permissions/principals; mock for user directory edits.
  */
 import { apiRequest, delay, isMockMode } from './client';
+import { preloadUserProfiles, resolveUserSync } from './users';
 import {
   assignUserRole as mockAssign,
   getPermissionDescription as mockPermDesc,
@@ -86,14 +87,13 @@ function mapRole(dto: BackendRole): RbacRole {
 function mapPrincipal(dto: BackendPrincipal): RbacUser {
   const primary = (dto.roleKeys?.[0] ?? 'REQUESTER') as RbacRoleKey;
   const subject = dto.subjectId;
-  const short =
-    subject.length > 12 ? subject.slice(0, 8) : subject;
+  const profile = resolveUserSync(subject);
   return {
     id: subject,
     subjectId: subject,
-    name: subject,
-    email: `${short}@local`,
-    initials: short.slice(0, 2).toUpperCase(),
+    name: profile.name,
+    email: `${profile.name.toLowerCase().replace(/\s+/g, '.')}@itsm.local`,
+    initials: profile.initials,
     roleKey: primary,
     locale: 'ru',
     status: 'active',
@@ -115,6 +115,9 @@ export async function fetchRbacUsers(): Promise<RbacUser[]> {
     return mockUsers();
   }
   const list = await apiRequest<BackendPrincipal[]>('/rbac/principals');
+  // Pre-warm user profile cache for all subject IDs
+  const sids = (list ?? []).map((p) => p.subjectId).filter(Boolean);
+  if (sids.length > 0) await preloadUserProfiles(sids);
   return (list ?? []).map(mapPrincipal);
 }
 
