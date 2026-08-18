@@ -14,10 +14,12 @@ public class BulkWorkItemService {
   private static final int MAX_BATCH_SIZE = 200;
   private final AssignWorkItem assignWorkItem;
   private final UpdateWorkItem updateWorkItem;
+  private final TransitionWorkItem transitionWorkItem;
 
-  BulkWorkItemService(AssignWorkItem assignWorkItem, UpdateWorkItem updateWorkItem) {
+  BulkWorkItemService(AssignWorkItem assignWorkItem, UpdateWorkItem updateWorkItem, TransitionWorkItem transitionWorkItem) {
     this.assignWorkItem = assignWorkItem;
     this.updateWorkItem = updateWorkItem;
+    this.transitionWorkItem = transitionWorkItem;
   }
 
   @Transactional
@@ -48,6 +50,16 @@ public class BulkWorkItemService {
     };
     for (UUID id : uniqueIds) {
       updateWorkItem.update(id, new UpdateWorkItem.Command(null, null, null, impact, urgency), actor);
+    }
+    return new Result(uniqueIds.size());
+  }
+
+  @Transactional
+  public Result transition(List<UUID> ids, ru.ultimavox.itsm.servicedesk.domain.WorkItem.State targetState,
+      String resolutionCode, String resolutionNotes, String actor) {
+    List<UUID> uniqueIds = validateIds(ids);
+    for (UUID id : uniqueIds) {
+      transitionWorkItem.transition(id, new TransitionWorkItem.Command(targetState, resolutionCode, resolutionNotes), actor);
     }
     return new Result(uniqueIds.size());
   }

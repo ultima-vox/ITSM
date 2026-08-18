@@ -38,4 +38,6 @@ public interface SlaClockRepository {
 
     /** The most recent active clock of the given aggregate for the given metric, if any. */
     Optional<SlaClock> findActive(UUID aggregateId, String metric);
+
+    List<ClockHistoryEntry> findHistoryByClockId(UUID clockId);
 }

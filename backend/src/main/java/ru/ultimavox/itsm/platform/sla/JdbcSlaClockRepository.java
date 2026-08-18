@@ -198,6 +198,28 @@ class JdbcSlaClockRepository implements SlaClockRepository {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public List<ClockHistoryEntry> findHistoryByClockId(UUID clockId) {
+        return jdbc.query(
+                """
+                SELECT h.id, h.clock_id, h.occurred_at, h.action, h.actor_id, h.details::text AS details
+                FROM sla_clock_history h
+                JOIN sla_clock c ON c.id = h.clock_id
+                WHERE h.clock_id = ? AND c.org_id = ?
+                ORDER BY h.occurred_at ASC
+                """,
+                (rs, i) -> new ClockHistoryEntry(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("clock_id", UUID.class),
+                        rs.getTimestamp("occurred_at").toInstant(),
+                        rs.getString("action"),
+                        rs.getString("actor_id"),
+                        rs.getString("details")
+                ),
+                clockId, OrganizationContext.current()
+        );
+    }
+
     private SlaClock map(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp warning = rs.getTimestamp("warning_at");
         Timestamp paused = rs.getTimestamp("paused_at");

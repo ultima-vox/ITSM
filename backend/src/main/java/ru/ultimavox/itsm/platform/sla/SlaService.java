@@ -296,6 +296,11 @@ public class SlaService {
         return policies.findByKey(policyKey);
     }
 
+    @Transactional(readOnly = true)
+    public List<ClockHistoryEntry> clockHistory(UUID clockId) {
+        return clocks.findHistoryByClockId(clockId);
+    }
+
     private SlaClock requireClock(UUID clockId) {
         return clocks.findById(clockId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown SLA clock: " + clockId));

@@ -26,7 +26,7 @@ public class WorkItemQuery {
 
   /** Legacy convenience used by early list endpoint. */
   public List<WorkItem> findVisibleTo(String subject) {
-    return search(new Filter(null, null, null, null, null, subject), 0, 50).items();
+    return search(new Filter(null, null, null, null, null, subject, null), 0, 50).items();
   }
 
   public record Filter(
@@ -35,8 +35,19 @@ public class WorkItemQuery {
       String assigneeId,
       Priority priority,
       String query,
-      String requesterId
+      String requesterId,
+      SortBy sort
   ) {}
+
+  public record SortBy(String field, boolean desc) {
+    private static final java.util.Set<String> ALLOWED = java.util.Set.of(
+        "created_at", "updated_at", "number", "title", "priority", "state", "type"
+    );
+    public SortBy {
+      if (field == null || !ALLOWED.contains(field)) field = "updated_at";
+      if (desc == null) desc = true;
+    }
+  }
 
   public record PageResult(List<WorkItem> items, long total, int page, int size) {}
 }

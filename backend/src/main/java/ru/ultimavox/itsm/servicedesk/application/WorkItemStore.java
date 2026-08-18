@@ -137,6 +137,7 @@ public class WorkItemStore {
     List<Object> args = new ArrayList<>(built.args());
     args.add(size);
     args.add(offset);
+    WorkItemQuery.SortBy sort = filter.sort() != null ? filter.sort() : new WorkItemQuery.SortBy("updated_at", true);
     return jdbc.query(
         """
         SELECT id, number, type, title, description, service, state, priority,
@@ -145,7 +146,7 @@ public class WorkItemStore {
         FROM work_item
         """
             + built.sql()
-            + " ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+            + " ORDER BY " + sort.field() + (sort.desc() ? " DESC" : " ASC") + " LIMIT ? OFFSET ?",
         (rs, rowNum) -> mapWorkItem(rs),
         args.toArray()
     );

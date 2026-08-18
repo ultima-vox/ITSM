@@ -32,13 +32,15 @@ class SlaAdminController {
   private final AccessControl access;
   private final SlaPolicyAdminService admin;
   private final WorkingCalendarAdminService calendars;
+  private final ru.ultimavox.itsm.platform.sla.SlaService slaService;
 
   SlaAdminController(SlaPolicyRepository policies, SlaPolicyAdminService admin, AccessControl access,
-      WorkingCalendarAdminService calendars) {
+      WorkingCalendarAdminService calendars, ru.ultimavox.itsm.platform.sla.SlaService slaService) {
     this.policies = policies;
     this.admin = admin;
     this.access = access;
     this.calendars = calendars;
+    this.slaService = slaService;
   }
 
   @GetMapping("/calendars")
@@ -104,6 +106,28 @@ class SlaAdminController {
             Duration.ofMinutes(t.warningBeforeMinutes())))
         .toList();
     return PolicyResponse.from(admin.update(actor, id, body.expectedVersion(), body.enabled(), targets));
+  }
+
+  @GetMapping("/clocks/{clockId}/history")
+  @Operation(summary = "List SLA clock history events for a given clock")
+  java.util.List<ClockHistoryResponse> clockHistory(Authentication authentication, @PathVariable UUID clockId) {
+    access.require(authentication.getName(), "sla.read", "sla_clock", clockId.toString());
+    return slaService.clockHistory(clockId).stream()
+        .map(ClockHistoryResponse::from)
+        .toList();
+  }
+
+  record ClockHistoryResponse(
+      java.util.UUID id,
+      java.util.UUID clockId,
+      java.time.Instant occurredAt,
+      String action,
+      String actorId,
+      String details
+  ) {
+    static ClockHistoryResponse from(ru.ultimavox.itsm.platform.sla.ClockHistoryEntry e) {
+      return new ClockHistoryResponse(e.id(), e.clockId(), e.occurredAt(), e.action(), e.actorId(), e.details());
+    }
   }
 
   record UpdatePolicyRequest(int expectedVersion, Boolean enabled, List<TargetResponse> targets) {}

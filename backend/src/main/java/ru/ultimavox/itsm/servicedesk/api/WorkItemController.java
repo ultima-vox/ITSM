@@ -177,6 +177,8 @@ class WorkItemController {
       @RequestParam(required = false) String assigneeId,
       @RequestParam(required = false) Priority priority,
       @RequestParam(required = false) String q,
+      @RequestParam(required = false) String sortBy,
+      @RequestParam(required = false, defaultValue = "true") boolean sortDesc,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
       Authentication authentication
@@ -184,9 +186,11 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.read", "work-item", null);
     boolean unrestricted = access.isAllowed(actor, "work-item.read.any", "work-item", null);
+    ru.ultimavox.itsm.servicedesk.application.WorkItemQuery.SortBy sort =
+        sortBy != null ? new ru.ultimavox.itsm.servicedesk.application.WorkItemQuery.SortBy(sortBy, sortDesc) : null;
     return WorkItemPageResponse.from(
         workItemQuery.search(new WorkItemQuery.Filter(
-            state, type, assigneeId, priority, q, unrestricted ? null : actor), page, size)
+            state, type, assigneeId, priority, q, unrestricted ? null : actor, sort), page, size)
     );
   }
 
@@ -322,6 +326,17 @@ class WorkItemController {
     String actor = authentication.getName();
     access.require(actor, "work-item.update", "work-item", null);
     return bulkWorkItems.setPriority(request.ids(), request.priority(), actor);
+  }
+
+  @PostMapping("/bulk/transitions")
+  @Operation(summary = "Atomically transition up to 200 work items")
+  BulkWorkItemService.Result bulkTransition(
+      @Valid @RequestBody BulkTransitionRequest request, Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.transition", "work-item", null);
+    return bulkWorkItems.transition(request.ids(), request.targetState(),
+        request.resolutionCode(), request.resolutionNotes(), actor);
   }
 
   @GetMapping("/{id}/major-incident")
@@ -616,6 +631,13 @@ class WorkItemController {
   record BulkPriorityRequest(
       @NotEmpty @Size(max = 200) List<@NotNull UUID> ids,
       @NotNull Priority priority
+  ) {}
+
+  record BulkTransitionRequest(
+      @NotEmpty @Size(max = 200) List<@NotNull UUID> ids,
+      @NotNull State targetState,
+      @Size(max = 80) String resolutionCode,
+      @Size(max = 12000) String resolutionNotes
   ) {}
 
   record CreateLinkRequest(
