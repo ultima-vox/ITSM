@@ -3,9 +3,8 @@ package ru.ultimavox.itsm.platform.notification.api;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArray;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -23,10 +22,10 @@ class SseEventBroadcaster {
   private static final Logger log = LoggerFactory.getLogger(SseEventBroadcaster.class);
 
   /** Per-user SSE emitters. Key = "orgId:subjectId". */
-  private final Map<String, CopyOnWriteArray<SseEmitter>> emitters = new ConcurrentHashMap<>();
+  private final Map<String, CopyOnWriteArrayList<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
   void register(String key, SseEmitter emitter) {
-    emitters.computeIfAbsent(key, k -> new CopyOnWriteArray<>()).add(emitter);
+    emitters.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(emitter);
     emitter.onCompletion(() -> remove(key, emitter));
     emitter.onTimeout(() -> remove(key, emitter));
     emitter.onError(e -> remove(key, emitter));
@@ -42,7 +41,7 @@ class SseEventBroadcaster {
 
   @EventListener
   void onDomainEvent(DomainEventEnvelope envelope) {
-    DomainEventEnvelope.DetailedEvent event = envelope.event();
+    var event = envelope.event();
     String orgId = event.organizationId();
     if (orgId == null) orgId = "default";
     String actorId = event.actorId();
@@ -76,6 +75,6 @@ class SseEventBroadcaster {
   }
 
   int emitterCount() {
-    return emitters.values().stream().mapToInt(Set::size).sum();
+    return emitters.values().stream().mapToInt(CopyOnWriteArrayList::size).sum();
   }
 }

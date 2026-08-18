@@ -18,11 +18,12 @@ import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;
 class BulkWorkItemServiceTest {
   @Mock AssignWorkItem assign;
   @Mock UpdateWorkItem update;
+  @Mock TransitionWorkItem transition;
   private BulkWorkItemService service;
 
   @BeforeEach
   void setUp() {
-    service = new BulkWorkItemService(assign, update);
+    service = new BulkWorkItemService(assign, update, transition);
   }
 
   @Test

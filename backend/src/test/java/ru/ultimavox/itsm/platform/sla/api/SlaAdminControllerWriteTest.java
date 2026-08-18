@@ -20,7 +20,8 @@ class SlaAdminControllerWriteTest {
 
     try {
       new SlaAdminController(policies, Mockito.mock(SlaPolicyAdminService.class), access,
-          Mockito.mock(ru.ultimavox.itsm.platform.sla.WorkingCalendarAdminService.class))
+          Mockito.mock(ru.ultimavox.itsm.platform.sla.WorkingCalendarAdminService.class),
+          Mockito.mock(ru.ultimavox.itsm.platform.sla.SlaService.class))
           .updatePolicy(auth, id, new SlaAdminController.UpdatePolicyRequest(1, false, null));
     } catch (RuntimeException ignored) {
       // Empty repository intentionally returns 404 after authorization.

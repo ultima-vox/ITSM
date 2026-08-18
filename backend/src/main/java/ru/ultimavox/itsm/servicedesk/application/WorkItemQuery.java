@@ -45,7 +45,6 @@ public class WorkItemQuery {
     );
     public SortBy {
       if (field == null || !ALLOWED.contains(field)) field = "updated_at";
-      if (desc == null) desc = true;
     }
   }
 

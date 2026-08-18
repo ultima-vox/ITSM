@@ -27,7 +27,9 @@ class ProblemBulkTransitionTest {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
 
-        var response = new ProblemController(mock(ProblemQuery.class), commands, access)
+        var response = new ProblemController(mock(ProblemQuery.class), commands, access,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway.class))
                 .bulkTransition(auth, new ProblemController.BulkTransitionRequest(
                         List.of(first, second), Problem.Status.RESOLVED));
 

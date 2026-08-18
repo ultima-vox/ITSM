@@ -42,7 +42,8 @@ class WorkItemQueryTest {
         "agent-1",
         Priority.CRITICAL,
         "VPN",
-        "requester-1"
+        "requester-1",
+        null
     );
     when(store.count(filter)).thenReturn(1L);
     when(store.search(eq(filter), eq(0), eq(200))).thenReturn(List.of(item));
@@ -67,7 +68,7 @@ class WorkItemQueryTest {
   @Test
   void requesterConvenienceQueryAlwaysScopesBySubject() {
     WorkItemQuery.Filter expected = new WorkItemQuery.Filter(
-        null, null, null, null, null, "requester-7");
+        null, null, null, null, null, "requester-7", null);
     when(store.count(expected)).thenReturn(0L);
     when(store.search(expected, 0, 50)).thenReturn(List.of());
     query.findVisibleTo("requester-7");

@@ -57,6 +57,7 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
 import ru.ultimavox.itsm.servicedesk.application.DuplicateWorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
+import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Priority;

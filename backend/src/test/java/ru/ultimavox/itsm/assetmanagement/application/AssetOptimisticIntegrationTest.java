@@ -32,16 +32,17 @@ class AssetOptimisticIntegrationTest {
     var query = new AssetQuery(new JdbcTemplate(ds));
     var audit = mock(AuditTrail.class);
     var outbox = mock(IntegrationEventOutbox.class);
-    create = new CreateAsset(new JdbcTemplate(ds), query, audit, outbox);
-    commands = new AssetCommands(new JdbcTemplate(ds), query, audit, outbox);
+    var indexer = mock(AssetSearchIndexer.class);
+    create = new CreateAsset(new JdbcTemplate(ds), query, audit, outbox, indexer);
+    commands = new AssetCommands(new JdbcTemplate(ds), query, audit, outbox, indexer);
   }
 
   @Test
   void rejectsStaleLifecycleAndAssignmentWrites() {
     OrganizationContext.runAs("asset-version-" + UUID.randomUUID(), () -> {
       Asset asset = create.create(new CreateAsset.Command(
-          "AST-" + UUID.randomUUID(), Asset.Kind.LAPTOP, Asset.Status.IN_STOCK,
-          null, null, null, null), "alice");
+          "AST-" + UUID.randomUUID(), "Laptop", Asset.Kind.LAPTOP, Asset.Status.IN_STOCK,
+          null, null, null, null, null), "alice");
       assertThat(asset.version()).isZero();
 
       Asset active = commands.transition(asset.id(), Asset.Status.IN_USE, 0, "alice");

@@ -32,17 +32,21 @@ class ProblemOptimisticIntegrationTest {
     Flyway.configure().dataSource(ds).load().migrate();
     var jdbc = new JdbcTemplate(ds);
     commands = new ProblemCommands(jdbc, new ProblemQuery(jdbc), mock(AuditTrail.class),
-        mock(IntegrationEventOutbox.class), mock(WorkflowPolicyGateway.class), mock(WorkItemReferenceQuery.class));
+        mock(IntegrationEventOutbox.class), mock(WorkflowPolicyGateway.class), mock(WorkItemReferenceQuery.class),
+        mock(ProblemSearchIndexer.class));
   }
 
   @Test
   void rejectsStaleNotesAndTransitions() {
     OrganizationContext.runAs("problem-version-" + UUID.randomUUID(), () -> {
-      Problem created = commands.create(new ProblemCommands.CreateCommand("Intermittent VPN", null, null), "alice");
+      Problem created = commands.create(new ProblemCommands.CreateCommand(
+          "Intermittent VPN", null, null, null, null, null), "alice");
       assertThat(created.version()).isZero();
-      Problem notes = commands.updateNotes(created.id(), "Gateway race", "Restart tunnel", null, 0, "alice");
+      Problem notes = commands.updateNotes(created.id(), "Gateway race", "Restart tunnel", null,
+          null, null, null, 0, "alice");
       assertThat(notes.version()).isEqualTo(1);
-      assertThatThrownBy(() -> commands.updateNotes(created.id(), "stale", null, null, 0, "alice"))
+      assertThatThrownBy(() -> commands.updateNotes(created.id(), "stale", null, null,
+          null, null, null, 0, "alice"))
           .isInstanceOf(OptimisticLockingFailureException.class);
       Problem investigating = commands.transition(created.id(), Problem.Status.UNDER_INVESTIGATION,
           null, null, null, 1L, "alice");

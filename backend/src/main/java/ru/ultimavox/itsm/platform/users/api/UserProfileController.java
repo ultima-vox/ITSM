@@ -4,6 +4,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.users.UserProfile;
@@ -11,7 +15,7 @@ import ru.ultimavox.itsm.platform.users.UserProfileService;
 
 @RestController
 @RequestMapping("/api/v1/users")
-@org.springframework.web.bind.annotation.Tag(name = "User Directory")
+@Tag(name = "User Directory")
 class UserProfileController {
   private final UserProfileService service;
   private final AccessControl access;
@@ -22,7 +26,7 @@ class UserProfileController {
   }
 
   @GetMapping
-  @org.springframework.web.bind.annotation.Operation(summary = "Resolve subject IDs to user profiles")
+  @Operation(summary = "Resolve subject IDs to user profiles")
   Map<String, UserProfile> resolve(
       @RequestParam("ids") Collection<String> subjectIds
   ) {
@@ -31,9 +35,9 @@ class UserProfileController {
   }
 
   @PostMapping
-  @org.springframework.web.bind.annotation.Operation(summary = "Create or update a user profile")
+  @Operation(summary = "Create or update a user profile")
   UserProfile upsert(
-      @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails user,
+      @AuthenticationPrincipal UserDetails user,
       @RequestBody UpsertProfileRequest body
   ) {
     access.require(user.getUsername(), "admin.full", "user", body.subjectId());
