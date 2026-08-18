@@ -28,12 +28,14 @@ export interface BackendAsset {
   id: string;
   version?: number;
   assetTag?: string;
+  name?: string;
   kind?: string;
   status?: string;
   ownerSubject?: string | null;
   configurationItemId?: string | null;
   acquiredOn?: string | null;
   warrantyUntil?: string | null;
+  location?: string;
 }
 
 const CI_ICONS: ConfigurationItem['icon'][] = [
@@ -125,11 +127,11 @@ export function mapAsset(dto: BackendAsset): Asset {
     id: String(dto.id),
     version: dto.version ?? 0,
     tag: dto.assetTag ?? String(dto.id),
-    name: dto.assetTag ?? String(dto.id),
+    name: dto.name ?? dto.assetTag ?? String(dto.id),
     typeKey: dto.kind ?? 'OTHER',
     status: mapAssetStatus(dto.status),
     assignedTo: dto.ownerSubject ?? null,
-    location: '—',
+    location: dto.location ?? '—',
     purchasedAt: dto.acquiredOn ?? new Date().toISOString().slice(0, 10),
     serial: undefined,
     model: dto.kind,

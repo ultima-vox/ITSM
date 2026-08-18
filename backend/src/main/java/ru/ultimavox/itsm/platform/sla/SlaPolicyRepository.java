@@ -12,5 +12,9 @@ public interface SlaPolicyRepository {
 
     Optional<SlaPolicyView> update(UUID id, int expectedVersion, Boolean enabled, List<SlaPolicy.Target> targets);
 
+    SlaPolicyView create(String policyKey, String calendarKey, List<SlaPolicy.Target> targets, Set<String> pauseStates);
+
+    boolean delete(UUID id);
+
     record SlaPolicyView(SlaPolicy policy, boolean enabled, int version) {}
 }

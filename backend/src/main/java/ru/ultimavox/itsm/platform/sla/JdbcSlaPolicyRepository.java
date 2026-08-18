@@ -138,6 +138,64 @@ class JdbcSlaPolicyRepository implements SlaPolicyRepository {
 
     private record PolicySource(String key, boolean enabled, int version, String definition) {}
 
+    @Override
+    @Transactional
+    public SlaPolicyView create(String policyKey, String calendarKey, List<Target> targets, Set<String> pauseStates) {
+        String organization = OrganizationContext.current();
+        try {
+            ObjectNode definition = json.createObjectNode();
+            definition.put("calendarKey", calendarKey == null ? "default-business" : calendarKey);
+            ArrayNode array = definition.putArray("targets");
+            if (targets != null) {
+                for (Target target : targets) {
+                    ObjectNode node = array.addObject();
+                    node.put("metric", target.metric());
+                    node.put("condition", target.condition() == null ? "" : target.condition());
+                    node.put("targetMinutes", target.target() == null ? 0 : target.target().toMinutes());
+                    node.put("warningBeforeMinutes",
+                            target.warningBefore() == null ? 0 : target.warningBefore().toMinutes());
+                }
+            }
+            ArrayNode pauseArray = definition.putArray("pauseStates");
+            if (pauseStates != null) {
+                pauseStates.forEach(pauseArray::add);
+            }
+            String raw = json.writeValueAsString(definition);
+            List<SlaPolicyView> rows = jdbc.query(
+                    """
+                    INSERT INTO sla_policy (org_id, policy_key, enabled, definition, version, updated_at)
+                    VALUES (?, ?, true, ?::jsonb, 1, now())
+                    ON CONFLICT (org_id, policy_key) DO NOTHING
+                    RETURNING id, policy_key, enabled, version, definition::text
+                    """,
+                    (rs, i) -> new SlaPolicyView(
+                            map(rs.getObject("id", UUID.class), rs.getString("policy_key"),
+                                    rs.getString("definition")),
+                            rs.getBoolean("enabled"), rs.getInt("version")
+                    ),
+                    organization, policyKey, raw
+            );
+            if (rows.isEmpty()) {
+                throw new IllegalStateException("Policy '" + policyKey + "' already exists for this organization");
+            }
+            return rows.getFirst();
+        } catch (IllegalStateException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Cannot create sla_policy key=" + policyKey, ex);
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean delete(UUID id) {
+        int n = jdbc.update(
+                "DELETE FROM sla_policy WHERE id = ? AND org_id = ?",
+                id, OrganizationContext.current()
+        );
+        return n > 0;
+    }
+
     private SlaPolicy map(UUID id, String key, String definitionJson) {
         try {
             JsonNode root = json.readTree(definitionJson);

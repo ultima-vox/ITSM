@@ -44,10 +44,11 @@ class ProblemController {
   @Operation(summary = "List problems")
   List<ProblemQuery.ProblemSummary> list(
       Authentication authentication,
-      @RequestParam(required = false) String status
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String q
   ) {
     access.require(authentication.getName(), "problem.read", "problem", null);
-    return query.list(status);
+    return query.list(status, q);
   }
 
   @GetMapping("/{id}")

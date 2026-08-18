@@ -62,12 +62,15 @@ public class AssetCommands {
     int changed = jdbc.update(
         """
         UPDATE asset
-        SET status = ?, owner_subject = ?, configuration_item_id = ?, version = version + 1, updated_at = ?
+        SET status = ?, owner_subject = ?, configuration_item_id = ?, name = ?, location = ?,
+            version = version + 1, updated_at = ?
         WHERE id = ? AND org_id = ? AND version = ?
         """,
         updated.status().name(),
         updated.ownerSubject(),
         updated.configurationItemId(),
+        updated.name(),
+        updated.location(),
         Timestamp.from(now),
         updated.id(),
         OrganizationContext.current(),

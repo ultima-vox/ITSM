@@ -253,10 +253,12 @@ export async function createAsset(payload: CreateAssetPayload): Promise<Asset> {
     body: {
       assetTag: payload.tag ?? payload.name,
       tag: payload.tag ?? payload.name,
+      name: payload.name ?? payload.tag,
       kind,
       status: 'IN_STOCK',
       ownerSubject: payload.assignedTo ?? null,
       acquiredOn: payload.purchasedAt ?? null,
+      location: payload.location ?? null,
     },
   });
   return mapAsset(created);

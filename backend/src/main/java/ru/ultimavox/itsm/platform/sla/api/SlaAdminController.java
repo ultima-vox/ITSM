@@ -108,6 +108,43 @@ class SlaAdminController {
     return PolicyResponse.from(admin.update(actor, id, body.expectedVersion(), body.enabled(), targets));
   }
 
+  @PostMapping("/policies")
+  @Operation(summary = "Create a new SLA policy")
+  PolicyResponse createPolicy(
+      Authentication authentication,
+      @RequestBody CreatePolicyRequest body
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "sla.write", "sla_policy", null);
+    if (body.policyKey() == null || body.policyKey().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "policyKey is required");
+    }
+    if (body.targets() != null && body.targets().stream().anyMatch(t ->
+        t.metric() == null || t.metric().isBlank() || t.targetMinutes() <= 0)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid SLA target");
+    }
+    List<SlaPolicy.Target> targets = body.targets() == null ? List.of() : body.targets().stream()
+        .map(t -> new SlaPolicy.Target(
+            t.metric(), t.condition(), Duration.ofMinutes(t.targetMinutes()),
+            Duration.ofMinutes(t.warningBeforeMinutes())))
+        .toList();
+    return PolicyResponse.from(admin.create(actor, body.policyKey(), body.calendarKey(), targets, body.pauseStates()));
+  }
+
+  @DeleteMapping("/policies/{id}")
+  @Operation(summary = "Delete an SLA policy")
+  void deletePolicy(Authentication authentication, @PathVariable UUID id) {
+    String actor = authentication.getName();
+    access.require(actor, "sla.write", "sla_policy", id.toString());
+    // Find the policy key for audit trail before deleting
+    java.util.Optional<SlaPolicyRepository.SlaPolicyView> existing = policies.listAll().stream()
+        .filter(v -> v.policy().id().equals(id)).findFirst();
+    String key = existing.map(v -> v.policy().key()).orElse(id.toString());
+    if (!admin.delete(actor, id, key)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "SLA policy not found");
+    }
+  }
+
   @GetMapping("/clocks/{clockId}/history")
   @Operation(summary = "List SLA clock history events for a given clock")
   java.util.List<ClockHistoryResponse> clockHistory(Authentication authentication, @PathVariable UUID clockId) {
@@ -131,6 +168,13 @@ class SlaAdminController {
   }
 
   record UpdatePolicyRequest(int expectedVersion, Boolean enabled, List<TargetResponse> targets) {}
+
+  record CreatePolicyRequest(
+      String policyKey,
+      String calendarKey,
+      List<TargetResponse> targets,
+      java.util.Set<String> pauseStates
+  ) {}
 
   record CalendarRequest(long expectedVersion, String key, String zone,
       java.util.Set<java.time.DayOfWeek> workingDays, java.time.LocalTime startsAt,

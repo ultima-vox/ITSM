@@ -18,73 +18,65 @@ public class AssetQuery {
     this.jdbc = jdbc;
   }
 
-  public List<Asset> list(String status, String kind, String owner) {
+  public List<Asset> list(String status, String kind, String owner, String q) {
     String statusFilter = blankToNull(status);
     String kindFilter = blankToNull(kind);
     String ownerFilter = blankToNull(owner);
-    return jdbc.query(
+    String queryFilter = blankToNull(q);
+    StringBuilder sql = new StringBuilder(
         """
-            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, version
+            SELECT id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
+                   acquired_on, warranty_until, location, version
             FROM asset
             WHERE org_id = ?
               AND (?::text IS NULL OR status = ?)
               AND (?::text IS NULL OR kind = ?)
               AND (?::text IS NULL OR owner_subject = ?)
-            ORDER BY asset_tag
-            """,
-        (rs, i) -> map(rs.getObject("id", UUID.class),
-            rs.getString("asset_tag"),
-            rs.getString("kind"),
-            rs.getString("status"),
-            rs.getString("owner_subject"),
-            rs.getObject("configuration_item_id", UUID.class),
-            rs.getDate("acquired_on"),
-            rs.getDate("warranty_until"), rs.getLong("version")),
-        OrganizationContext.current(), statusFilter, statusFilter, kindFilter, kindFilter, ownerFilter, ownerFilter
+        """);
+    java.util.List<Object> args = new java.util.ArrayList<>();
+    args.add(OrganizationContext.current());
+    args.add(statusFilter); args.add(statusFilter);
+    args.add(kindFilter); args.add(kindFilter);
+    args.add(ownerFilter); args.add(ownerFilter);
+    if (queryFilter != null) {
+        String pattern = "%" + queryFilter.toLowerCase() + "%";
+        sql.append(" AND (lower(asset_tag) LIKE ? OR lower(name) LIKE ? OR lower(location) LIKE ? OR lower(owner_subject) LIKE ?)");
+        args.add(pattern); args.add(pattern); args.add(pattern); args.add(pattern);
+    }
+    sql.append(" ORDER BY asset_tag");
+    return jdbc.query(sql.toString(),
+        (rs, i) -> map(rs),
+        args.toArray()
     );
   }
 
   public Optional<Asset> findById(UUID id) {
     List<Asset> rows = jdbc.query(
         """
-            SELECT id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, version
+            SELECT id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
+                   acquired_on, warranty_until, location, version
             FROM asset WHERE id = ? AND org_id = ?
             """,
-        (rs, i) -> map(rs.getObject("id", UUID.class),
-            rs.getString("asset_tag"),
-            rs.getString("kind"),
-            rs.getString("status"),
-            rs.getString("owner_subject"),
-            rs.getObject("configuration_item_id", UUID.class),
-            rs.getDate("acquired_on"),
-            rs.getDate("warranty_until"), rs.getLong("version")),
+        (rs, i) -> map(rs),
         id, OrganizationContext.current()
     );
     return rows.stream().findFirst();
   }
 
-  private static Asset map(
-      UUID id,
-      String tag,
-      String kind,
-      String status,
-      String owner,
-      UUID ciId,
-      Date acquired,
-      Date warranty,
-      long version
-  ) {
-    return new Asset(
-        id,
-        tag,
-        Asset.Kind.valueOf(kind),
-        Asset.Status.valueOf(status),
-        owner,
-        ciId,
-        toLocalDate(acquired),
-        toLocalDate(warranty),
-        version
-    );
+  private static Asset map(java.sql.ResultSet rs) throws java.sql.SQLException {
+    UUID id = rs.getObject("id", UUID.class);
+    String tag = rs.getString("asset_tag");
+    String name = rs.getString("name");
+    String kind = rs.getString("kind");
+    String status = rs.getString("status");
+    String owner = rs.getString("owner_subject");
+    UUID ciId = rs.getObject("configuration_item_id", UUID.class);
+    java.sql.Date acquired = rs.getDate("acquired_on");
+    java.sql.Date warranty = rs.getDate("warranty_until");
+    String location = rs.getString("location");
+    long version = rs.getLong("version");
+    return new Asset(id, tag, name, Asset.Kind.valueOf(kind), Asset.Status.valueOf(status),
+        owner, ciId, toLocalDate(acquired), toLocalDate(warranty), location, version);
   }
 
   private static LocalDate toLocalDate(Date date) {

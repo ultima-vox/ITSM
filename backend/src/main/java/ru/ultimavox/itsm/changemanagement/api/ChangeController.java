@@ -50,9 +50,11 @@ class ChangeController {
 
   @GetMapping
   @Operation(summary = "List changes")
-  List<Change> list(Authentication authentication, @RequestParam(required = false) String status) {
+  List<Change> list(Authentication authentication,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String q) {
     access.require(authentication.getName(), "change.read", "change", null);
-    return query.list(status);
+    return query.list(status, q);
   }
 
   @GetMapping("/conflicts")

@@ -36,9 +36,11 @@ public class AssetSearchIndexer {
   }
 
   static SearchDocument toDocument(Asset a) {
-    String title = a.assetTag() + " · " + a.kind().name().replace('_', ' ');
+    String displayName = a.name() != null ? a.name() : a.assetTag() + " · " + a.kind().name().replace('_', ' ');
+    String body = a.ownerSubject() == null ? "" : a.ownerSubject();
+    if (a.location() != null) { if (!body.isEmpty()) body += " "; body += a.location(); }
     return new SearchDocument(
-        a.id().toString(), "asset", title, a.ownerSubject() == null ? "" : a.ownerSubject(),
+        a.id().toString(), "asset", displayName, body,
         Set.of("asset"), null,
         Map.of("assetTag", a.assetTag(), "kind", a.kind().name(), "status", a.status().name())
     );

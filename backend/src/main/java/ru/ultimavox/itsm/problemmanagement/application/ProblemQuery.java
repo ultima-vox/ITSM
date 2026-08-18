@@ -19,16 +19,25 @@ public class ProblemQuery {
     this.jdbc = jdbc;
   }
 
-  public List<ProblemSummary> list(String status) {
+  public List<ProblemSummary> list(String status, String q) {
     String statusFilter = status == null || status.isBlank() ? null : status;
-    return jdbc.query(
+    StringBuilder sql = new StringBuilder(
         """
             SELECT id, number, title, status, root_cause, workaround, resolution, priority, impact, owner_subject,
                    created_at, updated_at, version
             FROM problem
             WHERE org_id = ? AND (?::text IS NULL OR status = ?)
-            ORDER BY updated_at DESC
-            """,
+        """);
+    java.util.List<Object> args = new java.util.ArrayList<>();
+    args.add(OrganizationContext.current());
+    args.add(statusFilter); args.add(statusFilter);
+    if (q != null && !q.isBlank()) {
+        String pattern = "%" + q.trim().toLowerCase() + "%";
+        sql.append(" AND (lower(number) LIKE ? OR lower(title) LIKE ? OR lower(root_cause) LIKE ?)");
+        args.add(pattern); args.add(pattern); args.add(pattern);
+    }
+    sql.append(" ORDER BY updated_at DESC");
+    return jdbc.query(sql.toString(),
         (rs, i) -> new ProblemSummary(
             (UUID) rs.getObject("id"),
             rs.getString("number"),
@@ -44,7 +53,7 @@ public class ProblemQuery {
             rs.getTimestamp("updated_at").toInstant(),
             rs.getLong("version")
         ),
-        OrganizationContext.current(), statusFilter, statusFilter
+        args.toArray()
     );
   }
 

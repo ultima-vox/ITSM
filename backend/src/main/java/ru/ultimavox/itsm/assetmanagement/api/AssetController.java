@@ -36,19 +36,22 @@ class AssetController {
   private final CreateAsset createAsset;
   private final LinkAssetToCi linkAssetToCi;
   private final AccessControl access;
+  private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
   AssetController(
       AssetQuery query,
       AssetCommands commands,
       CreateAsset createAsset,
       LinkAssetToCi linkAssetToCi,
-      AccessControl access
+      AccessControl access,
+      org.springframework.jdbc.core.JdbcTemplate jdbc
   ) {
     this.query = query;
     this.commands = commands;
     this.createAsset = createAsset;
     this.linkAssetToCi = linkAssetToCi;
     this.access = access;
+    this.jdbc = jdbc;
   }
 
   @GetMapping
@@ -57,10 +60,11 @@ class AssetController {
       Authentication authentication,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String kind,
-      @RequestParam(required = false) String owner
+      @RequestParam(required = false) String owner,
+      @RequestParam(required = false) String q
   ) {
     access.require(authentication.getName(), "asset.read", "asset", null);
-    return query.list(status, kind, owner);
+    return query.list(status, kind, owner, q);
   }
 
   @PostMapping
@@ -75,12 +79,14 @@ class AssetController {
       Asset created = createAsset.create(
           new CreateAsset.Command(
               tag,
+              body.name(),
               body.kind(),
               body.status(),
               body.ownerSubject() != null ? body.ownerSubject() : body.assignedTo(),
               body.configurationItemId(),
               body.acquiredOn(),
-              body.warrantyUntil()
+              body.warrantyUntil(),
+              body.location()
           ),
           authentication.getName()
       );
@@ -90,16 +96,53 @@ class AssetController {
     }
   }
 
+  @PatchMapping("/{id}")
+  @Operation(summary = "Update asset fields (name, location)")
+  Asset patch(
+      Authentication authentication,
+      @PathVariable UUID id,
+      @Valid @RequestBody PatchAssetRequest body
+  ) {
+    access.require(authentication.getName(), "asset.write", "asset", id.toString());
+    try {
+      Asset current = query.findById(id)
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Asset not found"));
+      if (body.expectedVersion() >= 0 && current.version() != body.expectedVersion()) {
+        throw new org.springframework.dao.OptimisticLockingFailureException("Asset changed since version " + body.expectedVersion());
+      }
+      Asset updated = current.updateFields(body.name(), body.location());
+      // Persist directly since AssetCommands.persist expects a before snapshot
+      java.sql.Timestamp now = java.sql.Timestamp.from(java.time.Instant.now());
+      jdbc.update("""
+          UPDATE asset SET name = ?, location = ?, version = version + 1, updated_at = ?
+          WHERE id = ? AND org_id = ? AND version = ?
+          """,
+          updated.name(), updated.location(), now, id,
+          ru.ultimavox.itsm.platform.authorization.OrganizationContext.current(), current.version());
+      return query.findById(id).orElseThrow();
+    } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+    }
+  }
+
   record CreateAssetRequest(
       @Size(max = 80) String assetTag,
       @Size(max = 80) String tag,
+      @Size(max = 240) String name,
       Asset.Kind kind,
       Asset.Status status,
       @Size(max = 128) String ownerSubject,
       @Size(max = 128) String assignedTo,
       UUID configurationItemId,
       LocalDate acquiredOn,
-      LocalDate warrantyUntil
+      LocalDate warrantyUntil,
+      @Size(max = 240) String location
+  ) {}
+
+  record PatchAssetRequest(
+      @Size(max = 240) String name,
+      @Size(max = 240) String location,
+      long expectedVersion
   ) {}
 
   @GetMapping("/{id}")

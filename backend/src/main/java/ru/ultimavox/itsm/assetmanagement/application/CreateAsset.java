@@ -48,18 +48,21 @@ public class CreateAsset {
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     jdbc.update(
         """
-        INSERT INTO asset (id, org_id, asset_tag, kind, status, owner_subject, configuration_item_id, acquired_on, warranty_until, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        INSERT INTO asset (id, org_id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
+            acquired_on, warranty_until, location, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         id,
         OrganizationContext.current(),
         command.assetTag().trim(),
+        command.name(),
         kind.name(),
         status.name(),
         command.ownerSubject(),
         command.configurationItemId(),
         command.acquiredOn() == null ? null : java.sql.Date.valueOf(command.acquiredOn()),
         command.warrantyUntil() == null ? null : java.sql.Date.valueOf(command.warrantyUntil()),
+        command.location(),
         Timestamp.from(now),
         Timestamp.from(now)
     );
@@ -81,11 +84,13 @@ public class CreateAsset {
 
   public record Command(
       String assetTag,
+      String name,
       Asset.Kind kind,
       Asset.Status status,
       String ownerSubject,
       UUID configurationItemId,
       LocalDate acquiredOn,
-      LocalDate warrantyUntil
+      LocalDate warrantyUntil,
+      String location
   ) {}
 }

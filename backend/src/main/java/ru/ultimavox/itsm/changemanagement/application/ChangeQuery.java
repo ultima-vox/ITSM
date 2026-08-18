@@ -17,20 +17,26 @@ public class ChangeQuery {
     this.jdbc = jdbc;
   }
 
-  public List<Change> list(String status) {
+  public List<Change> list(String status, String q) {
     String statusFilter = status == null || status.isBlank() ? null : status;
-    return jdbc.query(
+    StringBuilder sql = new StringBuilder(
         """
             SELECT id, number, type, risk, status, title, planned_start, planned_end,
                    implementation_plan, rollback_plan, test_plan, business_justification,
                    cab_notes, cab_risk_level, impact, version
             FROM change_request
             WHERE org_id = ? AND (?::text IS NULL OR status = ?)
-            ORDER BY updated_at DESC
-            """,
-        (rs, i) -> map(rs),
-        OrganizationContext.current(), statusFilter, statusFilter
-    );
+        """);
+    java.util.List<Object> args = new java.util.ArrayList<>();
+    args.add(OrganizationContext.current());
+    args.add(statusFilter); args.add(statusFilter);
+    if (q != null && !q.isBlank()) {
+        String pattern = "%" + q.trim().toLowerCase() + "%";
+        sql.append(" AND (lower(number) LIKE ? OR lower(title) LIKE ?)");
+        args.add(pattern); args.add(pattern);
+    }
+    sql.append(" ORDER BY updated_at DESC");
+    return jdbc.query(sql.toString(), (rs, i) -> map(rs), args.toArray());
   }
 
   public Optional<Change> findById(UUID id) {
