@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.ultimavox.itsm.platform.audit.AuditEventRecord;
 import ru.ultimavox.itsm.platform.audit.AuditQuery;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
+import ru.ultimavox.itsm.platform.users.UserProfile;
+import ru.ultimavox.itsm.platform.users.UserProfileService;
 
 @RestController
 @RequestMapping("/api/v1/audit")
@@ -22,10 +25,12 @@ class AuditController {
 
   private final AuditQuery query;
   private final AccessControl access;
+  private final UserProfileService userProfiles;
 
-  AuditController(AuditQuery query, AccessControl access) {
+  AuditController(AuditQuery query, AccessControl access, UserProfileService userProfiles) {
     this.query = query;
     this.access = access;
+    this.userProfiles = userProfiles;
   }
 
   @GetMapping
@@ -38,7 +43,12 @@ class AuditController {
   ) {
     String actor = authentication != null ? authentication.getName() : null;
     access.require(actor, "audit.read", "audit_event", null);
-    return query.list(action, limit, offset).stream().map(AuditEventView::from).toList();
+    List<AuditEventRecord> records = query.list(action, limit, offset);
+    // Batch-resolve actor names from user profiles
+    Map<String, UserProfile> profiles = userProfiles.resolve(
+        records.stream().map(AuditEventRecord::actorId).filter(s -> s != null && !s.isBlank()).collect(Collectors.toSet())
+    );
+    return records.stream().map(r -> AuditEventView.from(r, profiles)).toList();
   }
 
   @GetMapping("/actions")
@@ -64,7 +74,7 @@ class AuditController {
       Map<String, Object> beforeState,
       Map<String, Object> afterState
   ) {
-    static AuditEventView from(AuditEventRecord r) {
+    static AuditEventView from(AuditEventRecord r, Map<String, UserProfile> profiles) {
       String label = firstString(r.afterState(), "number", "title", "name");
       if (label == null) {
         label = firstString(r.beforeState(), "number", "title", "name");
@@ -76,12 +86,13 @@ class AuditController {
       if (detail == null && r.afterState() != null && !r.afterState().isEmpty()) {
         detail = "fields=" + r.afterState().keySet();
       }
+      ActorView av = ActorView.fromSubject(r.actorId(), profiles);
       return new AuditEventView(
           r.id(),
           r.occurredAt(),
           r.occurredAt() == null ? null : r.occurredAt().toString(),
           r.actorId(),
-          ActorView.fromSubject(r.actorId()),
+          av,
           r.action(),
           r.objectType(),
           r.objectId(),
@@ -95,8 +106,20 @@ class AuditController {
   }
 
   record ActorView(String id, String name, String initials) {
-    static ActorView fromSubject(String subject) {
+    static ActorView fromSubject(String subject, Map<String, UserProfile> profiles) {
       String id = subject == null || subject.isBlank() ? "unknown" : subject;
+      UserProfile p = profiles != null ? profiles.get(id) : null;
+      if (p != null) {
+        String dn = p.displayName() != null ? p.displayName() : p.username();
+        if (dn == null || dn.isBlank() || dn.equals(id)) {
+          dn = id;
+        }
+        String ini = dn.split("\\s+").length > 1
+            ? (dn.split("\\s+")[0].substring(0, 1) + dn.split("\\s+")[1].substring(0, 1)).toUpperCase()
+            : (dn.length() >= 2 ? dn.substring(0, 2).toUpperCase() : dn.toUpperCase());
+        return new ActorView(id, dn, ini);
+      }
+      // Fallback: derive from subject ID
       String name = id;
       String initials;
       if (id.length() >= 2) {
@@ -104,7 +127,6 @@ class AuditController {
       } else {
         initials = id.toUpperCase();
       }
-      // Prefer last segment of email-like or UUID-ish ids for display
       int at = id.indexOf('@');
       if (at > 0) {
         name = id.substring(0, at);

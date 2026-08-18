@@ -13,9 +13,10 @@ import type {
   WorkItem,
   WorkItemActivity,
   WorkItemComment,
-  WorkItemStatus,
   WorkItemType,
+  WorkItemStatus,
 } from '@/types';
+import { resolveUserSync } from '@/api/users';
 
 /** Backend WorkItemResponse (JSON camelCase, enums as names). */
 export interface BackendWorkItem {
@@ -90,9 +91,11 @@ function initialsFromId(id: string): string {
   return '??';
 }
 
-/** Person stub until users API exists: id + initials; name = id. */
+/** Resolve person from ID. Uses pre-warmed cache in live mode. */
 export function personFromId(id: string | null | undefined): Person | null {
   if (id == null || id === '') return null;
+  const cached = resolveUserSync(id);
+  if (cached.name !== id) return cached;
   return {
     id,
     name: id,

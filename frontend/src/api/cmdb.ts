@@ -50,12 +50,8 @@ export async function fetchCiRelations(): Promise<CiRelation[]> {
     await delay(120);
     return listCiRelations();
   }
-  try {
-    const list = await apiRequest<BackendCiRelationship[]>('/cmdb/relations');
-    return (list ?? []).map(mapCiRelationship);
-  } catch {
-    return [];
-  }
+  const list = await apiRequest<BackendCiRelationship[]>('/cmdb/relations');
+  return (list ?? []).map(mapCiRelationship);
 }
 
 /** CIs with zero relationships — live orphan detection. */

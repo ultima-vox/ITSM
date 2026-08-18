@@ -162,8 +162,18 @@ export async function revokeRoleDelegation(id: string): Promise<void> {
   });
 }
 
+const permDescCache = new Map<string, string>();
+
 export function getPermissionDescription(key: string): string {
   if (isMockMode()) return mockPermDesc(key);
+  const cached = permDescCache.get(key);
+  if (cached) return cached;
+  // Lazy-fetch permission descriptions in background (fire-and-forget)
+  if (permDescCache.size === 0) {
+    fetchRbacPermissions().then((list) => {
+      for (const p of list) permDescCache.set(p.key, p.description);
+    }).catch(() => {/* ignore */});
+  }
   return key;
 }
 

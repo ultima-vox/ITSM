@@ -1,4 +1,5 @@
 import { ApiError, delay, isMockMode, apiRequest, getApiActorId } from './client';
+import { preloadUserProfiles, resolveUsers } from './users';
 import {
   mapActivity,
   mapComment,
@@ -148,7 +149,11 @@ export async function fetchWorkItems(params?: {
   qs.set('size', String(LIST_PAGE_SIZE));
   const suffix = `?${qs}`;
   const page = await apiRequest<BackendWorkItemPage>(`/work-items${suffix}`);
-  return (page.items ?? []).map(mapWorkItem);
+  const items = (page.items ?? []).map(mapWorkItem);
+  // Pre-warm user profile cache for assignees and requesters
+  const sids = items.flatMap((w) => [w.assignee?.id, w.requester?.id].filter(Boolean) as string[]);
+  if (sids.length > 0) await preloadUserProfiles(sids);
+  return items;
 }
 
 export type WorkItemLinkType =
@@ -292,16 +297,15 @@ export async function fetchWorkItem(id: string): Promise<WorkItem | null> {
   }
   try {
     const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}`);
+    // Pre-warm cache for this item's people
+    await preloadUserProfiles([dto.assigneeId, dto.requesterId].filter(Boolean) as string[]);
     let item = mapWorkItem(dto);
     try {
       const subjects = await apiRequest<string[]>(`/work-items/${id}/watchers`);
+      const watcherProfiles = subjects?.length ? await resolveUsers(subjects) : [];
       item = {
         ...item,
-        watchers: (subjects ?? []).map((sid) => ({
-          id: sid,
-          name: sid,
-          initials: sid.slice(0, 2).toUpperCase(),
-        })),
+        watchers: watcherProfiles,
       };
     } catch {
       /* watchers optional */
@@ -340,6 +344,8 @@ export async function fetchWorkItemActivity(
     return getActivities(id);
   }
   const list = await apiRequest<BackendActivity[]>(`/work-items/${id}/activity`);
+  const actorIds = (list ?? []).map((a) => a.actorId).filter(Boolean) as string[];
+  if (actorIds.length > 0) await preloadUserProfiles(actorIds);
   return (list ?? []).map(mapActivity);
 }
 
@@ -351,6 +357,8 @@ export async function fetchWorkItemComments(
     return getComments(id);
   }
   const list = await apiRequest<BackendComment[]>(`/work-items/${id}/comments`);
+  const authorIds = (list ?? []).map((c) => c.authorId).filter(Boolean) as string[];
+  if (authorIds.length > 0) await preloadUserProfiles(authorIds);
   return (list ?? []).map(mapComment);
 }
 
