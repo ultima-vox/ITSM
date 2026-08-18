@@ -9,11 +9,24 @@ import type {
   WorkItemStatus,
   WorkingCalendarMock,
 } from '@/types';
-import {
-  getSlaPolicy,
-  getWorkingCalendar,
-  listSlaPolicies,
-} from '@/mock/sla';
+import { isMockMode } from '@/api/client';
+
+let _mockSla: typeof import('@/mock/sla') | null = null;
+
+function getSlaPolicyLookup(id: string): SlaPolicy | undefined {
+  if (!isMockMode()) return undefined;
+  return _mockSla?.getSlaPolicy(id) ?? undefined;
+}
+
+function getWorkingCalendarLookup(id: string): WorkingCalendarMock | undefined {
+  if (!isMockMode()) return undefined;
+  return _mockSla?.getWorkingCalendar(id) ?? undefined;
+}
+
+function listAllSlaPolicies(): SlaPolicy[] {
+  if (!isMockMode()) return [];
+  return _mockSla?.listSlaPolicies() ?? [];
+}
 
 export type SlaMetric = 'response' | 'resolution';
 
@@ -163,7 +176,7 @@ export function getWorkItemSlaRuntime(
   policies?: SlaPolicy[],
   calendars?: WorkingCalendarMock[],
 ): WorkItemSlaRuntime {
-  const all = (policies ?? listSlaPolicies()).filter((p) => p.enabled);
+  const all = (policies ?? listAllSlaPolicies()).filter((p) => p.enabled);
   const responsePolicy =
     all.find((p) => p.key === 'work-item.response') ??
     all.find((p) =>
@@ -192,7 +205,7 @@ export function getWorkItemSlaRuntime(
     'default-business';
   const calendar = calendars
     ? calendars.find((candidate) => candidate.key === calendarKey) ?? calendars[0] ?? null
-    : getWorkingCalendar(calendarKey);
+    : getWorkingCalendarLookup(calendarKey) ?? null;
 
   let source: WorkItemSlaRuntime['source'] = 'fallback';
   if (response.source === 'policy' && resolution.source === 'policy') {
@@ -228,4 +241,9 @@ export function formatSlaHours(hours: number): string {
 }
 
 /** Re-export get for tests. */
-export { getSlaPolicy };
+export { getSlaPolicyLookup as getSlaPolicyFor };
+
+// Lazy-init mock store in mock mode
+if (isMockMode()) {
+  import('@/mock/sla').then((m) => { _mockSla = m; });
+}

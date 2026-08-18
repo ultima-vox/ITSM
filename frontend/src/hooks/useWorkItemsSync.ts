@@ -1,17 +1,23 @@
 import { useEffect } from 'react';
+import { isMockMode } from '@/api/client';
 import { subscribeWorkItems } from '@/mock/store';
+import { subscribeNotifications } from '@/api/notifications';
 
 /**
- * Re-runs the given reload callbacks when the mock work-item store mutates
- * so list and detail views stay consistent without a hard navigation.
+ * Re-runs the given reload callbacks when work items change.
+ * - Mock mode: in-memory store subscription.
+ * - Live mode: SSE notification stream.
  */
 export function useWorkItemsSync(...reloads: Array<() => void>): void {
   useEffect(() => {
-    return subscribeWorkItems(() => {
+    if (isMockMode()) {
+      return subscribeWorkItems(() => {
+        reloads.forEach((fn) => fn());
+      });
+    }
+    return subscribeNotifications(() => {
       reloads.forEach((fn) => fn());
     });
-    // reloads identity changes every render if inline — callers should pass
-    // stable reload from useAsync
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, reloads);
 }

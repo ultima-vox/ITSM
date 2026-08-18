@@ -2,10 +2,6 @@
  * Bind mock workflow definitions to runtime transitions for work-item,
  * problem, and change (objectKey). UI statuses map to workflow states.
  */
-import {
-  getActiveWorkflowDefinition,
-  listWorkflowDefinitions,
-} from '@/mock/workflow';
 import type {
   Change,
   ChangeStatus,
@@ -15,6 +11,21 @@ import type {
   WorkflowDefinition,
   WorkflowTransition,
 } from '@/types';
+import { isMockMode } from '@/api/client';
+
+let _mockWorkflow: typeof import('@/mock/workflow') | null = null;
+
+function getActiveDefinition(objectKey: string): WorkflowDefinition | null {
+  if (!isMockMode()) return null;
+  if (_mockWorkflow) return _mockWorkflow.getActiveWorkflowDefinition(objectKey);
+  return null;
+}
+
+function hasAnyWorkflowFor(objectKey: string): boolean {
+  if (!isMockMode()) return false;
+  if (_mockWorkflow) return _mockWorkflow.listWorkflowDefinitions().some((d) => d.objectKey === objectKey);
+  return false;
+}
 
 export type TransitionSource = 'workflow' | 'fallback';
 /** @deprecated Use TransitionSource */
@@ -383,7 +394,7 @@ export function getWorkItemRuntimeTransitions(
   const definition =
     opts?.definition !== undefined
       ? opts.definition
-      : getActiveWorkflowDefinition('work-item');
+      : getActiveDefinition('work-item');
   const principalPermissions = opts?.permissions;
 
   const currentState = uiStatusToWorkflowState(item.status);
@@ -432,9 +443,7 @@ export function workflowStateLabelKey(
 
 /** Whether any work-item definition is currently active (for tests/UI). */
 export function hasActiveWorkItemWorkflow(): boolean {
-  return listWorkflowDefinitions().some(
-    (d) => d.objectKey === 'work-item' && d.active,
-  );
+  return hasAnyWorkflowFor('work-item');
 }
 
 // ── Problem runtime ──────────────────────────────────────────────────
@@ -554,7 +563,7 @@ export function getProblemRuntimeTransitions(
   const definition =
     opts?.definition !== undefined
       ? opts.definition
-      : getActiveWorkflowDefinition('problem');
+      : getActiveDefinition('problem');
   const currentState = uiProblemStatusToWorkflowState(problem.status);
 
   if (definition && definition.active) {
@@ -587,9 +596,7 @@ export function getProblemRuntimeTransitions(
 }
 
 export function hasActiveProblemWorkflow(): boolean {
-  return listWorkflowDefinitions().some(
-    (d) => d.objectKey === 'problem' && d.active,
-  );
+  return hasAnyWorkflowFor('problem');
 }
 
 // ── Change runtime ───────────────────────────────────────────────────
@@ -762,7 +769,7 @@ export function getChangeRuntimeTransitions(
   const definition =
     opts?.definition !== undefined
       ? opts.definition
-      : getActiveWorkflowDefinition('change');
+      : getActiveDefinition('change');
   const currentState = uiChangeStatusToWorkflowState(change.status);
 
   if (definition && definition.active) {
@@ -797,7 +804,10 @@ export function getChangeRuntimeTransitions(
 }
 
 export function hasActiveChangeWorkflow(): boolean {
-  return listWorkflowDefinitions().some(
-    (d) => d.objectKey === 'change' && d.active,
-  );
+  return hasAnyWorkflowFor('change');
+}
+
+// Lazy-init mock store in mock mode
+if (isMockMode()) {
+  import('@/mock/workflow').then((m) => { _mockWorkflow = m; });
 }

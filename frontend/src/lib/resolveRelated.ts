@@ -1,58 +1,76 @@
 /**
  * Resolve technical related ids (ci-*, wi-*, as-*, pr-*, ch-*, kb-*) to human labels
- * and deep-link hrefs using the in-memory mock store.
- * Used by Assets / Problems / Changes drawers and global search Open.
+ * and deep-link hrefs.
+ *
+ * In mock mode, resolves from the in-memory store.
+ * In live mode, uses prefix-based labeling (the entity is not in the mock store).
  */
-import {
-  getAsset,
-  getChange,
-  getConfigurationItem,
-  getKnowledgeArticle,
-  getProblem,
-  getWorkItem,
-} from '@/mock/store';
+
+function truncate(title: string): string {
+  return title.length > 48 ? `${title.slice(0, 47)}…` : title;
+}
+
+// Lazy-loaded mock store (only in mock mode)
+let mockStore: {
+  getWorkItem: (id: string) => { number: string; title: string } | null | undefined;
+  getConfigurationItem: (id: string) => { name: string } | null | undefined;
+  getAsset: (id: string) => { tag: string; name: string } | null | undefined;
+  getProblem: (id: string) => { number: string; title: string } | null | undefined;
+  getChange: (id: string) => { number: string; title: string } | null | undefined;
+  getKnowledgeArticle: (id: string) => { title?: string; titleKey?: string } | null | undefined;
+} | null = null;
+let mockStoreLoading = false;
+let isMock = false;
+
+async function ensureMockStore(): Promise<typeof mockStore> {
+  if (mockStore) return mockStore;
+  if (mockStoreLoading) return null;
+  try {
+    isMock = (await import('@/api/client')).isMockMode();
+    if (!isMock) return null;
+    mockStoreLoading = true;
+    const mod = await import('@/mock/store');
+    mockStore = mod;
+    return mockStore;
+  } catch {
+    return null;
+  }
+}
+
+// Synchronous version for callers that need immediate resolution
+// Falls back to prefix-based labeling if mock store hasn't loaded yet
+function getMockStoreSync() {
+  return mockStore;
+}
 
 export function resolveRelatedLabel(id: string): string {
   if (!id) return id;
 
-  const wi = getWorkItem(id);
-  if (wi) {
-    const title =
-      wi.title.length > 48 ? `${wi.title.slice(0, 47)}…` : wi.title;
-    return `${wi.number} · ${title}`;
+  const s = getMockStoreSync();
+  if (s) {
+    const wi = s.getWorkItem(id);
+    if (wi) return `${wi.number} · ${truncate(wi.title)}`;
+
+    const ci = s.getConfigurationItem(id);
+    if (ci) return ci.name;
+
+    const asset = s.getAsset(id);
+    if (asset) return `${asset.tag} · ${asset.name}`;
+
+    const problem = s.getProblem(id);
+    if (problem) return `${problem.number} · ${truncate(problem.title)}`;
+
+    const change = s.getChange(id);
+    if (change) return `${change.number} · ${truncate(change.title)}`;
+
+    const article = s.getKnowledgeArticle(id);
+    if (article) {
+      const title = (article.title ?? article.titleKey ?? id).trim();
+      return truncate(title);
+    }
   }
 
-  const ci = getConfigurationItem(id);
-  if (ci) return ci.name;
-
-  const asset = getAsset(id);
-  if (asset) return `${asset.tag} · ${asset.name}`;
-
-  const problem = getProblem(id);
-  if (problem) {
-    const title =
-      problem.title.length > 48
-        ? `${problem.title.slice(0, 47)}…`
-        : problem.title;
-    return `${problem.number} · ${title}`;
-  }
-
-  const change = getChange(id);
-  if (change) {
-    const title =
-      change.title.length > 48
-        ? `${change.title.slice(0, 47)}…`
-        : change.title;
-    return `${change.number} · ${title}`;
-  }
-
-  const article = getKnowledgeArticle(id);
-  if (article) {
-    const title = (article.title ?? article.titleKey ?? id).trim();
-    return title.length > 48 ? `${title.slice(0, 47)}…` : title;
-  }
-
-  // Fallback: never surface a bare technical id when we can soft-label it
+  // Prefix fallbacks
   if (id.startsWith('ci-')) return id.replace(/^ci-/, 'CI · ');
   if (id.startsWith('wi-')) return id.replace(/^wi-/, 'WI · ');
   if (id.startsWith('as-')) return id.replace(/^as-/, 'Asset · ');
@@ -62,19 +80,20 @@ export function resolveRelatedLabel(id: string): string {
   return id;
 }
 
-/** Deep-link path for an entity id when resolvable from store or id prefix. */
 export function resolveRelatedHref(id: string): string | undefined {
   if (!id) return undefined;
   const enc = encodeURIComponent(id);
 
-  if (getWorkItem(id)) return `/work-items/${id}`;
-  if (getConfigurationItem(id)) return `/cmdb?ci=${enc}`;
-  if (getProblem(id)) return `/problems?id=${enc}`;
-  if (getChange(id)) return `/changes?id=${enc}`;
-  if (getAsset(id)) return `/assets?id=${enc}`;
-  if (getKnowledgeArticle(id)) return `/knowledge?article=${enc}`;
+  const s = getMockStoreSync();
+  if (s) {
+    if (s.getWorkItem(id)) return `/work-items/${id}`;
+    if (s.getConfigurationItem(id)) return `/cmdb?ci=${enc}`;
+    if (s.getProblem(id)) return `/problems?id=${enc}`;
+    if (s.getChange(id)) return `/changes?id=${enc}`;
+    if (s.getAsset(id)) return `/assets?id=${enc}`;
+    if (s.getKnowledgeArticle(id)) return `/knowledge?article=${enc}`;
+  }
 
-  // Prefix fallbacks (live payloads / unknown store)
   if (id.startsWith('wi-')) return `/work-items/${id}`;
   if (id.startsWith('ci-')) return `/cmdb?ci=${enc}`;
   if (id.startsWith('pr-')) return `/problems?id=${enc}`;
@@ -94,11 +113,24 @@ export type RelatedKind =
   | 'unknown';
 
 export function resolveRelatedKind(id: string): RelatedKind {
-  if (getWorkItem(id) || id.startsWith('wi-')) return 'work_item';
-  if (getConfigurationItem(id) || id.startsWith('ci-')) return 'ci';
-  if (getAsset(id) || id.startsWith('as-')) return 'asset';
-  if (getProblem(id) || id.startsWith('pr-')) return 'problem';
-  if (getChange(id) || id.startsWith('ch-')) return 'change';
-  if (getKnowledgeArticle(id) || id.startsWith('kb-')) return 'knowledge';
+  const s = getMockStoreSync();
+  if (s) {
+    if (s.getWorkItem(id)) return 'work_item';
+    if (s.getConfigurationItem(id)) return 'ci';
+    if (s.getAsset(id)) return 'asset';
+    if (s.getProblem(id)) return 'problem';
+    if (s.getChange(id)) return 'change';
+    if (s.getKnowledgeArticle(id)) return 'knowledge';
+  }
+
+  if (id.startsWith('wi-')) return 'work_item';
+  if (id.startsWith('ci-')) return 'ci';
+  if (id.startsWith('as-')) return 'asset';
+  if (id.startsWith('pr-')) return 'problem';
+  if (id.startsWith('ch-')) return 'change';
+  if (id.startsWith('kb-')) return 'knowledge';
   return 'unknown';
 }
+
+// Kick off async mock store load for mock mode
+void ensureMockStore();
