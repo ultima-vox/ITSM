@@ -1,28 +1,18 @@
-# Local ITSM infrastructure stack — full integrations for Redis + OpenSearch + MinIO
+# vox ITSM — complete local runtime
 #
-# Ports (host → service):
-#   5432  PostgreSQL          (itsm / itsm / itsm)
-#   6379  Redis               (AOF persistence)
-#   5672  RabbitMQ AMQP
-#   15672 RabbitMQ management UI  (guest / guest)
-#   9200  OpenSearch              (security plugin disabled)
-#   9000  MinIO S3 API            (minioadmin / minioadmin)
-#   9001  MinIO console
-#   8081  Keycloak                (admin / admin; realm "itsm" auto-imported)
+#   docker compose up -d --build
+#   open http://localhost
 #
-# Backend with full stack:
-#   docker compose up -d
-#   cd backend
-#   .\backend\gradlew.bat bootRun --args='--spring.profiles.active=dev,compose'
+# Host-run backend/frontend (infra only):
+#   docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloak
 #
-# Env file (optional): backend/.env.compose or export vars from docs/ops/compose-integrations.md
+# Internal DNS (do not use host.docker.internal for container-to-container traffic):
+#   postgres:5432  redis:6379  rabbitmq:5672  opensearch:9200  minio:9000  keycloak:8080
 #
-# Issuer URI used by the backend resource server:
-#   http://localhost:8081/realms/itsm
-#
-# Start:  docker compose up -d
-# Stop:   docker compose down
-# Wipe:   docker compose down -v
+# Stop:  docker compose down
+# Wipe:  docker compose down -v
+
+name: vox-itsm
 
 services:
   postgres:
@@ -30,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: itsm
       POSTGRES_USER: itsm
-      POSTGRES_PASSWORD: itsm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-itsm}
     ports: ["${ITSM_POSTGRES_PORT:-5432}:5432"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -86,8 +76,8 @@ services:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
     ports: ["${ITSM_MINIO_PORT:-9000}:9000", "${ITSM_MINIO_UI_PORT:-9001}:9001"]
     volumes:
       - minio_data:/data
@@ -98,7 +88,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Creates itsm-attachments bucket once MinIO is healthy (idempotent).
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
@@ -106,22 +95,19 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin} &&
       mc mb --ignore-existing local/itsm-attachments &&
-      mc anonymous set download local/itsm-attachments || true &&
       echo 'MinIO bucket itsm-attachments ready'
       "
     restart: "no"
 
-  # Dev mode with embedded store. Realm JSON is imported when the realm is missing
-  # (re-create the container to re-import after editing infra/keycloak/*.json).
   keycloak:
     image: quay.io/keycloak/keycloak:26.2@sha256:4883630ef9db14031cde3e60700c9a9a8eaf1b5c24db1589d6a2d43de38ba2a9
     command: ["start-dev", "--import-realm", "--hostname-strict=false"]
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: http://localhost:8081
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      KC_HOSTNAME: ${ITSM_KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
     ports: ["${ITSM_KEYCLOAK_PORT:-8081}:8080"]
@@ -133,6 +119,74 @@ services:
       timeout: 5s
       retries: 20
       start_period: 45s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: compose
+      DATABASE_URL: jdbc:postgresql://postgres:5432/itsm
+      DATABASE_USER: itsm
+      DATABASE_PASSWORD: ${DB_PASSWORD:-itsm}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_INDEX: itsm
+      ITSM_STORAGE_TYPE: s3
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: itsm-attachments
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_PATH_STYLE: "true"
+      ITSM_REDIS_ENABLED: "true"
+      OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:-http://localhost:8081/realms/itsm}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/itsm/protocol/openid-connect/certs
+      ITSM_CORS_ORIGINS: ${ITSM_CORS_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:80,http://127.0.0.1:80,http://localhost:5173,http://127.0.0.1:5173}
+    ports: ["${ITSM_BACKEND_PORT:-8080}:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 50s
+      retries: 8
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: /api/v1
+        VITE_USE_MOCK: "false"
+        VITE_OIDC_ENABLED: "true"
+        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://localhost:8081/realms/itsm}
+        VITE_OIDC_CLIENT_ID: itsm-spa
+        VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+    ports: ["${ITSM_FRONTEND_PORT:-80}:8080"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
 
 volumes:
   postgres_data:

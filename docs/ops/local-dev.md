@@ -3,14 +3,22 @@
 ## Infrastructure
 
 ```bash
-docker compose up -d
+# Complete stack (backend + frontend + infra)
+docker compose up -d --build
+# UI: http://localhost
+
+# Infra only — host-run backend/frontend
+docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloak
 ```
 
-Starts PostgreSQL (`5432`), Redis (AOF), RabbitMQ, OpenSearch, MinIO (+ `itsm-attachments` bucket via `minio-init`), and Keycloak (`8081`). Defaults match `application.yml` (`itsm` / `itsm` / `itsm` for Postgres).
+Full stack publishes frontend on port `80` and backend on `8080`. Infra-only starts PostgreSQL (`5432`), Redis (AOF), RabbitMQ, OpenSearch, MinIO (`itsm-attachments` via `minio-init`), and Keycloak (`8081`). Defaults match `application.yml` (`itsm` / `itsm` / `itsm` for Postgres).
+
+Container-to-container traffic uses Compose DNS (`postgres:5432`, `redis:6379`, `rabbitmq:5672`, `opensearch:9200`, `minio:9000`, `keycloak:8080`). Do not point backend containers at `host.docker.internal`.
 
 Host ports are overrideable with `ITSM_POSTGRES_PORT`, `ITSM_REDIS_PORT`,
 `ITSM_RABBITMQ_PORT`, `ITSM_RABBITMQ_UI_PORT`, `ITSM_OPENSEARCH_PORT`,
-`ITSM_MINIO_PORT`, `ITSM_MINIO_UI_PORT`, and `ITSM_KEYCLOAK_PORT`.
+`ITSM_MINIO_PORT`, `ITSM_MINIO_UI_PORT`, `ITSM_KEYCLOAK_PORT`,
+`ITSM_BACKEND_PORT`, and `ITSM_FRONTEND_PORT`.
 
 **Full integrations (Redis cache + OpenSearch + MinIO)** — use profile `compose` (see [compose-integrations.md](./compose-integrations.md)):
 

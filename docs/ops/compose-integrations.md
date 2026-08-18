@@ -17,16 +17,12 @@ Profile **`compose`** turns the full stack **on** against `docker-compose.yml`.
 ## Start
 
 ```bash
-# 1) Infra (Postgres, Redis AOF, OpenSearch, MinIO+bucket, RabbitMQ, Keycloak)
-docker compose up -d
+# Complete stack (preferred)
+docker compose up -d --build
 
-# 2) Wait until healthy
+# Or infra only, then host-run backend
+docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloak
 docker compose ps
-# Optional:
-#   ./scripts/smoke-integrations.ps1   # Windows
-#   ./scripts/smoke-integrations.sh    # Unix
-
-# 3) Backend: dev (open API) + compose (integrations)
 cd backend
 ./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 ```

@@ -2,4 +2,6 @@ node_modules
 dist
 playwright-report
 test-results
-*.log
+*.tsbuildinfo
+.env
+.env.local

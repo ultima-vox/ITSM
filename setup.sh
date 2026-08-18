@@ -5,9 +5,9 @@ set -euo pipefail
 # vox ITSM — one-command installer
 #
 # Usage:
-#   ./setup.sh              Full install (infra + backend + frontend)
+#   ./setup.sh              Full Compose stack (infra + backend + frontend)
 #   ./setup.sh --infra-only Start Docker infrastructure only
-#   ./setup.sh --dev        Full install + start dev servers
+#   ./setup.sh --dev        Infra + host backend/frontend (no app containers)
 #   ./setup.sh --help       Show this help
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -78,10 +78,15 @@ ok "npm $(npm -v)"
 
 # ── 2. Docker Infrastructure ────────────────────────────────────────────────
 
-log "=== Starting Docker infrastructure ==="
-
 cd "$SCRIPT_DIR"
-docker compose up -d
+
+if [ "$INFRA_ONLY" = true ] || [ "$DEV_MODE" = true ]; then
+  log "=== Starting Docker infrastructure ==="
+  docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloak
+else
+  log "=== Starting complete Docker Compose stack ==="
+  docker compose up -d --build
+fi
 
 log "=== Waiting for services ==="
 
@@ -147,7 +152,32 @@ if [ "$INFRA_ONLY" = true ]; then
   exit 0
 fi
 
-# ── 3. Backend Build ────────────────────────────────────────────────────────
+if [ "$DEV_MODE" != true ]; then
+  echo -n "  Backend     "
+  for i in $(seq 1 60); do
+    curl -sf http://localhost:8080/actuator/health >/dev/null 2>&1 && break
+    sleep 3
+  done
+  curl -sf http://localhost:8080/actuator/health >/dev/null 2>&1 && ok "ready" || warn "timeout"
+
+  echo -n "  Frontend    "
+  for i in $(seq 1 20); do
+    curl -sf http://localhost/healthz >/dev/null 2>&1 && break
+    sleep 2
+  done
+  curl -sf http://localhost/healthz >/dev/null 2>&1 && ok "ready" || warn "timeout"
+
+  log "=== vox ITSM stack ready ==="
+  echo ""
+  echo "  UI            http://localhost"
+  echo "  Backend       http://localhost:8080"
+  echo "  Keycloak      http://localhost:8081   (anna / anna)"
+  echo "  Smoke         ./scripts/smoke-compose.sh"
+  echo ""
+  exit 0
+fi
+
+# ── Host-run --dev ──────────────────────────────────────────────────────────
 
 log "=== Building backend ==="
 
@@ -157,50 +187,21 @@ if command -v java >/dev/null 2>&1 && [ "$JAVA_VER" -ge 25 ] 2>/dev/null; then
   ./gradlew classes -q 2>/dev/null && ok "Backend compiled" || warn "Backend compile skipped (Java version mismatch)"
 else
   warn "Skipping local backend build (Java 25+ required)"
-  echo "  Build with Docker: docker compose -f docker-compose.prod.yml build backend"
+  echo "  Use: docker compose up -d --build"
 fi
 
 cd "$SCRIPT_DIR"
-
-# ── 4. Frontend Build ──────────────────────────────────────────────────────
 
 log "=== Installing frontend dependencies ==="
 
 cd "$SCRIPT_DIR/frontend"
 npm ci --ignore-scripts 2>/dev/null && ok "Dependencies installed" || npm install --ignore-scripts 2>/dev/null && ok "Dependencies installed" || warn "npm install had issues"
 
-log "=== Building frontend ==="
-npm run build 2>/dev/null && ok "Frontend built" || warn "Frontend build had warnings"
-
 cd "$SCRIPT_DIR"
 
-# ── 5. Summary ──────────────────────────────────────────────────────────────
-
-log "=== vox ITSM ready ==="
+log "=== vox ITSM host-dev ready ==="
 echo ""
-echo "Infrastructure:"
-echo "  PostgreSQL    localhost:5432   (itsm/itsm/itsm)"
-echo "  Redis         localhost:6379"
-echo "  RabbitMQ      localhost:5672   (guest/guest)"
-echo "  RabbitMQ UI   localhost:15672"
-echo "  OpenSearch    localhost:9200"
-echo "  MinIO         localhost:9000   (minioadmin/minioadmin)"
-echo "  MinIO Console localhost:9001"
-echo "  Keycloak      localhost:8081   (admin/admin, realm: itsm)"
-echo ""
-echo "Start backend:"
-echo "  cd backend"
-echo "  export SPRING_PROFILES_ACTIVE=dev,compose"
-echo "  export DATABASE_URL=jdbc:postgresql://localhost:5432/itsm"
-echo "  export DATABASE_USER=itsm"
-echo "  export DATABASE_PASSWORD=itsm"
-echo "  ./gradlew bootRun"
-echo ""
-echo "Start frontend:"
-echo "  cd frontend"
-echo "  cp .env.example .env"
-echo "  npm run dev"
-echo ""
+echo "Infrastructure is up. Starting host servers..."
 echo "Open: http://localhost:5173"
 echo ""
 

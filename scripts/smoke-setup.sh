@@ -114,12 +114,14 @@ fi
 echo ""
 echo -e "${BOLD}Frontend:${NC}"
 
-if curl -sf http://localhost:5173 >/dev/null 2>&1; then
+if curl -sf http://localhost/healthz >/dev/null 2>&1; then
+  pass "Compose frontend at http://localhost"
+elif curl -sf http://localhost:5173 >/dev/null 2>&1; then
   pass "Dev server running at http://localhost:5173"
 elif curl -sf http://localhost:80 >/dev/null 2>&1; then
-  pass "Production frontend at http://localhost:80"
+  pass "Frontend at http://localhost:80"
 else
-  fail "Frontend not reachable (start with: cd frontend && npm run dev)"
+  fail "Frontend not reachable (docker compose up -d --build, or npm run dev)"
 fi
 
 # ── Keycloak auth ───────────────────────────────────────────────────────────

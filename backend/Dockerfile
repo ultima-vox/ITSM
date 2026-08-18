@@ -9,6 +9,7 @@ RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:25-jre-alpine@sha256:28db6fdf60e38945e43d840c0333aeaec66c15943070104f7586fd3c9d1665b0
 RUN apk upgrade --no-cache && \
+    apk add --no-cache wget && \
     addgroup -S itsm && adduser -S -G itsm itsm
 WORKDIR /app
 COPY --from=build /workspace/build/libs/itsm-platform-*.jar app.jar

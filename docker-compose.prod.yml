@@ -1,10 +1,12 @@
-# Production full-stack — builds backend + frontend images and runs against infrastructure.
+# Production-shaped full stack. Default demo secrets are for local rehearsal only.
+# Real production must set DB_PASSWORD, S3_*, KC_*, HTTPS OIDC issuer, and
+# SPRING_PROFILES_ACTIVE=prod (ProductionSafetyGuard then requires HTTPS + non-demo secrets).
 #
-# Usage:
 #   docker compose -f docker-compose.prod.yml up -d --build
-#   docker compose -f docker-compose.prod.yml down
 #
-# Requires: Docker with buildx support (included in Docker Desktop / Docker Engine 23+).
+# Prefer kubernetes manifests under deploy/kubernetes for actual production.
+
+name: vox-itsm-prod
 
 services:
   postgres:
@@ -13,7 +15,6 @@ services:
       POSTGRES_DB: itsm
       POSTGRES_USER: itsm
       POSTGRES_PASSWORD: ${DB_PASSWORD:-itsm}
-    ports: ["${ITSM_POSTGRES_PORT:-5432}:5432"]
     volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U itsm -d itsm"]
@@ -24,7 +25,6 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
-    ports: ["${ITSM_REDIS_PORT:-6379}:6379"]
     volumes: [redis_data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -34,7 +34,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
-    ports: ["${ITSM_RABBITMQ_PORT:-5672}:5672", "${ITSM_RABBITMQ_UI_PORT:-15672}:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -50,7 +49,6 @@ services:
       bootstrap.memory_lock: "true"
     ulimits:
       memlock: { soft: -1, hard: -1 }
-    ports: ["${ITSM_OPENSEARCH_PORT:-9200}:9200"]
     volumes: [opensearch_data:/usr/share/opensearch/data]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
@@ -65,7 +63,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
-    ports: ["${ITSM_MINIO_PORT:-9000}:9000", "${ITSM_MINIO_UI_PORT:-9001}:9001"]
     volumes: [minio_data:/data]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
@@ -81,7 +78,7 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin} &&
       mc mb --ignore-existing local/itsm-attachments &&
-      mc anonymous set download local/itsm-attachments || true
+      echo 'MinIO bucket itsm-attachments ready'
       "
     restart: "no"
 
@@ -91,7 +88,7 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
-      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME: ${ITSM_KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
     ports: ["${ITSM_KEYCLOAK_PORT:-8081}:8080"]
@@ -108,7 +105,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-compose}
       DATABASE_URL: jdbc:postgresql://postgres:5432/itsm
       DATABASE_USER: itsm
       DATABASE_PASSWORD: ${DB_PASSWORD:-itsm}
@@ -125,18 +122,23 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       S3_PATH_STYLE: "true"
       ITSM_REDIS_ENABLED: "true"
-      OIDC_ISSUER_URI: http://keycloak:8080/realms/itsm
+      OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:-http://localhost:8081/realms/itsm}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/itsm/protocol/openid-connect/certs
+      ITSM_CORS_ORIGINS: ${ITSM_CORS_ORIGINS:-http://localhost,http://127.0.0.1}
     ports: ["${ITSM_BACKEND_PORT:-8080}:8080"]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
+      opensearch: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+      keycloak: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]
       interval: 15s
       timeout: 5s
-      start_period: 40s
-      retries: 5
+      start_period: 50s
+      retries: 8
 
   frontend:
     build:
@@ -146,9 +148,18 @@ services:
         VITE_API_BASE: /api/v1
         VITE_USE_MOCK: "false"
         VITE_OIDC_ENABLED: "true"
-    ports: ["${ITSM_FRONTEND_PORT:-80}:80"]
+        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://localhost:8081/realms/itsm}
+        VITE_OIDC_CLIENT_ID: itsm-spa
+        VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+    ports: ["${ITSM_FRONTEND_PORT:-80}:8080"]
     depends_on:
       backend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
 
 volumes:
   postgres_data:

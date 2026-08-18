@@ -1,86 +1,95 @@
 # vox ITSM
 
-Enterprise-grade ITSM/ESM platform — modular monolith with metadata-driven workflow engine, real-time collaboration, and full ITIL lifecycle support.
+Enterprise ITSM/ESM platform — modular monolith under active development.
 
-## System Requirements
+**Java 25 / Spring Boot 3.5 / Gradle** backend; **React 18 / TypeScript 5.6 / Vite 8.2** frontend; PostgreSQL 17 as the transactional source of truth. Optional integrations: Redis, RabbitMQ, OpenSearch, MinIO, Keycloak.
 
-### Minimum (Development)
+The target is a production-grade service-management platform, not an MVP. **The repository is not production-ready yet.**
 
-| Component | Requirement |
-|-----------|-------------|
-| **OS** | Linux, macOS, or Windows (WSL2) |
-| **CPU** | 4 cores |
-| **RAM** | 8 GB (Docker stack ~4 GB, backend ~1 GB, frontend ~512 MB) |
-| **Disk** | 20 GB free (Docker images ~10 GB) |
-| **Docker** | 24.0+ with Compose v2 |
-| **Java** | 25+ (backend compilation; not needed if using Docker builds) |
-| **Node.js** | 22+ (frontend build) |
-| **npm** | 10+ |
+## Current status
 
-### Recommended (Production)
+**Status date:** 2026-08-18
 
-| Component | Requirement |
-|-----------|-------------|
-| **CPU** | 8+ cores |
-| **RAM** | 16 GB+ |
-| **Disk** | 50 GB SSD |
-| **Database** | PostgreSQL 17 |
-| **Cache** | Redis 7 |
-| **Search** | OpenSearch 2.19+ |
-| **Message Broker** | RabbitMQ 4 |
-| **Object Storage** | S3-compatible (MinIO, AWS S3, etc.) |
-| **Identity Provider** | Keycloak 26+ or any OIDC provider |
+| Area | Current state |
+| --- | --- |
+| Architecture | Modular monolith with Flyway V1–V74; still being hardened |
+| Frontend | Broad operator coverage; live API mode wired at the API layer |
+| Service Desk | Incidents, requests, tasks, assignment, comments, links, SLA clocks |
+| Change / CAB | Lifecycle, votes, schedule windows; calendar/CAB depth still evolving |
+| Problem Management | Lifecycle, RCA/workaround gates |
+| CMDB | CIs, relationships, impact graph |
+| Assets | Lifecycle, CI linkage, name/location |
+| Knowledge | Articles, publication, helpfulness votes |
+| Service Catalog | Items, requests, fulfillment foundations |
+| SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
+| Notifications | PostgreSQL-backed store + SSE |
+| Search | JDBC fallback and OpenSearch integration |
+| Attachments | S3/MinIO path + scan status; production malware pipeline still needs verification |
+| Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC |
+| Reports | Backend workload/SLA reports |
+| Locales | **ru (default), en, de** — not ten languages |
+| Production readiness | **Not ready** |
 
-### Optional
+A reasonable characterization is **pre-production alpha / integration-stage platform**.
 
-| Component | Purpose |
-|-----------|---------|
-| **Ollama / LM Studio** | AI copilot (summarization, suggestions) |
-| **OpenSearch** | Full-text search (falls back to JDBC without it) |
-| **Redis** | Distributed cache, locale preferences, rate limiting |
-| **RabbitMQ** | Async messaging, outbox event relay |
+## Quick start
 
-## Quick Start
+One command starts the complete local stack (PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Keycloak, backend, frontend):
 
 ```bash
-# Clone and run the installer
-git clone https://github.com/ultima-vox/ITSM.git
-cd ITSM
-./setup.sh
+docker compose up -d --build
 ```
 
-The installer will:
-1. Check prerequisites (Docker, Java, Node.js)
-2. Start all Docker infrastructure (PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Keycloak)
-3. Wait for services to become healthy
-4. Build the frontend
+Then open **http://localhost**
 
-### Start dev servers
+| Service | URL | Notes |
+| --- | --- | --- |
+| Frontend | http://localhost | nginx, live mode, `/api` proxied to backend |
+| Backend | http://localhost:8080 | `/actuator/health`, OpenAPI at `/swagger-ui.html` |
+| Keycloak | http://localhost:8081 | admin / admin; realm `itsm`; demo user `anna` / `anna` |
+| PostgreSQL | localhost:5432 | `itsm` / `itsm` / `itsm` |
+| RabbitMQ UI | http://localhost:15672 | guest / guest |
+| MinIO console | http://localhost:9001 | minioadmin / minioadmin |
+| OpenSearch | http://localhost:9200 | security plugin disabled (local only) |
 
-```bash
-./setup.sh --dev
+Internal container DNS (never `host.docker.internal` for service-to-service traffic):
+
+```text
+PostgreSQL  jdbc:postgresql://postgres:5432/itsm
+RabbitMQ    rabbitmq:5672
+Redis       redis:6379
+OpenSearch  http://opensearch:9200
+MinIO       http://minio:9000
+Keycloak    http://keycloak:8080
 ```
 
-Or manually:
+Stop: `docker compose down`. Wipe data: `docker compose down -v`.
+
+### Host-run development
+
+Keep infrastructure in Compose; run backend and frontend on the host (avoids port 8080/80 collision with the app containers):
 
 ```bash
-# Terminal 1 — Backend
+docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloak
+
 cd backend
-set -a; source .env.compose; set +a
-./gradlew bootRun
+./gradlew bootRun --args='--spring.profiles.active=dev,compose'
 
-# Terminal 2 — Frontend
 cd frontend
 cp .env.example .env
 npm run dev
 ```
 
-Open **http://localhost:5173**
+Open **http://localhost:5173**. Profile `dev` disables JWT enforcement — never use it in production.
 
-### Run smoke tests
+### Installer
 
 ```bash
+./setup.sh              # full Compose stack
+./setup.sh --infra-only # infrastructure containers only
+./setup.sh --dev        # infra + host backend/frontend
 ./scripts/smoke-setup.sh
+./scripts/smoke-compose.sh
 ```
 
 ## Architecture
@@ -90,188 +99,142 @@ Open **http://localhost:5173**
 │  Frontend (React + TypeScript + Vite)                   │
 │  Dual-mode: mock (demo) / live API                      │
 ├─────────────────────────────────────────────────────────┤
-│  Backend (Java 25 + Spring Boot 3.5)                    │
-│  Modular monolith — 8 domain modules                    │
-│  ┌──────────┬──────────┬──────────┬──────────┐          │
-│  │Service   │Change    │Problem   │CMDB/     │          │
-│  │Desk      │Mgmt      │Mgmt      │Asset     │          │
-│  ├──────────┼──────────┼──────────┼──────────┤          │
-│  │Knowledge │Catalog   │Reporting │Platform  │          │
-│  │Base      │          │          │Engines   │          │
-│  └──────────┴──────────┴──────────┴──────────┘          │
-│  Platform Engines: Workflow, RBAC, SLA, Automation,     │
-│  Forms, Audit, Search, Notification, Event, AI Gateway  │
+│  Backend (Java 25 + Spring Boot 3.5 + Gradle)           │
+│  Modular monolith                                       │
+│  Service Desk · Change · Problem · CMDB · Asset         │
+│  Knowledge · Catalog · Reporting · Platform engines     │
+│  Workflow, RBAC, SLA, Automation, Forms, Audit,         │
+│  Search, Notification, Event/Outbox, AI Gateway         │
 ├─────────────────────────────────────────────────────────┤
 │  Infrastructure                                         │
 │  PostgreSQL · Redis · RabbitMQ · OpenSearch · MinIO     │
-│  Keycloak (OIDC) · Flyway migrations                    │
+│  Keycloak (OIDC) · Flyway V1–V74                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Tech Stack
+### Tech stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Java 25, Spring Boot 3.5.14, Spring Modulith, Flyway |
+| Backend | Java 25, Spring Boot 3.5, Spring Modulith, Gradle, Flyway |
 | Frontend | React 18, TypeScript 5.6, Vite 8.2, React Router 7 |
-| Database | PostgreSQL 17, Flyway (74 migrations) |
-| Cache | Redis 7 (AOF persistence) |
+| Database | PostgreSQL 17, Flyway (V1–V74) |
+| Cache | Redis 7 (optional; AOF) |
 | Messaging | RabbitMQ 4 (outbox pattern) |
-| Search | OpenSearch 2.19 (JDBC fallback) |
+| Search | OpenSearch 2.19 (JDBC fallback when unset) |
 | Auth | Keycloak 26 / OIDC (Authorization Code + PKCE) |
-| Storage | S3-compatible (MinIO for local dev) |
+| Storage | S3-compatible (MinIO locally) |
 | Observability | Micrometer + OpenTelemetry + Prometheus + Grafana |
-| CI/CD | GitHub Actions, self-hosted runners |
+| CI/CD | GitHub Actions on self-hosted Linux runners |
 | Deployment | Docker Compose, Kubernetes (Kustomize) |
 
-## Features
+## Features (implemented foundations)
 
-### Functional Modules
+Existence of a screen or API is not a production-completeness claim.
+
+### Functional modules
 
 | Module | Description |
 |--------|-------------|
-| **Service Desk** | Incidents, service requests, tasks, queues, assignment, SLA tracking, bulk operations |
-| **Change Management** | CAB reviews, risk assessment, scheduling, conflict detection, approvals |
-| **Problem Management** | Root cause analysis, known errors, workarounds, linked incidents |
-| **CMDB** | Configuration items, relationships, impact analysis, service mapping |
-| **Asset Management** | Hardware/software lifecycle, procurement, assignment, retirement |
-| **Knowledge Base** | Articles, categories, helpfulness voting, linked tickets |
-| **Service Catalog** | Request forms, approvals, fulfillment workflows |
-| **Reporting** | SLA compliance, workload, trends, operator metrics |
+| **Service Desk** | Incidents, service requests, tasks, queues, assignment, SLA clocks, bulk operations |
+| **Change Management** | Risk/plan fields, scheduling, CAB votes, conflict detection |
+| **Problem Management** | RCA, known errors, workarounds, linked incidents |
+| **CMDB** | Configuration items, relationships, impact analysis |
+| **Asset Management** | Lifecycle, inventory, CI linkage |
+| **Knowledge Base** | Articles, categories, helpfulness voting |
+| **Service Catalog** | Request items, fulfillment foundations |
+| **Reporting** | Workload and SLA metrics from backend queries |
 
-### Platform Engines
+### Platform engines
 
 | Engine | Description |
 |--------|-------------|
-| **Workflow** | State machines with permissions, conditions, timers, approvals |
-| **RBAC** | Roles, permissions, field-level access, delegation, separation of duties |
-| **SLA** | Response/resolution targets, working calendars, pause, breach detection |
-| **Automation** | Event-driven rules (WHEN/IF/THEN), no-code configuration |
-| **Forms** | Metadata-driven layouts, validation, role-specific views |
-| **Audit** | Tamper-resistant event trail, actor resolution, entity tracking |
-| **Search** | Global full-text across all entities, faceted filtering |
-| **Notification** | SSE real-time push, templated delivery, channel routing |
-| **AI Gateway** | Copilot summarization, suggestions (Ollama/LM Studio) |
+| **Workflow** | Versioned state machines, permissions, conditions, timers, approvals |
+| **RBAC** | Roles, object/field permissions, delegation |
+| **SLA** | Response/resolution clocks, calendars, pause, breach, escalation |
+| **Automation** | WHEN/IF/THEN rules, allowlisted actions, retry/quarantine |
+| **Forms / metadata** | Object definitions, dynamic forms |
+| **Audit** | Append-only trail |
+| **Search** | JDBC or OpenSearch, permission-aware |
+| **Notification** | Persistent store, SSE, preferences |
+| **AI Gateway** | Isolated copilot (Ollama optional; logging stub otherwise) |
 
-### UI Capabilities
+### UI capabilities
 
-- 10 interface languages (ru, en, de, fr, es, it, ja, zh, ko, ar)
+- 3 interface languages: Russian (default), English, German
 - Dark / light / high-contrast themes
-- Compact / comfortable density modes
-- Responsive design
+- Compact / comfortable density
 - Real-time SSE updates
-- Global search with keyboard navigation
-- Accessible (WCAG-oriented controls)
+- Global search
+- WCAG-oriented controls
 
 ## Configuration
 
-### Backend Environment Variables
+### Backend environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SPRING_PROFILES_ACTIVE` | `dev` | Active Spring profiles |
+| `SPRING_PROFILES_ACTIVE` | `dev` (host) / `compose` (stack) | `dev` disables JWT. `compose` enables Redis, OpenSearch, S3. `prod` requires HTTPS issuer, non-demo secrets |
 | `DATABASE_URL` | `jdbc:postgresql://localhost:5432/itsm` | PostgreSQL JDBC URL |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | `itsm` / `itsm` | Database credentials |
-| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis connection |
-| `RABBITMQ_HOST` / `RABBITMQ_PORT` | `localhost` / `5672` | RabbitMQ connection |
-| `OPENSEARCH_URL` | (empty) | OpenSearch cluster URL |
-| `ITSM_STORAGE_TYPE` | `local` | Storage backend (`local` / `s3`) |
-| `S3_ENDPOINT` | — | S3 endpoint URL |
-| `S3_BUCKET` | — | S3 bucket name |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | — | S3 credentials |
-| `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` | OIDC issuer |
-| `ITSM_CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis |
+| `RABBITMQ_HOST` / `RABBITMQ_PORT` | `localhost` / `5672` | RabbitMQ |
+| `OPENSEARCH_URL` | (empty) | OpenSearch URL; empty = JDBC search |
+| `ITSM_STORAGE_TYPE` | `local` | `local` or `s3` |
+| `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` | JWT `iss` claim |
+| `OIDC_JWK_SET_URI` | (empty) | Optional internal JWKS URL for containerized backend |
+| `ITSM_CORS_ORIGINS` | Vite `5173` | Allowed CORS origins |
 | `ITSM_REDIS_ENABLED` | `false` | Enable Redis cache |
 
-### Frontend Environment Variables
+### Frontend environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_USE_MOCK` | `false` | Enable mock/demo mode |
+| `VITE_USE_MOCK` | `false` | Mock/demo mode |
 | `VITE_API_BASE` | `/api/v1` | Backend API base path |
-| `VITE_OIDC_ENABLED` | `false` | Enable OIDC login UI |
+| `VITE_OIDC_ENABLED` | `false` (host) / `true` (image) | OIDC login UI |
 | `VITE_OIDC_ISSUER` | `http://localhost:8081/realms/itsm` | OIDC issuer URL |
-| `VITE_OIDC_CLIENT_ID` | `itsm-spa` | OIDC client ID |
+| `VITE_OIDC_CLIENT_ID` | `itsm-spa` | Public client |
 | `VITE_WORKSPACE_NAME` | `ITSM` | Workspace display name |
 
 ## Development
 
-### Project Structure
-
 ```
 ITSM/
-├── backend/
-│   ├── src/main/java/ru/ultimavox/itsm/
-│   │   ├── servicedesk/          # Incidents, requests, tasks
-│   │   ├── changemanagement/     # Change lifecycle
-│   │   ├── problemmanagement/    # Problem lifecycle
-│   │   ├── cmdb/                 # Configuration items
-│   │   ├── assetmanagement/      # Asset lifecycle
-│   │   ├── knowledgebase/        # Articles, voting
-│   │   ├── servicecatalog/       # Catalog items
-│   │   ├── reporting/            # Dashboards, metrics
-│   │   └── platform/             # Shared engines (RBAC, SLA, workflow, etc.)
-│   └── src/main/resources/db/migration/  # Flyway SQL (V1–V74)
-├── frontend/
-│   └── src/
-│       ├── api/                  # API layer (mock/live branching)
-│       ├── pages/                # Route components
-│       ├── components/           # Shared UI components
-│       ├── hooks/                # Shared React hooks
-│       ├── i18n/                 # 10 locale message catalogs
-│       ├── mock/                 # In-memory demo store
-│       └── types/                # TypeScript types
-├── docs/
-│   ├── architecture/             # Architecture docs
-│   ├── security/                 # Security docs
-│   ├── ops/                      # Operations docs
-│   └── product/                  # Product docs
-├── deploy/
-│   ├── kubernetes/               # K8s manifests + Kustomize
-│   └── observability/            # Grafana dashboards, Prometheus rules
-├── infra/
-│   └── keycloak/                 # Realm JSON + README
-├── docker-compose.yml            # Development infrastructure
-├── docker-compose.prod.yml       # Production full-stack
-├── setup.sh                      # One-command installer
-└── scripts/
-    ├── smoke-setup.sh            # Post-install verification
-    ├── smoke-api.sh              # API smoke tests
-    └── backup-db.ps1             # Database backup
+├── backend/                  # Gradle Spring Boot modular monolith
+├── frontend/                 # React SPA
+├── docs/                     # architecture, security, ops, product, UX
+├── deploy/                   # Kubernetes + observability
+├── infra/keycloak/           # Realm JSON
+├── docker-compose.yml        # Full local stack
+├── docker-compose.prod.yml   # Production-shaped stack (real secrets required for `prod`)
+├── setup.sh
+└── scripts/                  # smoke, backup
 ```
-
-### Useful Commands
 
 ```bash
 # Backend
 cd backend
-./gradlew bootRun                                    # Start dev server
-./gradlew bootRun --args='--spring.profiles.active=dev,compose'  # With full infra
-./gradlew test                                        # Run tests
-./gradlew classes                                     # Compile only
+./gradlew bootRun
+./gradlew bootRun --args='--spring.profiles.active=dev,compose'
+./gradlew test
+./gradlew classes
 
 # Frontend
 cd frontend
-npm run dev          # Dev server (http://localhost:5173)
-npm run build        # Production build
-npm run typecheck    # TypeScript check
-npm run lint         # ESLint
-npx vitest run src   # Unit tests
+npm run dev
+npm run build
+npm run typecheck
+npx vitest run src
 
-# Infrastructure
-docker compose up -d          # Start all services
-docker compose down           # Stop all services
-docker compose down -v        # Stop and wipe data
-docker compose logs -f        # Follow all logs
+# Stack
+docker compose up -d --build
+docker compose ps
+docker compose logs -f backend
+docker compose down
 ```
 
-### API Documentation
-
-- **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
-- **Health**: http://localhost:8080/actuator/health
-
-### Default Credentials
+### Default credentials (local only)
 
 | Service | Username | Password | URL |
 |---------|----------|----------|-----|
@@ -281,52 +244,28 @@ docker compose logs -f        # Follow all logs
 | RabbitMQ | `guest` | `guest` | http://localhost:15672 |
 | MinIO | `minioadmin` | `minioadmin` | http://localhost:9001 |
 
-## Deployment
-
-### Docker Compose (Production)
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-### Kubernetes
-
-```bash
-cd deploy/kubernetes
-# Edit secret.example.yaml → secret.yaml with real credentials
-kubectl apply -k .
-```
-
-See [`docs/ops/production-deployment.md`](docs/ops/production-deployment.md) for full deployment guide.
-
 ## Testing
 
 ```bash
-# Frontend unit tests
 cd frontend && npx vitest run src
-
-# Backend tests (requires Java 25)
 cd backend && ./gradlew test
-
-# Smoke tests (after setup.sh)
 ./scripts/smoke-setup.sh
-
-# CI pipeline
-# Runs on push/PR: typecheck, lint, unit tests, build, API contract,
-# Playwright E2E, backend tests, security scans, container scans
+./scripts/smoke-compose.sh
 ```
+
+CI (self-hosted Linux): typecheck, lint, unit tests, mock Playwright, backend tests, security scans, and a mandatory Compose full-stack smoke on unique project names.
 
 ## Documentation
 
 | Topic | Path |
 |-------|------|
-| Architecture overview | [`docs/architecture/`](docs/architecture/) |
-| Architecture Decision Records | [`docs/adr/`](docs/adr/) |
-| Security model | [`docs/security/`](docs/security/) |
-| Operations guide | [`docs/ops/`](docs/ops/) |
-| Product specs | [`docs/product/`](docs/product/) |
-| UX quality gates | [`docs/ux/`](docs/ux/) |
-| Keycloak setup | [`infra/keycloak/README.md`](infra/keycloak/README.md) |
+| Architecture | [`docs/architecture/`](docs/architecture/) |
+| ADRs | [`docs/adr/`](docs/adr/) |
+| Security | [`docs/security/`](docs/security/) |
+| Operations | [`docs/ops/`](docs/ops/) |
+| Product | [`docs/product/`](docs/product/) |
+| UX gates | [`docs/ux/`](docs/ux/) |
+| Keycloak | [`infra/keycloak/README.md`](infra/keycloak/README.md) |
 | Compose integrations | [`docs/ops/compose-integrations.md`](docs/ops/compose-integrations.md) |
 | Production deployment | [`docs/ops/production-deployment.md`](docs/ops/production-deployment.md) |
 

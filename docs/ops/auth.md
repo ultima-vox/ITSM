@@ -50,7 +50,7 @@ With `VITE_USE_MOCK=false`, OIDC enabled, and no Bearer token, the shell shows a
 
 ## Local test (anna / anna)
 
-Prerequisites: `docker compose up -d` (Keycloak on `8081`), backend (JWT or `dev`), frontend with OIDC env above.
+Prerequisites: `docker compose up -d --build` (or infra-only + host backend), Keycloak on `8081`, frontend with OIDC env above. Compose frontend uses `http://localhost/auth/callback`.
 
 ```bash
 cd frontend

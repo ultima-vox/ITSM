@@ -1,4 +1,5 @@
-.gradle
 build
 target
+.gradle
 *.log
+*.pid
