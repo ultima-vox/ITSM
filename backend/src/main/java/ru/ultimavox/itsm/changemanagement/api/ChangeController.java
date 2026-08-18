@@ -53,11 +53,20 @@ class ChangeController {
 
   @GetMapping
   @Operation(summary = "List changes")
-  List<Change> list(Authentication authentication,
+  ChangeListResponse list(Authentication authentication,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String q) {
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false, defaultValue = "0") int page,
+      @RequestParam(required = false, defaultValue = "50") int size) {
     access.require(authentication.getName(), "change.read", "change", null);
-    return query.list(status, q);
+    int safeSize = Math.min(Math.max(size, 1), 200);
+    int safePage = Math.max(page, 0);
+    List<Change> all = query.list(status, q);
+    int total = all.size();
+    int from = safePage * safeSize;
+    int to = Math.min(from + safeSize, total);
+    List<Change> items = from < total ? all.subList(from, to) : List.of();
+    return new ChangeListResponse(items, total, safePage, safeSize);
   }
 
   @GetMapping("/conflicts")
@@ -288,4 +297,10 @@ class ChangeController {
 
   record BulkAssignRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids) {}
   record BulkAssignResponse(int updated) {}
+  record ChangeListResponse(
+      List<Change> items,
+      int total,
+      int page,
+      int size
+  ) {}
 }

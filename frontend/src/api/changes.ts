@@ -62,8 +62,9 @@ export async function fetchChanges(): Promise<Change[]> {
     await delay(220);
     return listChanges();
   }
-  const list = await apiRequest<BackendChange[]>('/changes');
-  return (list ?? []).map(mapChange);
+  const resp = await apiRequest<{ items: BackendChange[]; total: number } | BackendChange[]>('/changes');
+  const items = Array.isArray(resp) ? resp : (resp.items ?? []);
+  return items.map(mapChange);
 }
 
 /** Live schedule overlap from backend; mock returns []. */

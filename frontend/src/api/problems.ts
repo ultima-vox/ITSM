@@ -39,8 +39,9 @@ export async function fetchProblems(): Promise<Problem[]> {
     await delay(220);
     return listProblems();
   }
-  const list = await apiRequest<BackendProblemSummary[]>('/problems');
-  return (list ?? []).map(mapProblem);
+  const resp = await apiRequest<{ items: BackendProblemSummary[]; total: number } | BackendProblemSummary[]>('/problems');
+  const items = Array.isArray(resp) ? resp : (resp.items ?? []);
+  return items.map(mapProblem);
 }
 
 export async function createProblem(

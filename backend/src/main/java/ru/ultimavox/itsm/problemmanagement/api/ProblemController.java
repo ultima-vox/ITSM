@@ -45,13 +45,22 @@ class ProblemController {
 
   @GetMapping
   @Operation(summary = "List problems")
-  List<ProblemQuery.ProblemSummary> list(
+  ProblemListResponse list(
       Authentication authentication,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String q
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false, defaultValue = "0") int page,
+      @RequestParam(required = false, defaultValue = "50") int size
   ) {
     access.require(authentication.getName(), "problem.read", "problem", null);
-    return query.list(status, q);
+    int safeSize = Math.min(Math.max(size, 1), 200);
+    int safePage = Math.max(page, 0);
+    List<ProblemQuery.ProblemSummary> all = query.list(status, q);
+    int total = all.size();
+    int from = safePage * safeSize;
+    int to = Math.min(from + safeSize, total);
+    List<ProblemQuery.ProblemSummary> items = from < total ? all.subList(from, to) : List.of();
+    return new ProblemListResponse(items, total, safePage, safeSize);
   }
 
   @GetMapping("/{id}")
@@ -210,4 +219,10 @@ class ProblemController {
 
   record BulkAssignRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids) {}
   record BulkAssignResponse(int updated) {}
+  record ProblemListResponse(
+      List<ProblemQuery.ProblemSummary> items,
+      int total,
+      int page,
+      int size
+  ) {}
 }
