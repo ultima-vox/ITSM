@@ -15,7 +15,6 @@ import {
   updateConfigurationItem as storeUpdateConfigurationItem,
   bulkAssignAssets as storeBulkAssignAssets,
   bulkSetAssetStatus as storeBulkSetAssetStatus,
-  getAssetTransitions,
   listAssets,
   listCiRelations,
   listConfigurationItems,
@@ -289,7 +288,13 @@ export async function transitionAssetStatus(
   }
 }
 
-export { getAssetTransitions };
+export async function getAssetTransitions(status: string): Promise<string[]> {
+  if (isMockMode()) {
+    const { getAssetTransitions: mockGet } = await import('@/mock/store');
+    return mockGet(status as never);
+  }
+  return [];
+}
 
 export async function bulkAssignAssets(ids: string[]): Promise<number> {
   if (isMockMode()) {

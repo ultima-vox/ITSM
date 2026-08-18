@@ -92,6 +92,7 @@ class WorkItemController {
   private final ApiIdempotencyService idempotency;
   private final FieldAccessControl fieldAccess;
   private final WorkItemSlaStateResolver slaStateResolver;
+  private final ru.ultimavox.itsm.platform.workflow.WorkflowEngine workflowEngine;
 
   WorkItemController(
       CreateWorkItem createWorkItem,
@@ -116,7 +117,8 @@ class WorkItemController {
       AccessControl access,
       ApiIdempotencyService idempotency,
       FieldAccessControl fieldAccess,
-      WorkItemSlaStateResolver slaStateResolver
+      WorkItemSlaStateResolver slaStateResolver,
+      ru.ultimavox.itsm.platform.workflow.WorkflowEngine workflowEngine
   ) {
     this.createWorkItem = createWorkItem;
     this.workItemQuery = workItemQuery;
@@ -141,6 +143,7 @@ class WorkItemController {
     this.idempotency = idempotency;
     this.fieldAccess = fieldAccess;
     this.slaStateResolver = slaStateResolver;
+    this.workflowEngine = workflowEngine;
   }
 
   @PostMapping
@@ -255,6 +258,23 @@ class WorkItemController {
     } catch (IllegalStateException ex) {
       throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
     }
+  }
+
+  @GetMapping("/{id}/transitions")
+  @Operation(summary = "List available target states for a work item")
+  List<TransitionOption> listTransitions(
+      @PathVariable UUID id,
+      Authentication authentication
+  ) {
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", id.toString());
+    WorkItem item = getWorkItem.get(id);
+    var wf = workflowEngine.loadDefinition(item.type().name());
+    if (wf.isEmpty()) return List.of();
+    String currentState = item.state().name();
+    return wf.get().transitionsFrom(currentState).stream()
+        .map(t -> new TransitionOption(t.key(), t.to()))
+        .toList();
   }
 
   @PostMapping("/{id}/transitions")
@@ -646,6 +666,8 @@ class WorkItemController {
   ) {}
 
   record LinkCiRequest(@NotNull UUID configurationItemId) {}
+
+  record TransitionOption(String key, String target) {}
 
   record LinkResponse(
       UUID id,

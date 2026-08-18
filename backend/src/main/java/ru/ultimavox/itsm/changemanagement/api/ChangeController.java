@@ -36,19 +36,22 @@ class ChangeController {
   private final CabVoteService cabVotes;
   private final AccessControl access;
   private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+  private final ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway workflowPolicy;
 
   ChangeController(
       ChangeQuery query,
       ChangeCommands commands,
       CabVoteService cabVotes,
       AccessControl access,
-      org.springframework.jdbc.core.JdbcTemplate jdbc
+      org.springframework.jdbc.core.JdbcTemplate jdbc,
+      ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway workflowPolicy
   ) {
     this.query = query;
     this.commands = commands;
     this.cabVotes = cabVotes;
     this.access = access;
     this.jdbc = jdbc;
+    this.workflowPolicy = workflowPolicy;
   }
 
   @GetMapping
@@ -90,6 +93,15 @@ class ChangeController {
     access.require(authentication.getName(), "change.read", "change", id.toString());
     return query.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
+  }
+
+  @GetMapping("/{id}/transitions")
+  @Operation(summary = "List available target states for a change")
+  List<String> listTransitions(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "change.read", "change", id.toString());
+    Change change = query.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change not found"));
+    return workflowPolicy.listAvailableTargets("change", change.status().name());
   }
 
   @GetMapping("/{id}/conflicts")

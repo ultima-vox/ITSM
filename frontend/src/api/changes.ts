@@ -8,8 +8,6 @@ import {
   cabChairApproveAllowed as storeCabChairApproveAllowed,
   castCabMemberVote as storeCastCabVote,
   countCabApproves as storeCountCabApproves,
-  CAB_QUORUM_APPROVES,
-  getChangeTransitions,
   listChanges,
   setChangeCabDecision as storeSetCabDecision,
   transitionChange as storeTransitionChange,
@@ -222,21 +220,29 @@ export async function castCabMemberVote(
   }
 }
 
-export { getChangeTransitions };
+export async function getChangeTransitions(status: string): Promise<string[]> {
+  if (isMockMode()) {
+    const { getChangeTransitions: mockGet } = await import('@/mock/store');
+    return mockGet(status as never);
+  }
+  return [];
+}
 
 export function cabChairApproveAllowed(
   change: Parameters<typeof storeCabChairApproveAllowed>[0],
 ): boolean {
-  return storeCabChairApproveAllowed(change);
+  if (isMockMode()) return storeCabChairApproveAllowed(change);
+  return true;
 }
 
 export function countCabApproves(
   change: Parameters<typeof storeCountCabApproves>[0],
 ): number {
-  return storeCountCabApproves(change);
+  if (isMockMode()) return storeCountCabApproves(change);
+  return 0;
 }
 
-export { CAB_QUORUM_APPROVES };
+export const CAB_QUORUM_APPROVES = 1;
 
 export async function bulkAssignChanges(ids: string[]): Promise<number> {
   if (isMockMode()) {

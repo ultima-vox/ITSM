@@ -172,6 +172,18 @@ export async function fetchMyOpenCount(): Promise<number> {
   return page.total ?? 0;
 }
 
+export interface TransitionOption {
+  key: string;
+  target: string;
+}
+
+export async function fetchWorkItemTransitions(id: string): Promise<TransitionOption[]> {
+  if (isMockMode()) {
+    return [];
+  }
+  return apiRequest<TransitionOption[]>(`/work-items/${encodeURIComponent(id)}/transitions`);
+}
+
 export type WorkItemLinkType =
   | 'RELATED'
   | 'DUPLICATE_OF'

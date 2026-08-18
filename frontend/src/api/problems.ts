@@ -4,7 +4,6 @@ import {
   addProblem as storeAddProblem,
   bulkAssignProblems as storeBulkAssignProblems,
   bulkSetProblemStatus as storeBulkSetProblemStatus,
-  getProblemTransitions,
   listProblems,
   transitionProblem as storeTransitionProblem,
   updateProblemFields as storeUpdateProblem,
@@ -153,7 +152,13 @@ export async function patchProblem(
   }
 }
 
-export { getProblemTransitions };
+export async function getProblemTransitions(status: WorkItemStatus): Promise<WorkItemStatus[]> {
+  if (isMockMode()) {
+    const { getProblemTransitions: mockGet } = await import('@/mock/store');
+    return mockGet(status);
+  }
+  return [];
+}
 
 export async function bulkAssignProblems(ids: string[]): Promise<number> {
   if (isMockMode()) {

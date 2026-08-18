@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.platform.workflow;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,7 +17,6 @@ public class WorkflowPolicyGateway {
     this.engine = engine;
   }
 
-  /** Starts version-pinned runtime state when an active definition exists. */
   public boolean startIfDefined(String objectType, String objectId) {
     if (engine.loadDefinition(objectType).isEmpty()) {
       return false;
@@ -25,10 +25,14 @@ public class WorkflowPolicyGateway {
     return true;
   }
 
-  /**
-   * Enforces configured transition targeting {@code targetState}. Missing workflow permits
-   * aggregate-only operation; present workflow is authoritative and fails closed on missing edge.
-   */
+  public List<String> listAvailableTargets(String objectType, String currentState) {
+    Optional<WorkflowDefinition> def = engine.loadDefinition(objectType);
+    if (def.isEmpty()) return List.of();
+    return def.get().transitionsFrom(currentState).stream()
+        .map(Transition::to)
+        .toList();
+  }
+
   public boolean enforceByTarget(
       String subject,
       String objectType,

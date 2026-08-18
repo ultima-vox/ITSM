@@ -278,7 +278,14 @@ export function AssetsPage() {
     );
   }
 
-  const transitions = selected ? getAssetTransitions(selected.status) : [];
+  const [assetTransitions, setAssetTransitions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!selected) { setAssetTransitions([]); return; }
+    getAssetTransitions(selected.status).then(setAssetTransitions).catch(() => setAssetTransitions([]));
+  }, [selected]);
+
+  const transitions = assetTransitions;
 
   return (
     <section className="page">
@@ -472,7 +479,7 @@ export function AssetsPage() {
                     key={s}
                     size="sm"
                     variant={s === 'retired' ? 'secondary' : 'primary'}
-                    onClick={() => void runTransition(s)}
+                    onClick={() => void runTransition(s as AssetStatus)}
                   >
                     {t(`assets.actions.to_${s}`)}
                   </Button>

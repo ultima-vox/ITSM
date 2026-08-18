@@ -34,13 +34,16 @@ class ProblemController {
   private final ProblemCommands commands;
   private final AccessControl access;
   private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+  private final ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway workflowPolicy;
 
   ProblemController(ProblemQuery query, ProblemCommands commands, AccessControl access,
-                    org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                    org.springframework.jdbc.core.JdbcTemplate jdbc,
+                    ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway workflowPolicy) {
     this.query = query;
     this.commands = commands;
     this.access = access;
     this.jdbc = jdbc;
+    this.workflowPolicy = workflowPolicy;
   }
 
   @GetMapping
@@ -69,6 +72,15 @@ class ProblemController {
     access.require(authentication.getName(), "problem.read", "problem", id.toString());
     return query.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem not found"));
+  }
+
+  @GetMapping("/{id}/transitions")
+  @Operation(summary = "List available target states for a problem")
+  List<String> listTransitions(Authentication authentication, @PathVariable UUID id) {
+    access.require(authentication.getName(), "problem.read", "problem", id.toString());
+    Problem problem = query.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem not found"));
+    return workflowPolicy.listAvailableTargets("problem", problem.status().name());
   }
 
   @PostMapping
