@@ -201,10 +201,14 @@ export const HARD_CODED_CHANGE_TRANSITIONS: Record<
   ChangeStatus,
   ChangeStatus[]
 > = {
-  draft: ['cab_review', 'scheduled', 'cancelled'],
-  cab_review: ['scheduled', 'draft', 'cancelled'],
-  scheduled: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
+  draft: ['submitted', 'cancelled'],
+  submitted: ['cab_review', 'cancelled'],
+  cab_review: ['approved', 'submitted', 'cancelled'],
+  approved: ['scheduled', 'cancelled'],
+  scheduled: ['implementing', 'cancelled'],
+  implementing: ['review'],
+  in_progress: ['review'],
+  review: ['completed', 'implementing'],
   completed: [],
   cancelled: [],
 };
@@ -214,16 +218,23 @@ export function uiChangeStatusToWorkflowState(status: ChangeStatus): string {
   switch (status) {
     case 'draft':
       return 'DRAFT';
+    case 'submitted':
+      return 'SUBMITTED';
     case 'cab_review':
       return 'CAB_REVIEW';
+    case 'approved':
+      return 'APPROVED';
     case 'scheduled':
       return 'SCHEDULED';
+    case 'implementing':
     case 'in_progress':
-      return 'IN_PROGRESS';
+      return 'IMPLEMENTING';
+    case 'review':
+      return 'REVIEW';
     case 'completed':
-      return 'COMPLETED';
+      return 'CLOSED';
     case 'cancelled':
-      return 'CANCELLED';
+      return 'REJECTED';
     default:
       return 'DRAFT';
   }
@@ -236,13 +247,19 @@ export function workflowStateToChangeStatus(
   switch (state.toUpperCase()) {
     case 'DRAFT':
       return 'draft';
+    case 'SUBMITTED':
+      return 'submitted';
     case 'CAB_REVIEW':
       return 'cab_review';
+    case 'APPROVED':
+      return 'approved';
     case 'SCHEDULED':
       return 'scheduled';
     case 'IN_PROGRESS':
     case 'IMPLEMENTING':
-      return 'in_progress';
+      return 'implementing';
+    case 'REVIEW':
+      return 'review';
     case 'COMPLETED':
     case 'CLOSED':
       return 'completed';
@@ -671,9 +688,15 @@ export function changeRuntimePolicyBlock(
   if (
     toStatus === 'scheduled' &&
     change.type === 'normal' &&
-    change.status === 'draft'
+    change.status !== 'approved'
   ) {
     return 'changes.validation.cabRequired';
+  }
+  if (toStatus === 'approved' && change.type !== 'standard') {
+    const approves = (change.cabVotes ?? []).filter(
+      (v) => v.decision === 'approve',
+    ).length;
+    if (approves < 2) return 'changes.validation.cabQuorum';
   }
   if (toStatus === 'scheduled') {
     if (!plan) return 'changes.validation.planRequired';

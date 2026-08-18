@@ -23,6 +23,7 @@ public class ChangeCommands {
   private final IntegrationEventOutbox outbox;
   private final WorkflowPolicyGateway workflows;
   private final ChangeSearchIndexer searchIndexer;
+  private final CabVoteService cabVotes;
 
   public ChangeCommands(
       JdbcTemplate jdbc,
@@ -30,7 +31,8 @@ public class ChangeCommands {
       AuditTrail audit,
       IntegrationEventOutbox outbox,
       WorkflowPolicyGateway workflows,
-      ChangeSearchIndexer searchIndexer
+      ChangeSearchIndexer searchIndexer,
+      CabVoteService cabVotes
   ) {
     this.jdbc = jdbc;
     this.query = query;
@@ -38,6 +40,7 @@ public class ChangeCommands {
     this.outbox = outbox;
     this.workflows = workflows;
     this.searchIndexer = searchIndexer;
+    this.cabVotes = cabVotes;
   }
 
   @Transactional
@@ -116,6 +119,13 @@ public class ChangeCommands {
             cabRiskLevel != null ? cabRiskLevel : current.cabRiskLevel()
         )
         : current;
+    if (target == Change.Status.APPROVED
+        && current.type() != Change.Type.STANDARD
+        && cabVotes.countApproves(id) < CabVoteService.QUORUM_APPROVES) {
+      throw new IllegalStateException(
+          "CAB quorum not reached: need " + CabVoteService.QUORUM_APPROVES + " approve votes"
+      );
+    }
     Change updated = withCab.transition(target);
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();

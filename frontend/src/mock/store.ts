@@ -752,7 +752,7 @@ function defaultCabVotes(): CabVote[] {
 }
 
 /** Min member approve votes before chair may approve (S9). Standard exempt. */
-export const CAB_QUORUM_APPROVES = 1;
+export const CAB_QUORUM_APPROVES = 2;
 
 /** Count member votes with decision === approve. */
 export function countCabApproves(change: Change): number {
@@ -1351,10 +1351,14 @@ export function addChange(payload: CreateChangePayload): Change {
 }
 
 const CHANGE_TRANSITIONS: Record<ChangeStatus, ChangeStatus[]> = {
-  draft: ['cab_review', 'scheduled', 'cancelled'],
-  cab_review: ['scheduled', 'draft', 'cancelled'],
-  scheduled: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
+  draft: ['submitted', 'cancelled'],
+  submitted: ['cab_review', 'cancelled'],
+  cab_review: ['approved', 'submitted', 'cancelled'],
+  approved: ['scheduled', 'cancelled'],
+  scheduled: ['implementing', 'cancelled'],
+  implementing: ['review'],
+  in_progress: ['review'],
+  review: ['completed', 'implementing'],
   completed: [],
   cancelled: [],
 };
@@ -1429,7 +1433,9 @@ function applyChangeStatus(c: Change, next: ChangeStatus): Change {
     cabVotes: votes,
     // Standard policy pre-approval only
     cabApproved:
-      next === 'scheduled' && c.type === 'standard' ? true : c.cabApproved,
+      next === 'approved' || (next === 'scheduled' && c.type === 'standard')
+        ? true
+        : c.cabApproved,
     updatedAt: nowIso(),
   };
 }

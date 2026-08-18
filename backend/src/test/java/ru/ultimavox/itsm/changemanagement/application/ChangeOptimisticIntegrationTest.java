@@ -32,7 +32,8 @@ class ChangeOptimisticIntegrationTest {
     Flyway.configure().dataSource(ds).load().migrate();
     var jdbc = new JdbcTemplate(ds);
     commands = new ChangeCommands(jdbc, new ChangeQuery(jdbc), mock(AuditTrail.class),
-        mock(IntegrationEventOutbox.class), mock(WorkflowPolicyGateway.class));
+        mock(IntegrationEventOutbox.class), mock(WorkflowPolicyGateway.class),
+        mock(ChangeSearchIndexer.class), mock(CabVoteService.class));
   }
 
   @Test
@@ -41,15 +42,15 @@ class ChangeOptimisticIntegrationTest {
       Instant start = Instant.now().plusSeconds(3600);
       Change created = commands.create(new ChangeCommands.CreateCommand(
           Change.Type.NORMAL, Change.Risk.MEDIUM, "Deploy gateway", start, start.plusSeconds(3600),
-          "Deploy", "Rollback", "Reliability", null, null), "alice");
+          "Deploy", "Rollback", "Test", "Reliability", null, null, null), "alice");
       assertThat(created.version()).isZero();
       Change edited = commands.update(created.id(), new ChangeCommands.UpdateCommand(
           0, null, null, "Deploy safely", "Rollback safely", null,
-          "CAB reviewed", Change.Risk.HIGH), "alice");
+          "CAB reviewed", "notes", Change.Risk.HIGH, null), "alice");
       assertThat(edited.version()).isEqualTo(1);
       assertThat(edited.cabRiskLevel()).isEqualTo(Change.Risk.HIGH);
       assertThatThrownBy(() -> commands.update(created.id(), new ChangeCommands.UpdateCommand(
-          0, null, null, "stale", "stale", null, null, null), "alice"))
+          0, null, null, "stale", "stale", null, null, null, null, null), "alice"))
           .isInstanceOf(OptimisticLockingFailureException.class);
       Change submitted = commands.transition(created.id(), Change.Status.SUBMITTED, null, null, 1L, "alice");
       assertThat(submitted.version()).isEqualTo(2);

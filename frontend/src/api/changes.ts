@@ -1,13 +1,16 @@
 import { delay, isMockMode, apiRequest } from './client';
-import { mapChange, type BackendChange } from './mappers/changes';
+import {
+  mapCabVote,
+  mapChange,
+  type BackendCabVote,
+  type BackendChange,
+} from './mappers/changes';
 import {
   addChange as storeAddChange,
   bulkAssignChanges as storeBulkAssignChanges,
   bulkSetChangeStatus as storeBulkSetChangeStatus,
   type BulkStatusResult,
-  cabChairApproveAllowed as storeCabChairApproveAllowed,
   castCabMemberVote as storeCastCabVote,
-  countCabApproves as storeCountCabApproves,
   listChanges,
   setChangeCabDecision as storeSetCabDecision,
   transitionChange as storeTransitionChange,
@@ -25,12 +28,19 @@ function toBackendChangeTarget(status: ChangeStatus): string {
   switch (status) {
     case 'draft':
       return 'DRAFT';
+    case 'submitted':
+      return 'SUBMITTED';
     case 'cab_review':
       return 'CAB_REVIEW';
+    case 'approved':
+      return 'APPROVED';
     case 'scheduled':
       return 'SCHEDULED';
+    case 'implementing':
     case 'in_progress':
       return 'IMPLEMENTING';
+    case 'review':
+      return 'REVIEW';
     case 'completed':
       return 'CLOSED';
     case 'cancelled':
@@ -62,7 +72,28 @@ export async function fetchChanges(): Promise<Change[]> {
   }
   const resp = await apiRequest<{ items: BackendChange[]; total: number } | BackendChange[]>('/changes');
   const items = Array.isArray(resp) ? resp : (resp.items ?? []);
-  return items.map(mapChange);
+  const mapped = items.map(mapChange);
+  return Promise.all(mapped.map(hydrateCabVotes));
+}
+
+async function hydrateCabVotes(change: Change): Promise<Change> {
+  if (change.status !== 'cab_review') return change;
+  try {
+    const resp = await apiRequest<{
+      votes: BackendCabVote[];
+      approveCount: number;
+      quorum: number;
+    }>(`/changes/${encodeURIComponent(change.id)}/votes`);
+    const cabVotes = (resp.votes ?? []).map(mapCabVote);
+    const approves = cabVotes.filter((v) => v.decision === 'approve').length;
+    return {
+      ...change,
+      cabVotes,
+      cabApproved: approves >= CAB_QUORUM_APPROVES,
+    };
+  } catch {
+    return change;
+  }
 }
 
 /** Live schedule overlap from backend; mock returns []. */
@@ -134,7 +165,7 @@ export async function transitionChangeStatus(
       method: 'POST',
       body: { target: toBackendChangeTarget(next), expectedVersion },
     });
-    return { ok: true, change: mapChange(dto) };
+    return { ok: true, change: await hydrateCabVotes(mapChange(dto)) };
   } catch {
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
   }
@@ -164,7 +195,7 @@ export async function patchChange(
         cabRiskLevel: patch.risk ? toBackendRisk(patch.risk) : undefined,
       },
     });
-    return { ok: true, change: mapChange(dto) };
+    return { ok: true, change: await hydrateCabVotes(mapChange(dto)) };
   } catch {
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
   }
@@ -191,7 +222,7 @@ export async function setChangeCabDecision(
         expectedVersion,
       },
     });
-    return { ok: true, change: mapChange(dto) };
+    return { ok: true, change: await hydrateCabVotes(mapChange(dto)) };
   } catch {
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
   }
@@ -214,35 +245,34 @@ export async function castCabMemberVote(
       },
     });
     const dto = await apiRequest<BackendChange>(`/changes/${id}`);
-    return { ok: true, change: mapChange(dto) };
+    return { ok: true, change: await hydrateCabVotes(mapChange(dto)) };
   } catch {
     return { ok: false, errorKey: 'module.errors.invalidTransition' };
   }
 }
 
-export async function getChangeTransitions(status: string): Promise<string[]> {
+export async function getChangeTransitions(
+  change: Pick<Change, 'id' | 'status'>,
+): Promise<string[]> {
   if (isMockMode()) {
     const { getChangeTransitions: mockGet } = await import('@/mock/store');
-    return mockGet(status as never);
+    return mockGet(change.status);
   }
-  return [];
+  return apiRequest<string[]>(
+    `/changes/${encodeURIComponent(change.id)}/transitions`,
+  );
 }
 
-export function cabChairApproveAllowed(
-  change: Parameters<typeof storeCabChairApproveAllowed>[0],
-): boolean {
-  if (isMockMode()) return storeCabChairApproveAllowed(change);
-  return true;
+export function cabChairApproveAllowed(change: Change): boolean {
+  if (change.type === 'standard') return true;
+  return countCabApproves(change) >= CAB_QUORUM_APPROVES;
 }
 
-export function countCabApproves(
-  change: Parameters<typeof storeCountCabApproves>[0],
-): number {
-  if (isMockMode()) return storeCountCabApproves(change);
-  return 0;
+export function countCabApproves(change: Change): number {
+  return (change.cabVotes ?? []).filter((v) => v.decision === 'approve').length;
 }
 
-export const CAB_QUORUM_APPROVES = 1;
+export const CAB_QUORUM_APPROVES = 2;
 
 export async function bulkAssignChanges(ids: string[]): Promise<number> {
   if (isMockMode()) {

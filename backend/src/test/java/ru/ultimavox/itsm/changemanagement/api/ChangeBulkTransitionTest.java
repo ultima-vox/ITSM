@@ -28,7 +28,9 @@ class ChangeBulkTransitionTest {
         UUID id = UUID.randomUUID();
 
         var response = new ChangeController(mock(ChangeQuery.class), commands,
-                mock(CabVoteService.class), access).bulkTransition(auth,
+                mock(CabVoteService.class), access,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(ru.ultimavox.itsm.platform.workflow.WorkflowPolicyGateway.class)).bulkTransition(auth,
                 new ChangeController.BulkTransitionRequest(List.of(id), Change.Status.APPROVED));
 
         assertThat(response.succeeded()).isZero();

@@ -159,12 +159,16 @@ function findNormalScheduleConflicts(list: Change[]): ScheduleConflict[] {
 }
 
 const CHANGE_ACTION_RANK: Record<string, number> = {
-  cab_review: 0,
-  scheduled: 1,
-  in_progress: 2,
-  completed: 3,
-  draft: 4,
-  cancelled: 5,
+  submitted: 0,
+  cab_review: 1,
+  approved: 2,
+  scheduled: 3,
+  implementing: 4,
+  in_progress: 4,
+  review: 5,
+  completed: 6,
+  draft: 7,
+  cancelled: 8,
 };
 
 function changeActionVariant(
@@ -172,9 +176,13 @@ function changeActionVariant(
 ): 'primary' | 'secondary' | 'danger' {
   if (status === 'cancelled') return 'danger';
   if (
+    status === 'submitted' ||
     status === 'cab_review' ||
+    status === 'approved' ||
     status === 'scheduled' ||
+    status === 'implementing' ||
     status === 'in_progress' ||
+    status === 'review' ||
     status === 'completed'
   ) {
     return 'primary';
@@ -501,14 +509,7 @@ export function ChangesPage() {
     for (const d of weekDays) map.set(localDayKey(d), []);
     for (const c of allChanges) {
       if (c.status === 'cancelled' || c.status === 'completed') continue;
-      if (
-        c.status !== 'scheduled' &&
-        c.status !== 'cab_review' &&
-        c.status !== 'in_progress' &&
-        c.status !== 'draft'
-      ) {
-        continue;
-      }
+      if (!c.plannedStart) continue;
       const key = localDayKey(changeScheduleDate(c));
       if (!map.has(key)) continue;
       map.get(key)!.push(c);

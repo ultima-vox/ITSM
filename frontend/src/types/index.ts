@@ -260,11 +260,15 @@ export interface Problem {
 export type ChangeType = 'standard' | 'normal' | 'emergency';
 export type ChangeStatus =
   | 'draft'
+  | 'submitted'
+  | 'cab_review'
+  | 'approved'
   | 'scheduled'
+  | 'implementing'
   | 'in_progress'
+  | 'review'
   | 'completed'
-  | 'cancelled'
-  | 'cab_review';
+  | 'cancelled';
 
 export type CabVoteDecision = 'approve' | 'reject' | 'abstain';
 
