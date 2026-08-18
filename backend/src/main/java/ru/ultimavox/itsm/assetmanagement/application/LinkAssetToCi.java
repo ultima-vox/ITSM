@@ -21,19 +21,22 @@ public class LinkAssetToCi {
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
   private final CmdbReferenceQuery cmdb;
+  private final AssetSearchIndexer searchIndexer;
 
   public LinkAssetToCi(
       JdbcTemplate jdbc,
       AssetQuery assetQuery,
       AuditTrail audit,
       IntegrationEventOutbox outbox,
-      CmdbReferenceQuery cmdb
+      CmdbReferenceQuery cmdb,
+      AssetSearchIndexer searchIndexer
   ) {
     this.jdbc = jdbc;
     this.assetQuery = assetQuery;
     this.audit = audit;
     this.outbox = outbox;
     this.cmdb = cmdb;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -82,6 +85,7 @@ public class LinkAssetToCi {
         UUID.randomUUID(), "asset.linked-ci", 1, now, correlationId,
         "asset", assetId.toString(), after
     ));
+    searchIndexer.index(linked);
     return linked;
   }
 }

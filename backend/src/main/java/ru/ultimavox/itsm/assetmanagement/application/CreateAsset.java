@@ -20,17 +20,20 @@ public class CreateAsset {
   private final AssetQuery query;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final AssetSearchIndexer searchIndexer;
 
   public CreateAsset(
       JdbcTemplate jdbc,
       AssetQuery query,
       AuditTrail audit,
-      IntegrationEventOutbox outbox
+      IntegrationEventOutbox outbox,
+      AssetSearchIndexer searchIndexer
   ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -71,7 +74,9 @@ public class CreateAsset {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "asset.created", 1, now, correlationId, "asset", id.toString(), after
     ));
-    return query.findById(id).orElseThrow(() -> new IllegalStateException("Asset not readable after create"));
+    Asset saved = query.findById(id).orElseThrow(() -> new IllegalStateException("Asset not readable after create"));
+    searchIndexer.index(saved);
+    return saved;
   }
 
   public record Command(

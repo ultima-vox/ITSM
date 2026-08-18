@@ -20,17 +20,20 @@ public class AssetCommands {
   private final AssetQuery query;
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
+  private final AssetSearchIndexer searchIndexer;
 
   public AssetCommands(
       JdbcTemplate jdbc,
       AssetQuery query,
       AuditTrail audit,
-      IntegrationEventOutbox outbox
+      IntegrationEventOutbox outbox,
+      AssetSearchIndexer searchIndexer
   ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -96,6 +99,7 @@ public class AssetCommands {
         UUID.randomUUID(), action, 1, now, correlationId,
         "asset", updated.id().toString(), after
     ));
+    searchIndexer.index(updated);
   }
 
   private static void requireVersion(Asset asset, long expectedVersion) {

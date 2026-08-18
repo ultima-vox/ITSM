@@ -22,19 +22,22 @@ public class ChangeCommands {
   private final AuditTrail audit;
   private final IntegrationEventOutbox outbox;
   private final WorkflowPolicyGateway workflows;
+  private final ChangeSearchIndexer searchIndexer;
 
   public ChangeCommands(
       JdbcTemplate jdbc,
       ChangeQuery query,
       AuditTrail audit,
       IntegrationEventOutbox outbox,
-      WorkflowPolicyGateway workflows
+      WorkflowPolicyGateway workflows,
+      ChangeSearchIndexer searchIndexer
   ) {
     this.jdbc = jdbc;
     this.query = query;
     this.audit = audit;
     this.outbox = outbox;
     this.workflows = workflows;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -92,6 +95,7 @@ public class ChangeCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "change.created", 1, now, correlationId, "change", id.toString(), state
     ));
+    searchIndexer.index(change);
     return change;
   }
 
@@ -160,7 +164,9 @@ public class ChangeCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "change.transitioned", 1, now, correlationId, "change", id.toString(), after
     ));
-    return query.findById(id).orElseThrow();
+    Change saved = query.findById(id).orElseThrow();
+    searchIndexer.index(saved);
+    return saved;
   }
 
   @Transactional
@@ -215,7 +221,9 @@ public class ChangeCommands {
         before, after, correlation, now));
     outbox.record(new DomainEvent(UUID.randomUUID(), "change.fields-updated", 1, now, correlation,
         "change", id.toString(), after));
-    return query.findById(id).orElseThrow();
+    Change saved = query.findById(id).orElseThrow();
+    searchIndexer.index(saved);
+    return saved;
   }
 
   public record CreateCommand(

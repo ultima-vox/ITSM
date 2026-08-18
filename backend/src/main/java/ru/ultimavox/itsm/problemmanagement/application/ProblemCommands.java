@@ -26,6 +26,7 @@ public class ProblemCommands {
   private final IntegrationEventOutbox outbox;
   private final WorkflowPolicyGateway workflows;
   private final WorkItemReferenceQuery workItems;
+  private final ProblemSearchIndexer searchIndexer;
 
   public ProblemCommands(
       JdbcTemplate jdbc,
@@ -33,7 +34,8 @@ public class ProblemCommands {
       AuditTrail audit,
       IntegrationEventOutbox outbox,
       WorkflowPolicyGateway workflows,
-      WorkItemReferenceQuery workItems
+      WorkItemReferenceQuery workItems,
+      ProblemSearchIndexer searchIndexer
   ) {
     this.jdbc = jdbc;
     this.query = query;
@@ -41,6 +43,7 @@ public class ProblemCommands {
     this.outbox = outbox;
     this.workflows = workflows;
     this.workItems = workItems;
+    this.searchIndexer = searchIndexer;
   }
 
   @Transactional
@@ -76,6 +79,7 @@ public class ProblemCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "problem.created", 1, now, correlationId, "problem", id.toString(), state
     ));
+    searchIndexer.index(problem);
     return problem;
   }
 
@@ -123,7 +127,9 @@ public class ProblemCommands {
         UUID.randomUUID(), "problem.notes-updated", 1, now, correlationId,
         "problem", id.toString(), after
     ));
-    return query.findById(id).orElseThrow();
+    Problem saved = query.findById(id).orElseThrow();
+    searchIndexer.index(saved);
+    return saved;
   }
 
   @Transactional
@@ -182,7 +188,9 @@ public class ProblemCommands {
     outbox.record(new DomainEvent(
         UUID.randomUUID(), "problem.transitioned", 1, now, correlationId, "problem", id.toString(), after
     ));
-    return query.findById(id).orElseThrow();
+    Problem saved = query.findById(id).orElseThrow();
+    searchIndexer.index(saved);
+    return saved;
   }
 
   private static void requireVersion(Problem current, long expectedVersion) {
