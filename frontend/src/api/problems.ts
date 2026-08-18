@@ -1,4 +1,4 @@
-import { delay, isMockMode, apiRequest, refuseLiveFeature } from './client';
+import { delay, isMockMode, apiRequest } from './client';
 import { mapProblem, type BackendProblemSummary } from './mappers/problems';
 import {
   addProblem as storeAddProblem,
@@ -159,7 +159,11 @@ export async function bulkAssignProblems(ids: string[]): Promise<number> {
     await delay(80);
     return storeBulkAssignProblems(ids);
   }
-  refuseLiveFeature('module.errors.bulkLiveUnsupported');
+  const response = await apiRequest<{ updated: number }>(
+    '/problems/bulk/assign',
+    { method: 'POST', body: { ids } },
+  );
+  return response.updated;
 }
 
 export async function bulkSetProblemStatus(

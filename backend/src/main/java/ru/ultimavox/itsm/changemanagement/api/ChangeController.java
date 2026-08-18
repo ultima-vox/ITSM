@@ -35,17 +35,20 @@ class ChangeController {
   private final ChangeCommands commands;
   private final CabVoteService cabVotes;
   private final AccessControl access;
+  private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
   ChangeController(
       ChangeQuery query,
       ChangeCommands commands,
       CabVoteService cabVotes,
-      AccessControl access
+      AccessControl access,
+      org.springframework.jdbc.core.JdbcTemplate jdbc
   ) {
     this.query = query;
     this.commands = commands;
     this.cabVotes = cabVotes;
     this.access = access;
+    this.jdbc = jdbc;
   }
 
   @GetMapping
@@ -264,4 +267,25 @@ class ChangeController {
                                @NotNull Change.Status target) {}
   record BulkTransitionResult(UUID id, boolean success, String status, String errorCode) {}
   record BulkTransitionResponse(long succeeded, List<BulkTransitionResult> results) {}
+
+  @PostMapping("/bulk/assign")
+  @Operation(summary = "Assign multiple changes to the current user")
+  BulkAssignResponse bulkAssign(Authentication authentication,
+                                 @Valid @RequestBody BulkAssignRequest body) {
+    String actor = authentication.getName();
+    String orgId = ru.ultimavox.itsm.platform.authorization.OrganizationContext.current();
+    int updated = 0;
+    for (UUID id : body.ids()) {
+      access.require(actor, "change.write", "change", id.toString());
+      int rows = jdbc.update(
+          "UPDATE change_request SET owner_subject = ?, version = version + 1, updated_at = now() WHERE id = ? AND org_id = ?",
+          actor, id, orgId
+      );
+      if (rows > 0) updated++;
+    }
+    return new BulkAssignResponse(updated);
+  }
+
+  record BulkAssignRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids) {}
+  record BulkAssignResponse(int updated) {}
 }

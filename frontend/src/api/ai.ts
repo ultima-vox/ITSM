@@ -1,5 +1,6 @@
 import { delay, isMockMode, apiRequest } from './client';
 import { getQueueCopilotStats } from '@/mock/store';
+import { fetchWorkloadReport } from './reports';
 
 export interface CopilotSuggestion {
   provider: string;
@@ -111,19 +112,19 @@ export async function summarizeCopilot(
     };
   }
 
+  const report = await fetchWorkloadReport();
+  const topBreached = Object.entries(report.byPriority)
+    .filter(([k]) => k === 'CRITICAL' || k === 'HIGH')
+    .map(([k, v]) => ({ number: k, title: `${v} items`, slaTarget: 'SLA' }));
+
   const stats = {
-    open: 0,
-    breached: 0,
-    atRisk: 0,
-    unassigned: 0,
-    critical: 0,
-    topBreached: [] as Array<{
-      number: string;
-      title: string;
-      slaTarget: string;
-    }>,
+    open: report.open,
+    breached: report.breached,
+    atRisk: report.atRisk,
+    unassigned: report.unassigned,
+    critical: report.byPriority['CRITICAL'] ?? 0,
+    topBreached,
   };
-  // Live path: use caller-provided content when available
   const content =
     payload?.content?.trim() ||
     buildQueueSummaryText(stats);
