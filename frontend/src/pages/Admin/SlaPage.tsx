@@ -132,8 +132,8 @@ export function SlaPage() {
       const updated = await updateSlaPolicyTargets(selected.id, selected.version, draftTargets);
       if (updated) {
         setDirty(false);
-        reseedOpenWorkItemSlaFromPolicies();
-        success(t('slaAdmin.savedReseedToast'));
+        if (isMockMode()) reseedOpenWorkItemSlaFromPolicies();
+        success(t('slaAdmin.savedToast'));
         await reload();
       }
     } catch {
@@ -146,7 +146,7 @@ export function SlaPage() {
     try {
       const updated = await setSlaPolicyEnabled(selected.id, selected.version, !selected.enabled);
       if (updated) {
-        reseedOpenWorkItemSlaFromPolicies();
+        if (isMockMode()) reseedOpenWorkItemSlaFromPolicies();
         success(
           updated.enabled
             ? t('slaAdmin.enabledToast')

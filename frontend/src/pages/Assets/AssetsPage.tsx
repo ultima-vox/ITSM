@@ -44,12 +44,9 @@ import {
   resolveRelatedLabel,
 } from '@/lib/resolveRelated';
 import { fetchModuleActivity } from '@/api/audit';
-import { people } from '@/mock/data';
+import { fetchRbacUsers } from '@/api/rbac';
 import type { Asset, AssetStatus, ModuleActivity } from '@/types';
 
-const ASSIGNEE_OPTIONS = Object.values(people)
-  .filter((p) => p.id !== 'system')
-  .map((p) => ({ value: p.name, label: `${p.name} · ${p.role ?? ''}` }));
 
 type SortKey = 'tag' | 'name' | 'status' | 'location' | 'purchased';
 
@@ -77,6 +74,13 @@ export function AssetsPage() {
   const [validation, setValidation] = useState<string | null>(null);
   const [assignName, setAssignName] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [assigneeOptions, setAssigneeOptions] = useState<Array<{ value: string; label: string }>>([]);
+
+  useEffect(() => {
+    fetchRbacUsers().then((users) => {
+      setAssigneeOptions(users.map((u) => ({ value: u.name, label: `${u.name} · ${u.roleKey ?? ''}` })));
+    }).catch(() => {/* optional */});
+  }, []);
 
   useEffect(() => {
     return subscribeSecondaryModules(() => reload());
@@ -409,10 +413,10 @@ export function AssetsPage() {
                       onChange={(e) => setAssignName(e.target.value)}
                       options={[
                         { value: '', label: t('assets.unassigned') },
-                        ...ASSIGNEE_OPTIONS,
+                        ...assigneeOptions,
                         // Keep current free-text seed names not in people catalog
                         ...(assignName &&
-                        !ASSIGNEE_OPTIONS.some((o) => o.value === assignName)
+                        !assigneeOptions.some((o) => o.value === assignName)
                           ? [{ value: assignName, label: assignName }]
                           : []),
                       ]}
