@@ -18,9 +18,11 @@ public record Change(
     Instant plannedEnd,
     String implementationPlan,
     String rollbackPlan,
+    String testPlan,
     String businessJustification,
     String cabNotes,
     Risk cabRiskLevel,
+    Impact impact,
     long version
 ) {
   public Change transition(Status target) {
@@ -32,7 +34,7 @@ public record Change(
     }
     return new Change(
         id, number, type, risk, target, title, plannedStart, plannedEnd,
-        implementationPlan, rollbackPlan, businessJustification, cabNotes, cabRiskLevel, version
+        implementationPlan, rollbackPlan, testPlan, businessJustification, cabNotes, cabRiskLevel, impact, version
     );
   }
 
@@ -42,7 +44,7 @@ public record Change(
     }
     return new Change(
         id, number, type, risk, status, title, plannedStart, plannedEnd,
-        implementationPlan, rollbackPlan, businessJustification, notes, assessedRisk, version
+        implementationPlan, rollbackPlan, testPlan, businessJustification, notes, assessedRisk, impact, version
     );
   }
 
@@ -52,7 +54,7 @@ public record Change(
       String businessJustification, String cabNotes, Risk cabRiskLevel
   ) {
     this(id, number, type, risk, status, title, plannedStart, plannedEnd, implementationPlan,
-        rollbackPlan, businessJustification, cabNotes, cabRiskLevel, 0);
+        rollbackPlan, null, businessJustification, cabNotes, cabRiskLevel, null, 0);
   }
 
   private static boolean allowed(Status from, Status to) {
@@ -71,6 +73,8 @@ public record Change(
   public enum Type { STANDARD, NORMAL, EMERGENCY }
 
   public enum Risk { LOW, MEDIUM, HIGH, CRITICAL }
+
+  public enum Impact { LOW, MEDIUM, HIGH }
 
   public enum Status {
     DRAFT, SUBMITTED, CAB_REVIEW, APPROVED, SCHEDULED, IMPLEMENTING, REVIEW, CLOSED, REJECTED

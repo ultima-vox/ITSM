@@ -68,17 +68,18 @@ public class ChangeCommands {
         """
             INSERT INTO change_request (
               id, org_id, number, type, risk, status, title, planned_start, planned_end,
-              implementation_plan, rollback_plan, requester_id, created_at, updated_at,
-              business_justification, cab_notes, cab_risk_level
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              implementation_plan, rollback_plan, test_plan, requester_id, created_at, updated_at,
+              business_justification, cab_notes, cab_risk_level, impact
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
         id, OrganizationContext.current(), number, change.type().name(), change.risk().name(), change.status().name(), change.title(),
         change.plannedStart() == null ? null : java.sql.Timestamp.from(change.plannedStart()),
         change.plannedEnd() == null ? null : java.sql.Timestamp.from(change.plannedEnd()),
-        change.implementationPlan(), change.rollbackPlan(), actor,
+        change.implementationPlan(), change.rollbackPlan(), change.testPlan(), actor,
         java.sql.Timestamp.from(now), java.sql.Timestamp.from(now),
         change.businessJustification(), change.cabNotes(),
-        change.cabRiskLevel() == null ? null : change.cabRiskLevel().name()
+        change.cabRiskLevel() == null ? null : change.cabRiskLevel().name(),
+        change.impact() == null ? null : change.impact().name()
     );
     workflows.startIfDefined("change", id.toString());
 
@@ -201,13 +202,17 @@ public class ChangeCommands {
     int changed = jdbc.update(
         """
         UPDATE change_request SET planned_start=?, planned_end=?, implementation_plan=?, rollback_plan=?,
-          business_justification=?, cab_notes=?, cab_risk_level=?, version=version+1, updated_at=?
+          test_plan=?, business_justification=?, cab_notes=?, cab_risk_level=?, impact=?, version=version+1, updated_at=?
         WHERE id=? AND org_id=? AND version=?
         """,
         plannedStart == null ? null : java.sql.Timestamp.from(plannedStart),
         plannedEnd == null ? null : java.sql.Timestamp.from(plannedEnd),
-        implementationPlan, rollbackPlan, justification, cabNotes,
-        cabRisk == null ? null : cabRisk.name(), java.sql.Timestamp.from(now),
+        implementationPlan, rollbackPlan,
+        command.testPlan() == null ? current.testPlan() : command.testPlan(),
+        justification, cabNotes,
+        cabRisk == null ? null : cabRisk.name(),
+        command.impact() == null ? current.impact() : command.impact(),
+        java.sql.Timestamp.from(now),
         id, OrganizationContext.current(), command.expectedVersion());
     if (changed == 0) throw new OptimisticLockingFailureException(
         "Change changed since version " + command.expectedVersion());
@@ -234,9 +239,11 @@ public class ChangeCommands {
       Instant plannedEnd,
       String implementationPlan,
       String rollbackPlan,
+      String testPlan,
       String businessJustification,
       String cabNotes,
-      Change.Risk cabRiskLevel
+      Change.Risk cabRiskLevel,
+      Change.Impact impact
   ) {}
 
   public record UpdateCommand(
@@ -245,8 +252,10 @@ public class ChangeCommands {
       Instant plannedEnd,
       String implementationPlan,
       String rollbackPlan,
+      String testPlan,
       String businessJustification,
       String cabNotes,
-      Change.Risk cabRiskLevel
+      Change.Risk cabRiskLevel,
+      Change.Impact impact
   ) {}
 }

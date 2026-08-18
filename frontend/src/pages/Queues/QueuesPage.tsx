@@ -13,7 +13,7 @@ import {
   isEscalated,
   isMyGroup,
   isUnassigned,
-} from '@/mock/store';
+} from '@/api/queuePredicates';
 import { ErrorState, Select, Tabs } from '@/components/ui';
 import { OperatorGrid } from '@/components/data-display';
 import type { Priority, QueueSavedView, SlaState, WorkItemStatus, WorkItemType } from '@/types';

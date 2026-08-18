@@ -106,9 +106,11 @@ class ChangeController {
             body.plannedEnd(),
             body.implementationPlan(),
             body.rollbackPlan(),
+            body.testPlan(),
             body.businessJustification(),
             body.cabNotes(),
-            body.cabRiskLevel()
+            body.cabRiskLevel(),
+            body.impact()
         ),
         authentication.getName()
     );
@@ -144,7 +146,8 @@ class ChangeController {
     try {
       return commands.update(id, new ChangeCommands.UpdateCommand(
           body.expectedVersion(), body.plannedStart(), body.plannedEnd(), body.implementationPlan(),
-          body.rollbackPlan(), body.businessJustification(), body.cabNotes(), body.cabRiskLevel()),
+          body.rollbackPlan(), body.testPlan(), body.businessJustification(), body.cabNotes(),
+          body.cabRiskLevel(), body.impact()),
           authentication.getName());
     } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
@@ -217,9 +220,11 @@ class ChangeController {
       Instant plannedEnd,
       @NotBlank @Size(max = 20000) String implementationPlan,
       @NotBlank @Size(max = 20000) String rollbackPlan,
+      @Size(max = 20000) String testPlan,
       @Size(max = 8000) String businessJustification,
       @Size(max = 8000) String cabNotes,
-      Change.Risk cabRiskLevel
+      Change.Risk cabRiskLevel,
+      Change.Impact impact
   ) {}
 
   record TransitionRequest(
@@ -246,9 +251,11 @@ class ChangeController {
       java.time.Instant plannedEnd,
       @Size(max = 20000) String implementationPlan,
       @Size(max = 20000) String rollbackPlan,
+      @Size(max = 20000) String testPlan,
       @Size(max = 8000) String businessJustification,
       @Size(max = 8000) String cabNotes,
-      Change.Risk cabRiskLevel
+      Change.Risk cabRiskLevel,
+      Change.Impact impact
   ) {}
 
   record BulkTransitionRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids,

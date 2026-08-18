@@ -14,37 +14,26 @@ public record Problem(
     String rootCause,
     String workaround,
     String resolution,
+    Priority priority,
+    Impact impact,
+    String ownerSubject,
     Set<UUID> linkedWorkItems,
     long version
 ) {
   public Problem {
     linkedWorkItems = linkedWorkItems == null ? Set.of() : Set.copyOf(linkedWorkItems);
+    priority = priority == null ? Priority.MEDIUM : priority;
+    impact = impact == null ? Impact.MEDIUM : impact;
   }
 
-  /** Backward-compatible constructor without resolution. */
-  public Problem(
-      UUID id,
-      String number,
-      String title,
-      Status status,
-      String rootCause,
-      String workaround,
-      Set<UUID> linkedWorkItems
-  ) {
-    this(id, number, title, status, rootCause, workaround, null, linkedWorkItems, 0);
+  public Problem(UUID id, String number, String title, Status status, String rootCause,
+      String workaround, Set<UUID> linkedWorkItems) {
+    this(id, number, title, status, rootCause, workaround, null, null, null, null, linkedWorkItems, 0);
   }
 
-  public Problem(
-      UUID id,
-      String number,
-      String title,
-      Status status,
-      String rootCause,
-      String workaround,
-      String resolution,
-      Set<UUID> linkedWorkItems
-  ) {
-    this(id, number, title, status, rootCause, workaround, resolution, linkedWorkItems, 0);
+  public Problem(UUID id, String number, String title, Status status, String rootCause,
+      String workaround, String resolution, Set<UUID> linkedWorkItems) {
+    this(id, number, title, status, rootCause, workaround, resolution, null, null, null, linkedWorkItems, 0);
   }
 
   public Problem transition(Status target) {
@@ -65,34 +54,26 @@ public record Problem(
         throw new IllegalStateException("Resolution is required before RESOLVED");
       }
     }
-    return new Problem(id, number, title, target, rootCause, workaround, resolution, linkedWorkItems, version);
-  }
-
-  public Problem withInvestigationNotes(String rootCause, String workaround) {
-    return withInvestigationNotes(rootCause, workaround, null);
+    return new Problem(id, number, title, target, rootCause, workaround, resolution,
+        priority, impact, ownerSubject, linkedWorkItems, version);
   }
 
   public Problem withInvestigationNotes(String rootCause, String workaround, String resolution) {
     return new Problem(
-        id,
-        number,
-        title,
-        status,
+        id, number, title, status,
         rootCause != null ? rootCause : this.rootCause,
         workaround != null ? workaround : this.workaround,
         resolution != null ? resolution : this.resolution,
-        linkedWorkItems,
-        version
+        priority, impact, ownerSubject, linkedWorkItems, version
     );
   }
 
   public Problem linkWorkItem(UUID workItemId) {
-    if (workItemId == null) {
-      throw new IllegalArgumentException("workItemId is required");
-    }
+    if (workItemId == null) throw new IllegalArgumentException("workItemId is required");
     var next = new java.util.HashSet<>(linkedWorkItems);
     next.add(workItemId);
-    return new Problem(id, number, title, status, rootCause, workaround, resolution, next, version);
+    return new Problem(id, number, title, status, rootCause, workaround, resolution,
+        priority, impact, ownerSubject, next, version);
   }
 
   private static boolean isBlank(String value) {
@@ -113,4 +94,8 @@ public record Problem(
   public enum Status {
     NEW, UNDER_INVESTIGATION, ROOT_CAUSE_IDENTIFIED, KNOWN_ERROR, RESOLVED, CLOSED
   }
+
+  public enum Priority { CRITICAL, HIGH, MEDIUM, LOW }
+
+  public enum Impact { HIGH, MEDIUM, LOW }
 }

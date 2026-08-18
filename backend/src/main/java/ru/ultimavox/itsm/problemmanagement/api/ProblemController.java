@@ -63,7 +63,8 @@ class ProblemController {
   ResponseEntity<Problem> create(Authentication authentication, @Valid @RequestBody CreateRequest body) {
     access.require(authentication.getName(), "problem.write", "problem", null);
     Problem created = commands.create(
-        new ProblemCommands.CreateCommand(body.title(), body.rootCause(), body.workaround()),
+        new ProblemCommands.CreateCommand(body.title(), body.rootCause(), body.workaround(),
+            body.priority(), body.impact(), body.ownerSubject()),
         authentication.getName()
     );
     return ResponseEntity.created(URI.create("/api/v1/problems/" + created.id())).body(created);
@@ -79,7 +80,9 @@ class ProblemController {
     access.require(authentication.getName(), "problem.write", "problem", id.toString());
     try {
       return commands.updateNotes(
-          id, body.rootCause(), body.workaround(), body.resolution(), body.expectedVersion(), authentication.getName()
+          id, body.rootCause(), body.workaround(), body.resolution(),
+          body.priority(), body.impact(), body.ownerSubject(),
+          body.expectedVersion(), authentication.getName()
       );
     } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
@@ -152,7 +155,10 @@ class ProblemController {
   record CreateRequest(
       @NotBlank @Size(max = 240) String title,
       @Size(max = 12000) String rootCause,
-      @Size(max = 12000) String workaround
+      @Size(max = 12000) String workaround,
+      Problem.Priority priority,
+      Problem.Impact impact,
+      @Size(max = 128) String ownerSubject
   ) {}
 
   record TransitionRequest(
@@ -167,6 +173,9 @@ class ProblemController {
       @Size(max = 12000) String rootCause,
       @Size(max = 12000) String workaround,
       @Size(max = 12000) String resolution,
+      Problem.Priority priority,
+      Problem.Impact impact,
+      @Size(max = 128) String ownerSubject,
       long expectedVersion
   ) {}
 

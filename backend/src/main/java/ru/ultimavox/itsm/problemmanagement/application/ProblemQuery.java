@@ -23,7 +23,8 @@ public class ProblemQuery {
     String statusFilter = status == null || status.isBlank() ? null : status;
     return jdbc.query(
         """
-            SELECT id, number, title, status, root_cause, workaround, resolution, created_at, updated_at, version
+            SELECT id, number, title, status, root_cause, workaround, resolution, priority, impact, owner_subject,
+                   created_at, updated_at, version
             FROM problem
             WHERE org_id = ? AND (?::text IS NULL OR status = ?)
             ORDER BY updated_at DESC
@@ -36,6 +37,9 @@ public class ProblemQuery {
             rs.getString("root_cause"),
             rs.getString("workaround"),
             rs.getString("resolution"),
+            rs.getString("priority"),
+            rs.getString("impact"),
+            rs.getString("owner_subject"),
             rs.getTimestamp("created_at").toInstant(),
             rs.getTimestamp("updated_at").toInstant(),
             rs.getLong("version")
@@ -46,7 +50,10 @@ public class ProblemQuery {
 
   public Optional<Problem> findById(UUID id) {
     List<Problem> rows = jdbc.query(
-        "SELECT id, number, title, status, root_cause, workaround, resolution, version FROM problem WHERE id = ? AND org_id = ?",
+        """
+        SELECT id, number, title, status, root_cause, workaround, resolution, priority, impact, owner_subject, version
+        FROM problem WHERE id = ? AND org_id = ?
+        """,
         (rs, i) -> new Problem(
             (UUID) rs.getObject("id"),
             rs.getString("number"),
@@ -55,6 +62,9 @@ public class ProblemQuery {
             rs.getString("root_cause"),
             rs.getString("workaround"),
             rs.getString("resolution"),
+            rs.getString("priority") != null ? Problem.Priority.valueOf(rs.getString("priority")) : null,
+            rs.getString("impact") != null ? Problem.Impact.valueOf(rs.getString("impact")) : null,
+            rs.getString("owner_subject"),
             loadLinks((UUID) rs.getObject("id")),
             rs.getLong("version")
         ),
@@ -80,6 +90,9 @@ public class ProblemQuery {
       String rootCause,
       String workaround,
       String resolution,
+      String priority,
+      String impact,
+      String ownerSubject,
       Instant createdAt,
       Instant updatedAt,
       long version

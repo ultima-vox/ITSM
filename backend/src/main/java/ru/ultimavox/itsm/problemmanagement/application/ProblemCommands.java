@@ -55,15 +55,22 @@ public class ProblemCommands {
     String number = "PRB-%06d".formatted(sequence);
     Problem problem = new Problem(
         id, number, command.title(), Problem.Status.NEW,
-        command.rootCause(), command.workaround(), Set.of()
+        command.rootCause(), command.workaround(), null,
+        command.priority(), command.impact(), command.ownerSubject(),
+        Set.of(), 0
     );
 
     jdbc.update(
         """
-            INSERT INTO problem (id, org_id, number, title, status, root_cause, workaround, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            INSERT INTO problem (id, org_id, number, title, status, root_cause, workaround, resolution,
+                priority, impact, owner_subject, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
-        id, OrganizationContext.current(), number, problem.title(), problem.status().name(), problem.rootCause(), problem.workaround(),
+        id, OrganizationContext.current(), number, problem.title(), problem.status().name(),
+        problem.rootCause(), problem.workaround(), problem.resolution(),
+        problem.priority() == null ? null : problem.priority().name(),
+        problem.impact() == null ? null : problem.impact().name(),
+        problem.ownerSubject(),
         Timestamp.from(now), Timestamp.from(now)
     );
     workflows.startIfDefined("problem", id.toString());
@@ -90,24 +97,40 @@ public class ProblemCommands {
       String rootCause,
       String workaround,
       String resolution,
+      Problem.Priority priority,
+      Problem.Impact impact,
+      String ownerSubject,
       long expectedVersion,
       String actor
   ) {
     Problem current = query.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Problem not found: " + id));
     requireVersion(current, expectedVersion);
-    Problem updated = current.withInvestigationNotes(rootCause, workaround, resolution);
+    Problem withNotes = current.withInvestigationNotes(rootCause, workaround, resolution);
+    Problem updated = new Problem(
+        withNotes.id(), withNotes.number(), withNotes.title(), withNotes.status(),
+        withNotes.rootCause(), withNotes.workaround(), withNotes.resolution(),
+        priority != null ? priority : withNotes.priority(),
+        impact != null ? impact : withNotes.impact(),
+        ownerSubject != null ? ownerSubject : withNotes.ownerSubject(),
+        withNotes.linkedWorkItems(), withNotes.version()
+    );
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     int changed = jdbc.update(
         """
             UPDATE problem
-            SET root_cause = ?, workaround = ?, resolution = ?, version = version + 1, updated_at = ?
+            SET root_cause = ?, workaround = ?, resolution = ?,
+                priority = ?, impact = ?, owner_subject = ?,
+                version = version + 1, updated_at = ?
             WHERE id = ? AND org_id = ? AND version = ?
             """,
         updated.rootCause(),
         updated.workaround(),
         updated.resolution(),
+        updated.priority() == null ? null : updated.priority().name(),
+        updated.impact() == null ? null : updated.impact().name(),
+        updated.ownerSubject(),
         Timestamp.from(now),
         id,
         OrganizationContext.current(),
@@ -238,5 +261,6 @@ public class ProblemCommands {
     return linked;
   }
 
-  public record CreateCommand(String title, String rootCause, String workaround) {}
+  public record CreateCommand(String title, String rootCause, String workaround,
+      Problem.Priority priority, Problem.Impact impact, String ownerSubject) {}
 }
