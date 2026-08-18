@@ -2,6 +2,7 @@
  * Workflow definitions — live list from backend; mock for local edits.
  */
 import { apiRequest, delay, isMockMode } from './client';
+import { subscribeNotifications } from './notifications';
 import {
   listWorkflowDefinitions as mockList,
   setWorkflowActiveVersion as mockSetActive,
@@ -174,5 +175,5 @@ export function workflowDefinitionsWritable(): boolean {
 
 export function subscribeWorkflowDefinitions(listener: () => void): () => void {
   if (isMockMode()) return mockSubscribe(listener);
-  return () => undefined;
+  return subscribeNotifications(listener);
 }

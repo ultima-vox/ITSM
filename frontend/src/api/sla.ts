@@ -2,6 +2,7 @@
  * SLA admin API — live policies from backend; mock store for local-only edits.
  */
 import { apiRequest, delay, isMockMode } from './client';
+import { subscribeNotifications } from './notifications';
 import {
   listSlaPolicies as mockListPolicies,
   listWorkingCalendars as mockListCalendars,
@@ -150,5 +151,5 @@ export async function setSlaPolicyEnabled(
 
 export function subscribeSlaPolicies(listener: () => void): () => void {
   if (isMockMode()) return mockSubscribe(listener);
-  return () => undefined;
+  return subscribeNotifications(listener);
 }

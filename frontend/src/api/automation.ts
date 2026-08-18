@@ -2,6 +2,7 @@
  * Automation rules — live list from backend; mock for local demo edits.
  */
 import { apiRequest, delay, isMockMode } from './client';
+import { subscribeNotifications } from './notifications';
 import {
   listAutomationRules as mockList,
   listAutomationExecutions as mockExecutions,
@@ -143,5 +144,5 @@ export async function fetchAutomationExecutions(options?: {
 
 export function subscribeAutomationRules(listener: () => void): () => void {
   if (isMockMode()) return mockSubscribe(listener);
-  return () => undefined;
+  return subscribeNotifications(listener);
 }

@@ -2,6 +2,7 @@
  * RBAC catalog — live roles/permissions/principals; mock for user directory edits.
  */
 import { apiRequest, delay, isMockMode } from './client';
+import { subscribeNotifications } from './notifications';
 import { preloadUserProfiles, resolveUserSync } from './users';
 import {
   assignUserRole as mockAssign,
@@ -186,5 +187,5 @@ export function rbacWritable(): boolean {
 
 export function subscribeRbac(listener: () => void): () => void {
   if (isMockMode()) return mockSubscribe(listener);
-  return () => undefined;
+  return subscribeNotifications(listener);
 }
