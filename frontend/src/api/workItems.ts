@@ -156,6 +156,22 @@ export async function fetchWorkItems(params?: {
   return items;
 }
 
+export async function fetchMyOpenCount(): Promise<number> {
+  if (isMockMode()) {
+    const { countMyOpenAssigned } = await import('@/mock/store');
+    return countMyOpenAssigned();
+  }
+  const actor = getApiActorId();
+  if (!actor) return 0;
+  const qs = new URLSearchParams({
+    assigneeId: actor,
+    page: '0',
+    size: '1',
+  });
+  const page = await apiRequest<BackendWorkItemPage>(`/work-items?${qs}`);
+  return page.total ?? 0;
+}
+
 export type WorkItemLinkType =
   | 'RELATED'
   | 'DUPLICATE_OF'

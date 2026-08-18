@@ -16,7 +16,7 @@ import { useT } from '@/i18n';
 import { useDensity } from '@/hooks/useDensity';
 import { useTheme } from '@/hooks/useTheme';
 import { Avatar } from '@/components/ui';
-import { currentUser } from '@/mock/data';
+import { getApiActorId } from '@/api/client';
 
 interface ProfileMenuProps {
   compact?: boolean;
@@ -40,18 +40,19 @@ export function ProfileMenu({ compact, onDark }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const displayName = isAuthenticated && user ? user.name : currentUser.name;
+  const fallbackId = getApiActorId();
+  const displayName = isAuthenticated && user ? user.name : fallbackId;
   const displayEmail =
     isAuthenticated && user
       ? user.email || user.username || user.sub
-      : currentUser.email;
+      : `${fallbackId}@local`;
   const displayRole =
     isAuthenticated && user?.roles?.length
       ? user.roles.filter((r) => !r.startsWith('default-') && r !== 'offline_access' && r !== 'uma_authorization')[0] ||
-        currentUser.role
-      : currentUser.role;
+        'User'
+      : 'User';
   const initials =
-    isAuthenticated && user ? user.initials : currentUser.initials;
+    isAuthenticated && user ? user.initials : fallbackId.slice(0, 2).toUpperCase();
 
   useEffect(() => {
     if (!open) return;

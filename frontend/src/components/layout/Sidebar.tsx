@@ -24,8 +24,8 @@ import {
 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { workspaceName } from '@/mock/data';
-import { countMyOpenAssigned, subscribeWorkItems } from '@/mock/store';
+import { fetchMyOpenCount } from '@/api/workItems';
+import { subscribeNotifications } from '@/api/notifications';
 import { ProfileMenu } from './ProfileMenu';
 
 interface SidebarProps {
@@ -61,11 +61,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const t = useT();
   const asideRef = useRef<HTMLElement>(null);
   useFocusTrap(asideRef, open);
-  const [myWorkCount, setMyWorkCount] = useState(() => countMyOpenAssigned());
+  const [myWorkCount, setMyWorkCount] = useState(0);
 
   useEffect(() => {
-    return subscribeWorkItems(() => {
-      setMyWorkCount(countMyOpenAssigned());
+    fetchMyOpenCount().then(setMyWorkCount).catch(() => setMyWorkCount(0));
+    return subscribeNotifications(() => {
+      fetchMyOpenCount().then(setMyWorkCount).catch(() => setMyWorkCount(0));
     });
   }, []);
 
@@ -110,7 +111,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         >
           <span className="workspace__icon">N</span>
           <div>
-            <strong>{workspaceName}</strong>
+            <strong>{(import.meta.env.VITE_WORKSPACE_NAME as string | undefined) ?? 'ITSM'}</strong>
             <small>{t('app.workspace')}</small>
           </div>
           <ChevronDown size={15} className="workspace__chevron" aria-hidden />
