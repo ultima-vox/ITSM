@@ -264,6 +264,15 @@ export function AssetsPage() {
     [t, locale],
   );
 
+  const [assetTransitions, setAssetTransitions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!selected) { setAssetTransitions([]); return; }
+    getAssetTransitions(selected.status).then(setAssetTransitions).catch(() => setAssetTransitions([]));
+  }, [selected]);
+
+  const transitions = assetTransitions;
+
   if (error && !loading && !data) {
     return (
       <section className="page">
@@ -277,15 +286,6 @@ export function AssetsPage() {
       </section>
     );
   }
-
-  const [assetTransitions, setAssetTransitions] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!selected) { setAssetTransitions([]); return; }
-    getAssetTransitions(selected.status).then(setAssetTransitions).catch(() => setAssetTransitions([]));
-  }, [selected]);
-
-  const transitions = assetTransitions;
 
   return (
     <section className="page">

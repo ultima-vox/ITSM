@@ -186,7 +186,7 @@ export function OverviewPage() {
     if (queueFilter === 'breached')
       return sorted.filter((w) => w.slaState === 'breached');
     return sorted;
-  }, [sorted, queueFilter]);
+  }, [sorted, queueFilter, currentUser.id]);
 
   const queueFilterCounts = useMemo(() => {
     const list = items.data ?? [];
@@ -195,7 +195,7 @@ export function OverviewPage() {
       unassigned: list.filter((w) => !w.assignee).length,
       breached: list.filter((w) => w.slaState === 'breached').length,
     };
-  }, [items.data]);
+  }, [items.data, currentUser.id]);
 
   const slaCounts = useMemo(() => {
     const list = items.data ?? [];

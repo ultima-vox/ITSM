@@ -187,7 +187,7 @@ export function QueuesPage() {
       breached: list.filter(isBreached).length,
       all: list.length,
     };
-  }, [data]);
+  }, [data, currentUser.teamId]);
 
   const filtered = useMemo(() => {
     return (data ?? []).filter((w) => {
@@ -201,7 +201,7 @@ export function QueuesPage() {
       if (sla && w.slaState !== (sla as SlaState)) return false;
       return true;
     });
-  }, [data, tab, priority, type, status, sla]);
+  }, [data, tab, priority, type, status, sla, currentUser.teamId]);
 
   const reset = () => {
     setParams({}, { replace: true });
