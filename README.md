@@ -37,6 +37,12 @@ services healthy, `scripts/smoke-compose.sh` passes 13 checks, `./gradlew test` 
 typechecks/lints/tests clean, and a real Keycloak browser login loads live data
 (`frontend/e2e/oidc-login.spec.ts`).
 
+Every CI job was also reproduced locally: Kustomize renders and validates (14 resources), Prometheus
+rules check out, the live contract E2E passes against a `dev` backend, both container images scan
+clean, and the k6 baseline runs against the secured stack within its thresholds. A PostgreSQL backup
+and restore drill (`scripts/backup-db.ps1` → `scripts/verify-db-backup.ps1`) restored 60 tables into
+an isolated database.
+
 ## Quick start
 
 One command starts the complete local stack (PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Keycloak, backend, frontend):
