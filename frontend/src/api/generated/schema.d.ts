@@ -236,7 +236,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List available target states for a work item */
+        get: operations["listTransitions"];
         put?: never;
         /** Transition work item state */
         post: operations["transition"];
@@ -404,6 +405,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/bulk/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically transition up to 200 work items */
+        post: operations["bulkTransition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/bulk/priority": {
         parameters: {
             query?: never;
@@ -450,6 +468,42 @@ export interface paths {
         put?: never;
         /** Create a reusable work item template */
         post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve subject IDs to user profiles (email stripped for non-admin) */
+        get: operations["resolve"];
+        put?: never;
+        /** Create or update a user profile */
+        post: operations["upsert_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sla/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List SLA policies (admin read) */
+        get: operations["listPolicies"];
+        put?: never;
+        /** Create a new SLA policy */
+        post: operations["createPolicy"];
         delete?: never;
         options?: never;
         head?: never;
@@ -534,7 +588,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List available target states for a problem */
+        get: operations["listTransitions_1"];
         put?: never;
         /** Transition problem lifecycle status */
         post: operations["transition_1"];
@@ -554,7 +609,24 @@ export interface paths {
         get?: never;
         put?: never;
         /** Transition up to 100 problems with explicit per-item results */
-        post: operations["bulkTransition"];
+        post: operations["bulkTransition_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/problems/bulk/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign multiple problems to the current user */
+        post: operations["bulkAssign_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -810,7 +882,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List available target states for a change */
+        get: operations["listTransitions_2"];
         put?: never;
         /** Transition change lifecycle; CAB risk fields accepted during review */
         post: operations["transition_2"];
@@ -830,7 +903,24 @@ export interface paths {
         get?: never;
         put?: never;
         /** Transition up to 100 changes with explicit per-item results */
-        post: operations["bulkTransition_1"];
+        post: operations["bulkTransition_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/bulk/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign multiple changes to the current user */
+        post: operations["bulkAssign_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1085,7 +1175,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete an SLA policy */
+        delete: operations["deletePolicy"];
         options?: never;
         head?: never;
         /** Update SLA policy targets or enabled state for current organization */
@@ -1197,6 +1288,24 @@ export interface paths {
         head?: never;
         /** Update change plans and CAB assessment with optimistic locking */
         patch: operations["update_5"];
+        trace?: never;
+    };
+    "/api/v1/assets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get asset by id */
+        get: operations["get_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update asset fields (name, location) */
+        patch: operations["patch"];
         trace?: never;
     };
     "/api/v1/workflow/instances/{objectType}/{objectId}": {
@@ -1318,15 +1427,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sla/policies": {
+    "/api/v1/sla/clocks/{clockId}/history": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List SLA policies (admin read) */
-        get: operations["listPolicies"];
+        /** List SLA clock history events for a given clock */
+        get: operations["clockHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1471,6 +1580,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SSE stream of real-time domain events for the authenticated user */
+        get: operations["stream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metadata/objects": {
         parameters: {
             query?: never;
@@ -1496,7 +1622,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active object definition by key */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1546,7 +1672,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1563,7 +1689,24 @@ export interface paths {
             cookie?: never;
         };
         /** Get active form render model for an object type */
-        get: operations["get_8"];
+        get: operations["get_9"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/articles/{id}/votes/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read current user's vote for an article */
+        get: operations["readMyVote"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1580,7 +1723,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get article by id or slug */
-        get: operations["get_9"];
+        get: operations["get_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1782,7 +1925,24 @@ export interface paths {
             cookie?: never;
         };
         /** Get catalog item detail */
-        get: operations["get_10"];
+        get: operations["get_11"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent automation action executions (newest first) */
+        get: operations["executions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1859,15 +2019,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/assets/{id}": {
+    "/api/v1/assets/transitions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get asset by id */
-        get: operations["get_11"];
+        /** List available target statuses from a given asset status */
+        get: operations["listTransitions_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2268,10 +2428,18 @@ export interface components {
             linkedAt?: string;
             scanStatus?: string;
             scanEngine?: string;
+            scanDetail?: string;
         };
         AssignRequest: {
             assigneeId: string;
             teamId?: string;
+        };
+        BulkTransitionRequest: {
+            ids: string[];
+            /** @enum {string} */
+            targetState: "NEW" | "IN_PROGRESS" | "PENDING" | "RESOLVED" | "CLOSED" | "CANCELLED";
+            resolutionCode?: string;
+            resolutionNotes?: string;
         };
         BulkPriorityRequest: {
             ids: string[];
@@ -2305,6 +2473,45 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        UpsertProfileRequest: {
+            subjectId?: string;
+            username?: string;
+            displayName?: string;
+            email?: string;
+            avatarUrl?: string;
+        };
+        UserProfile: {
+            subjectId?: string;
+            username?: string;
+            displayName?: string;
+            email?: string;
+            avatarUrl?: string;
+        };
+        CreatePolicyRequest: {
+            policyKey?: string;
+            calendarKey?: string;
+            targets?: components["schemas"]["TargetResponse"][];
+            pauseStates?: string[];
+        };
+        TargetResponse: {
+            metric?: string;
+            condition?: string;
+            /** Format: int64 */
+            targetMinutes?: number;
+            /** Format: int64 */
+            warningBeforeMinutes?: number;
+        };
+        PolicyResponse: {
+            /** Format: uuid */
+            id?: string;
+            key?: string;
+            calendarKey?: string;
+            enabled?: boolean;
+            /** Format: int32 */
+            version?: number;
+            targets?: components["schemas"]["TargetResponse"][];
+            pauseStates?: string[];
         };
         CalendarRequest: {
             /** Format: int64 */
@@ -2366,6 +2573,11 @@ export interface components {
             rootCause?: string;
             workaround?: string;
             resolution?: string;
+            /** @enum {string} */
+            priority?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            impact?: "HIGH" | "MEDIUM" | "LOW";
+            ownerSubject?: string;
             linkedWorkItems?: string[];
             /** Format: int64 */
             version?: number;
@@ -2373,11 +2585,6 @@ export interface components {
         LinkWorkItemRequest: {
             /** Format: uuid */
             workItemId: string;
-        };
-        BulkTransitionRequest: {
-            ids: string[];
-            /** @enum {string} */
-            target: "NEW" | "UNDER_INVESTIGATION" | "ROOT_CAUSE_IDENTIFIED" | "KNOWN_ERROR" | "RESOLVED" | "CLOSED";
         };
         BulkTransitionResponse: {
             /** Format: int64 */
@@ -2390,6 +2597,10 @@ export interface components {
             success?: boolean;
             status?: string;
             errorCode?: string;
+        };
+        BulkAssignResponse: {
+            /** Format: int32 */
+            updated?: number;
         };
         MarkAllReadResponse: {
             /** Format: int32 */
@@ -2569,10 +2780,13 @@ export interface components {
             plannedEnd?: string;
             implementationPlan?: string;
             rollbackPlan?: string;
+            testPlan?: string;
             businessJustification?: string;
             cabNotes?: string;
             /** @enum {string} */
             cabRiskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            impact?: "LOW" | "MEDIUM" | "HIGH";
             /** Format: int64 */
             version?: number;
         };
@@ -2640,6 +2854,7 @@ export interface components {
         CreateAssetRequest: {
             assetTag?: string;
             tag?: string;
+            name?: string;
             /** @enum {string} */
             kind?: "LAPTOP" | "DESKTOP" | "MONITOR" | "MOBILE_DEVICE" | "SERVER" | "NETWORK_DEVICE" | "SOFTWARE_LICENSE" | "OTHER";
             /** @enum {string} */
@@ -2652,11 +2867,13 @@ export interface components {
             acquiredOn?: string;
             /** Format: date */
             warrantyUntil?: string;
+            location?: string;
         };
         Asset: {
             /** Format: uuid */
             id?: string;
             assetTag?: string;
+            name?: string;
             /** @enum {string} */
             kind?: "LAPTOP" | "DESKTOP" | "MONITOR" | "MOBILE_DEVICE" | "SERVER" | "NETWORK_DEVICE" | "SOFTWARE_LICENSE" | "OTHER";
             /** @enum {string} */
@@ -2668,6 +2885,7 @@ export interface components {
             acquiredOn?: string;
             /** Format: date */
             warrantyUntil?: string;
+            location?: string;
             /** Format: int64 */
             version?: number;
         };
@@ -2729,35 +2947,21 @@ export interface components {
             /** @enum {string} */
             urgency?: "HIGH" | "MEDIUM" | "LOW";
         };
-        TargetResponse: {
-            metric?: string;
-            condition?: string;
-            /** Format: int64 */
-            targetMinutes?: number;
-            /** Format: int64 */
-            warningBeforeMinutes?: number;
-        };
         UpdatePolicyRequest: {
             /** Format: int32 */
             expectedVersion?: number;
             enabled?: boolean;
             targets?: components["schemas"]["TargetResponse"][];
         };
-        PolicyResponse: {
-            /** Format: uuid */
-            id?: string;
-            key?: string;
-            calendarKey?: string;
-            enabled?: boolean;
-            /** Format: int32 */
-            version?: number;
-            targets?: components["schemas"]["TargetResponse"][];
-            pauseStates?: string[];
-        };
         PatchNotesRequest: {
             rootCause?: string;
             workaround?: string;
             resolution?: string;
+            /** @enum {string} */
+            priority?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            impact?: "HIGH" | "MEDIUM" | "LOW";
+            ownerSubject?: string;
             /** Format: int64 */
             expectedVersion?: number;
         };
@@ -2779,6 +2983,12 @@ export interface components {
         SetEnabledRequest: {
             enabled?: boolean;
         };
+        PatchAssetRequest: {
+            name?: string;
+            location?: string;
+            /** Format: int64 */
+            expectedVersion?: number;
+        };
         WorkItemPageResponse: {
             items?: components["schemas"]["WorkItemResponse"][];
             /** Format: int64 */
@@ -2787,6 +2997,10 @@ export interface components {
             page?: number;
             /** Format: int32 */
             size?: number;
+        };
+        TransitionOption: {
+            key?: string;
+            target?: string;
         };
         ActivityResponse: {
             /** Format: uuid */
@@ -2824,6 +3038,23 @@ export interface components {
             /** Format: double */
             score?: number;
             reason?: string;
+        };
+        SafeProfile: {
+            subjectId?: string;
+            username?: string;
+            displayName?: string;
+            avatarUrl?: string;
+        };
+        ClockHistoryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            clockId?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            action?: string;
+            actorId?: string;
+            details?: string;
         };
         SearchHit: {
             id?: string;
@@ -2883,6 +3114,15 @@ export interface components {
             roles?: string[];
             permissions?: string[];
         };
+        ProblemListResponse: {
+            items?: components["schemas"]["ProblemSummary"][];
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
         ProblemSummary: {
             /** Format: uuid */
             id?: string;
@@ -2892,6 +3132,9 @@ export interface components {
             rootCause?: string;
             workaround?: string;
             resolution?: string;
+            priority?: string;
+            impact?: string;
+            ownerSubject?: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -2929,6 +3172,10 @@ export interface components {
             source?: string;
             entityType?: string;
             entityId?: string;
+        };
+        SseEmitter: {
+            /** Format: int64 */
+            timeout?: number;
         };
         ExpressionModel: {
             language?: string;
@@ -2975,6 +3222,9 @@ export interface components {
             summary?: string;
             locale?: string;
         };
+        VoteResponse: {
+            helpful?: boolean;
+        };
         ImpactResult: {
             /** Format: uuid */
             rootCiId?: string;
@@ -2992,6 +3242,15 @@ export interface components {
             /** Format: int32 */
             hop?: number;
             viaRelationship?: string;
+        };
+        ChangeListResponse: {
+            items?: components["schemas"]["Change"][];
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
         };
         CabVotesResponse: {
             votes?: components["schemas"]["CabVote"][];
@@ -3062,6 +3321,22 @@ export interface components {
             name?: string;
             description?: string;
             category?: string;
+        };
+        ExecutionResponse: {
+            /** Format: uuid */
+            id?: string;
+            ruleKey?: string;
+            /** Format: uuid */
+            eventId?: string;
+            actionType?: string;
+            status?: string;
+            details?: {
+                [key: string]: unknown;
+            };
+            /** Format: int32 */
+            attempts?: number;
+            /** Format: date-time */
+            createdAt?: string;
         };
         ActorView: {
             id?: string;
@@ -3523,6 +3798,8 @@ export interface operations {
                 assigneeId?: string;
                 priority?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
                 q?: string;
+                sortBy?: string;
+                sortDesc?: boolean;
                 page?: number;
                 size?: number;
             };
@@ -3611,6 +3888,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": string[];
+                };
+            };
+        };
+    };
+    listTransitions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransitionOption"][];
                 };
             };
         };
@@ -3977,6 +4276,30 @@ export interface operations {
             };
         };
     };
+    bulkTransition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Result"];
+                };
+            };
+        };
+    };
     bulkPriority: {
         parameters: {
             query?: never;
@@ -4067,6 +4390,98 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    resolve: {
+        parameters: {
+            query: {
+                ids: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: components["schemas"]["SafeProfile"];
+                    };
+                };
+            };
+        };
+    };
+    upsert_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserProfile"];
+                };
+            };
+        };
+    };
+    listPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyResponse"][];
+                };
+            };
+        };
+    };
+    createPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyResponse"];
                 };
             };
         };
@@ -4163,6 +4578,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                q?: string;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -4176,7 +4594,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ProblemSummary"][];
+                    "*/*": components["schemas"]["ProblemListResponse"];
                 };
             };
         };
@@ -4231,6 +4649,28 @@ export interface operations {
             };
         };
     };
+    listTransitions_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string[];
+                };
+            };
+        };
+    };
     transition_1: {
         parameters: {
             query?: never;
@@ -4257,7 +4697,7 @@ export interface operations {
             };
         };
     };
-    bulkTransition: {
+    bulkTransition_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4277,6 +4717,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BulkTransitionResponse"];
+                };
+            };
+        };
+    };
+    bulkAssign_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkAssignResponse"];
                 };
             };
         };
@@ -4655,6 +5119,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                q?: string;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -4668,7 +5135,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Change"][];
+                    "*/*": components["schemas"]["ChangeListResponse"];
                 };
             };
         };
@@ -4745,6 +5212,28 @@ export interface operations {
             };
         };
     };
+    listTransitions_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string[];
+                };
+            };
+        };
+    };
     transition_2: {
         parameters: {
             query?: never;
@@ -4771,7 +5260,7 @@ export interface operations {
             };
         };
     };
-    bulkTransition_1: {
+    bulkTransition_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4791,6 +5280,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BulkTransitionResponse"];
+                };
+            };
+        };
+    };
+    bulkAssign_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BulkAssignResponse"];
                 };
             };
         };
@@ -4956,6 +5469,7 @@ export interface operations {
                 status?: string;
                 kind?: string;
                 owner?: string;
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -5221,6 +5735,26 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["WorkItemResponse"];
                 };
+            };
+        };
+    };
+    deletePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5512,6 +6046,54 @@ export interface operations {
             };
         };
     };
+    get_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Asset"];
+                };
+            };
+        };
+    };
+    patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchAssetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Asset"];
+                };
+            };
+        };
+    };
     getInstance: {
         parameters: {
             query?: never;
@@ -5667,11 +6249,13 @@ export interface operations {
             };
         };
     };
-    listPolicies: {
+    clockHistory: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                clockId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5682,7 +6266,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PolicyResponse"][];
+                    "*/*": components["schemas"]["ClockHistoryResponse"][];
                 };
             };
         };
@@ -5857,6 +6441,26 @@ export interface operations {
             };
         };
     };
+    stream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["SseEmitter"];
+                };
+            };
+        };
+    };
     list_11: {
         parameters: {
             query?: never;
@@ -5877,7 +6481,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5943,28 +6547,6 @@ export interface operations {
             };
         };
     };
-    get_7: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                objectKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["FormRenderModel"];
-                };
-            };
-        };
-    };
     get_8: {
         parameters: {
             query?: never;
@@ -5988,6 +6570,50 @@ export interface operations {
         };
     };
     get_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FormRenderModel"];
+                };
+            };
+        };
+    };
+    readMyVote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VoteResponse"];
+                };
+            };
+        };
+    };
+    get_10: {
         parameters: {
             query?: {
                 locale?: string;
@@ -6261,7 +6887,7 @@ export interface operations {
             };
         };
     };
-    get_10: {
+    get_11: {
         parameters: {
             query?: {
                 locale?: string;
@@ -6281,6 +6907,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CatalogItemDetail"];
+                };
+            };
+        };
+    };
+    executions: {
+        parameters: {
+            query?: {
+                ruleKey?: string;
+                status?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExecutionResponse"][];
                 };
             };
         };
@@ -6373,13 +7024,13 @@ export interface operations {
             };
         };
     };
-    get_11: {
+    listTransitions_3: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
+            query: {
+                status: "ORDERED" | "IN_STOCK" | "IN_USE" | "REPAIRED" | "LOST" | "RETIRED";
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -6390,7 +7041,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Asset"];
+                    "*/*": string[];
                 };
             };
         };
