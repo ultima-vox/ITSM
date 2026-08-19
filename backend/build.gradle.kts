@@ -12,6 +12,8 @@ extra["spring-framework.version"] = "6.2.19"
 extra["spring-data-bom.version"] = "2025.0.12"
 extra["micrometer.version"] = "1.15.12"
 extra["jackson-bom.version"] = "2.21.4"
+// CVE-2026-63337 / 63219 / 63220 in the RabbitMQ client shipped by the Boot BOM.
+extra["rabbit-amqp-client.version"] = "5.33.1"
 
 java {
     toolchain {

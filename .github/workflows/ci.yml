@@ -290,7 +290,7 @@ jobs:
           exit-code: '1'
           # Build output and agent scratch directories are not shipped, and walking them is
           # what pushes this scan past the default timeout.
-          skip-dirs: node_modules,.git,backend/build,backend/.gradle,frontend/dist,.codex,.cursor,.grok,.opencode,.vault
+          skip-dirs: node_modules,.git,backend/build,backend/.gradle,frontend/dist,.codex,.cursor,.grok,.opencode,.vault,.tools
           timeout: 20m
 
       - name: Generate SPDX SBOM
