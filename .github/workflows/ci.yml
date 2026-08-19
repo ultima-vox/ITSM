@@ -113,7 +113,7 @@ jobs:
     runs-on: [self-hosted, linux]
     services:
       postgres:
-        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+        image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
         env:
           POSTGRES_DB: itsm
           POSTGRES_USER: itsm
@@ -228,6 +228,14 @@ jobs:
             ([.users[].attributes.organization_id[0]] | all(. == "default")) and
             ([.clients[].defaultClientScopes] | all(index("organization"))) and
             ([.clientScopes[].name] | index("organization") != null)
+          ' infra/keycloak/itsm-realm.json >/dev/null
+      - name: Validate access tokens carry a subject claim
+        run: |
+          jq -e '
+            ([.clients[].defaultClientScopes] | all(index("basic"))) and
+            ([.clientScopes[] | select(.name == "basic") | .protocolMappers[].protocolMapper]
+              | index("oidc-sub-mapper") != null) and
+            ([.users[].id] | all(. != null))
           ' infra/keycloak/itsm-realm.json >/dev/null
 
   kubernetes:
@@ -421,6 +429,26 @@ jobs:
           KEYCLOAK_URL=http://127.0.0.1:28081 \
           bash scripts/smoke-compose.sh
 
+      - name: Set up Node.js for deployed-stack E2E
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Keycloak login E2E against the running stack
+        working-directory: frontend
+        env:
+          CI: true
+          ITSM_E2E_BASE_URL: http://127.0.0.1:28000
+        run: npx playwright test e2e/oidc-login.spec.ts
+
       - name: Capture Compose evidence on failure
         if: failure()
         run: |
@@ -441,6 +469,8 @@ jobs:
         run: |
           docker compose down -v --remove-orphans
           rm -rf /tmp/itsm-compose-ci
+          rm -rf frontend/node_modules/.cache frontend/test-results frontend/playwright-report
+          rm -rf ~/.cache/ms-playwright
 
   # Self-hosted runner maintenance — runs after every CI trigger
   runner-cleanup:

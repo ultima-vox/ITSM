@@ -6,6 +6,8 @@ import { defineConfig, devices } from '@playwright/test';
  * Use 127.0.0.1 (not "localhost") so Windows does not resolve to a different
  * IPv6 listener on the same port.
  */
+const deployedBaseUrl = process.env.ITSM_E2E_BASE_URL;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -14,11 +16,12 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: deployedBaseUrl ?? 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     locale: 'ru-RU',
   },
-  webServer: {
+  // A deployed stack (Compose) serves the app itself; only start Vite for local specs.
+  webServer: deployedBaseUrl ? undefined : {
     command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
     url: 'http://127.0.0.1:5173',
     // Prefer a fresh Vite for smoke; set PW_REUSE_SERVER=1 to attach to an existing one
