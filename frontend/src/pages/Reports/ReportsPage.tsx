@@ -493,7 +493,15 @@ export function ReportsPage() {
                   : '—'
               }
               label={t('reports.satisfaction')}
-              detail={t(liveMode ? 'reports.satisfactionDetail' : 'reports.satisfactionFilteredDetail')}
+              detail={
+                derived.filteredCsat == null
+                  ? t('reports.satisfactionEmpty')
+                  : t(
+                      liveMode
+                        ? 'reports.satisfactionDetail'
+                        : 'reports.satisfactionFilteredDetail',
+                    )
+              }
             />
           </>
         )}

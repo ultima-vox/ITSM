@@ -83,15 +83,23 @@ type TranslateFn = (
   vars?: Record<string, string | number>,
 ) => string;
 
-/** Prefer plannedStart; fall back to createdAt + 3d for missing schedule. */
-function changeScheduleDate(c: Change): Date {
-  if (c.plannedStart) return new Date(c.plannedStart);
-  if (c.createdAt) {
-    const d = new Date(c.createdAt);
-    d.setDate(d.getDate() + 3);
-    return d;
+/** Planned window start only — never invent a calendar day. */
+function changeScheduleDate(c: Change): Date | null {
+  if (!c.plannedStart) return null;
+  const d = new Date(c.plannedStart);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function windowsOverlap(a: Change, b: Change): boolean {
+  if (!a.plannedStart || !a.plannedEnd || !b.plannedStart || !b.plannedEnd) {
+    return false;
   }
-  return new Date();
+  const aStart = new Date(a.plannedStart).getTime();
+  const aEnd = new Date(a.plannedEnd).getTime();
+  const bStart = new Date(b.plannedStart).getTime();
+  const bEnd = new Date(b.plannedEnd).getTime();
+  if ([aStart, aEnd, bStart, bEnd].some((n) => Number.isNaN(n))) return false;
+  return aStart < bEnd && bStart < aEnd;
 }
 
 function localDayKey(d: Date): string {
@@ -131,7 +139,9 @@ function findNormalScheduleConflicts(list: Change[]): ScheduleConflict[] {
   );
   const byDay = new Map<string, Change[]>();
   for (const c of active) {
-    const key = localDayKey(changeScheduleDate(c));
+    const when = changeScheduleDate(c);
+    if (!when) continue;
+    const key = localDayKey(when);
     const arr = byDay.get(key) ?? [];
     arr.push(c);
     byDay.set(key, arr);
@@ -153,6 +163,24 @@ function findNormalScheduleConflicts(list: Change[]): ScheduleConflict[] {
           });
         }
       }
+    }
+  }
+  return out;
+}
+
+function liveWindowConflicts(list: Change[]): ScheduleConflict[] {
+  const out: ScheduleConflict[] = [];
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      if (!windowsOverlap(a, b)) continue;
+      const when = changeScheduleDate(a) ?? changeScheduleDate(b);
+      out.push({
+        dayKey: when ? localDayKey(when) : '',
+        ciIds: [],
+        changes: [a, b],
+      });
     }
   }
   return out;
@@ -485,11 +513,9 @@ export function ChangesPage() {
     }
   }, [liveMode, weekMonday]);
 
-  /**
-   * Banner conflicts: prefer client CI-pair analysis; when live API returns
-   * overlapping changes not in client pairs, surface day-level flag via calendar.
-   */
-  const conflicts = clientConflicts;
+  const conflicts = liveMode
+    ? liveWindowConflicts(liveConflictsQ.data ?? [])
+    : clientConflicts;
   const liveConflictIds = useMemo(() => {
     const set = new Set<string>();
     for (const c of liveConflictsQ.data ?? []) set.add(c.id);
@@ -510,7 +536,9 @@ export function ChangesPage() {
     for (const c of allChanges) {
       if (c.status === 'cancelled' || c.status === 'completed') continue;
       if (!c.plannedStart) continue;
-      const key = localDayKey(changeScheduleDate(c));
+      const when = changeScheduleDate(c);
+      if (!when) continue;
+      const key = localDayKey(when);
       if (!map.has(key)) continue;
       map.get(key)!.push(c);
     }
@@ -870,9 +898,12 @@ export function ChangesPage() {
           options={[
             { value: '', label: t('app.all') },
             { value: 'draft', label: t('status.draft') },
+            { value: 'submitted', label: t('status.submitted') },
             { value: 'cab_review', label: t('status.cab_review') },
+            { value: 'approved', label: t('status.approved') },
             { value: 'scheduled', label: t('status.scheduled') },
-            { value: 'in_progress', label: t('status.in_progress') },
+            { value: 'implementing', label: t('status.implementing') },
+            { value: 'review', label: t('status.review') },
             { value: 'completed', label: t('status.completed') },
             { value: 'cancelled', label: t('status.cancelled') },
           ]}
@@ -885,7 +916,11 @@ export function ChangesPage() {
           <div>
             <strong>{t('changes.conflict.title')}</strong>
             <p>
-              {t('changes.conflict.body', {
+              {t(
+                liveMode
+                  ? 'changes.conflict.windowBody'
+                  : 'changes.conflict.body',
+                {
                 n: conflicts.length,
                 pairs: conflicts
                   .map(
@@ -893,7 +928,8 @@ export function ChangesPage() {
                       `${c.changes.map((x) => x.number).join(' ↔ ')} (${c.dayKey})`,
                   )
                   .join('; '),
-              })}
+                },
+              )}
             </p>
             <ul className="changes-conflict-banner__list">
               {conflicts.map((c) => (
@@ -907,10 +943,14 @@ export function ChangesPage() {
                   </button>
                   <span className="muted">
                     {' '}
-                    · {c.dayKey} ·{' '}
-                    {t('changes.conflict.cis', {
-                      names: c.ciIds.map((id) => resolveRelatedLabel(id)).join(', '),
-                    })}
+                    · {c.dayKey}
+                    {c.ciIds.length > 0
+                      ? ` · ${t('changes.conflict.cis', {
+                          names: c.ciIds
+                            .map((id) => resolveRelatedLabel(id))
+                            .join(', '),
+                        })}`
+                      : ''}
                   </span>
                 </li>
               ))}
@@ -1024,7 +1064,12 @@ export function ChangesPage() {
                     <span className="changes-cab-board__title">{c.title}</span>
                     <PriorityBadge priority={c.risk} />
                     <span className="muted changes-cab-board__when">
-                      {formatDateTime(changeScheduleDate(c).toISOString(), locale)}
+                      {(() => {
+                        const when = changeScheduleDate(c);
+                        return when
+                          ? formatDateTime(when.toISOString(), locale)
+                          : '—';
+                      })()}
                     </span>
                   </button>
                   <div className="changes-cab-board__actions">

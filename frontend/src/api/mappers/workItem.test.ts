@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapWorkItem, mapComment, mapActivity } from './workItem';
+import { mapWorkItem, mapComment, mapActivity, mapStats } from './workItem';
 
 describe('mapWorkItem', () => {
   it('maps backend enums to frontend lowercase', () => {
@@ -90,5 +90,16 @@ describe('mapActivity', () => {
       occurredAt: '2026-01-01T12:00:00Z',
     });
     expect(result.kind).toBe('comment');
+  });
+});
+
+describe('mapStats', () => {
+  it('keeps missing CSAT as null', () => {
+    expect(mapStats({ open: 3, dueToday: 1, breached: 0 }).satisfaction).toBeNull();
+    expect(mapStats({ open: 3, dueToday: 1, breached: 0, csat: null }).satisfaction).toBeNull();
+  });
+
+  it('maps numeric CSAT', () => {
+    expect(mapStats({ open: 3, dueToday: 1, breached: 0, csat: 84 }).satisfaction).toBe(84);
   });
 });

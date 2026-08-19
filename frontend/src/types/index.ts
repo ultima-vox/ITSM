@@ -361,7 +361,7 @@ export interface DashboardMetrics {
   dueToday: number;
   dueUrgent: number;
   breached: number;
-  satisfaction: number;
+  satisfaction: number | null;
   flow: {
     new: number;
     inProgress: number;

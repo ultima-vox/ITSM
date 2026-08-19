@@ -517,9 +517,17 @@ export function OverviewPage() {
               <MetricCard
                 icon={<Sparkles size={18} />}
                 color="mint"
-                value={`${metrics.data.satisfaction}%`}
+                value={
+                  metrics.data.satisfaction == null
+                    ? '—'
+                    : `${metrics.data.satisfaction}%`
+                }
                 label={t('overview.satisfaction')}
-                detail={t('overview.satisfactionDetail')}
+                detail={
+                  metrics.data.satisfaction == null
+                    ? t('overview.satisfactionEmpty')
+                    : t('overview.satisfactionDetail')
+                }
               />
             </>
           ) : null}

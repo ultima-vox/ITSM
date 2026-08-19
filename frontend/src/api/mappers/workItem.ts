@@ -314,7 +314,9 @@ export function mapStats(dto: BackendStats): DashboardMetrics {
     dueToday: Number(dto.dueToday) || 0,
     dueUrgent: Number(dto.breached) || 0,
     breached: Number(dto.breached) || 0,
-    satisfaction: dto.csat != null ? Number(dto.csat) : 0,
+    satisfaction: dto.csat == null || Number.isNaN(Number(dto.csat))
+      ? null
+      : Number(dto.csat),
     flow: {
       new: 0,
       inProgress: 0,
