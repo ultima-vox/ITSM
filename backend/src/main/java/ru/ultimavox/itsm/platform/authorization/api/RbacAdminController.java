@@ -63,6 +63,7 @@ class RbacAdminController {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated principal is required");
     }
     String subject = authentication.getName();
+    access.require(subject, "rbac.read", "role", null);
     return new EffectiveAccessResponse(
         subject,
         rbac.rolesForSubject(subject).stream().sorted().toList(),

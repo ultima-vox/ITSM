@@ -106,6 +106,7 @@ class AttachmentController {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(mediaType);
     headers.setContentLength(attachment.sizeBytes());
+    headers.set("X-Content-Type-Options", "nosniff");
     headers.set(
         HttpHeaders.CONTENT_DISPOSITION,
         "attachment; filename=\"" + attachment.filename().replaceAll("[\\r\\n\\0]", "_").replace("\"", "") + "\""
