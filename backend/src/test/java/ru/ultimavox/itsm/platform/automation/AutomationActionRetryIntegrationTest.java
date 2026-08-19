@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -51,7 +52,7 @@ class AutomationActionRetryIntegrationTest {
     var ds = new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     Flyway.configure().dataSource(ds).load().migrate();
     jdbc = new JdbcTemplate(ds);
-    var json = new ObjectMapper();
+    var json = new ObjectMapper().findAndRegisterModules();
 
     notifications = mock(NotificationService.class);
     AllowlistedActionExecutor executor =
@@ -63,6 +64,14 @@ class AutomationActionRetryIntegrationTest {
     retry = new AutomationActionRetryService(jdbc, json, executor, actionLog, 2, Duration.ZERO, Duration.ofMinutes(10));
     runner = new AutomationRunner(ruleRepository, new ConditionEvaluator(), executor, actionLog, retry);
     logQuery = new AutomationActionLogQuery(jdbc, json);
+  }
+
+  @BeforeEach
+  void resetAutomationState() {
+    jdbc.update("DELETE FROM automation_action_retry");
+    jdbc.update("DELETE FROM automation_action_log");
+    jdbc.update("DELETE FROM automation_rule");
+    org.mockito.Mockito.reset(notifications);
   }
 
   @Test

@@ -56,7 +56,7 @@ class SlaBreachSchedulerIntegrationTest {
     var ds = new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     Flyway.configure().dataSource(ds).load().migrate();
     jdbc = new JdbcTemplate(ds);
-    var json = new ObjectMapper();
+    var json = new ObjectMapper().findAndRegisterModules();
 
     outbox = new JdbcIntegrationEventOutbox(jdbc, json, event -> {});
     WorkingCalendarRegistry calendars = new WorkingCalendarRegistry(jdbc);
@@ -146,7 +146,8 @@ class SlaBreachSchedulerIntegrationTest {
     UUID a = UUID.randomUUID();
     UUID b = UUID.randomUUID();
     insertClock(a, "sla-org-x", Instant.now().minusSeconds(300), Instant.now().minusSeconds(60), null, "RUNNING");
-    insertClock(b, "sla-org-y", Instant.now().minusSeconds(300), Instant.now().plusSeconds(60), null, "RUNNING");
+    insertClock(b, "sla-org-y", Instant.now().minusSeconds(300), Instant.now().plusSeconds(60),
+        Instant.now().minusSeconds(30), "RUNNING");
 
     assertThat(new JdbcSlaClockRepository(jdbc).distinctOrgIdsWithDueOrWarnClocks())
         .containsExactlyInAnyOrder("sla-org-x", "sla-org-y");

@@ -59,7 +59,7 @@ class SlaBreachEscalationIntegrationTest {
     var ds = new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     Flyway.configure().dataSource(ds).load().migrate();
     jdbc = new JdbcTemplate(ds);
-    var json = new ObjectMapper();
+    var json = new ObjectMapper().findAndRegisterModules();
 
     IntegrationEventOutbox realOutbox = new JdbcIntegrationEventOutbox(jdbc, json, event -> {});
     sla = new SlaService(
@@ -156,13 +156,14 @@ class SlaBreachEscalationIntegrationTest {
         Timestamp.from(startedAt), Timestamp.from(dueAt), null, "RUNNING");
   }
 
-  private final ObjectMapper json = new ObjectMapper();
+  private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
 
   private DomainEvent breachEventFor(String orgId, UUID workItemId) {
     List<DomainEvent> events = jdbc.query(
         "SELECT id, event_type, schema_version, occurred_at, correlation_id, causation_id, organization_id, "
             + "actor_id, aggregate_type, aggregate_id, payload FROM outbox_event "
-            + "WHERE event_type = 'sla.breached' AND organization_id = ? AND aggregate_id = ?",
+            + "WHERE event_type = 'sla.breached' AND organization_id = ? "
+            + "AND payload -> 'data' ->> 'aggregateId' = ?",
         (rs, i) -> {
           String workItem;
           try {

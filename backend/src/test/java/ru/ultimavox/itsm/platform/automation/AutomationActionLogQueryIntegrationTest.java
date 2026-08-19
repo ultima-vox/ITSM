@@ -26,7 +26,7 @@ class AutomationActionLogQueryIntegrationTest {
     static void setup() {
         var ds = new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         Flyway.configure().dataSource(ds).load().migrate();
-        var json = new ObjectMapper();
+        var json = new ObjectMapper().findAndRegisterModules();
         var jdbc = new JdbcTemplate(ds);
         log = new JdbcAutomationActionLogRepository(jdbc, json);
         query = new AutomationActionLogQuery(jdbc, json);
@@ -38,16 +38,18 @@ class AutomationActionLogQueryIntegrationTest {
             String rule = "route.incident." + UUID.randomUUID().toString().substring(0, 8);
             UUID event = UUID.randomUUID();
             log.tryLog(rule, event, "assign", "STARTED", Map.of("assigneeId", "u-1"));
-            log.tryLog(rule, event, "assign", "SUCCEEDED", Map.of("assigneeId", "u-1"));
+            // A second tryLog for the same action is deduped; terminal status arrives via complete().
+            assertThat(log.tryLog(rule, event, "assign", "STARTED", Map.of("assigneeId", "u-1"))).isFalse();
+            log.complete(rule, event, "assign", "SUCCEEDED", Map.of("assigneeId", "u-1"), 1);
             log.tryLog("notify." + rule, UUID.randomUUID(), "notify", "SUCCEEDED", Map.of("channel", "IN_APP"));
 
             List<AutomationActionLogEntry> all = query.list(null, null, 100, 0);
-            assertThat(all).hasSize(3);
+            assertThat(all).hasSize(2);
             assertThat(all.get(0).ruleKey()).isEqualTo("notify." + rule);
             assertThat(all.get(0).details()).containsEntry("channel", "IN_APP");
 
             List<AutomationActionLogEntry> byRule = query.list(rule, null, 100, 0);
-            assertThat(byRule).hasSize(2).allMatch(e -> e.ruleKey().equals(rule));
+            assertThat(byRule).hasSize(1).allMatch(e -> e.ruleKey().equals(rule));
 
             List<AutomationActionLogEntry> byStatus = query.list(null, "SUCCEEDED", 100, 0);
             assertThat(byStatus).hasSize(2).allMatch(e -> "SUCCEEDED".equals(e.status()));

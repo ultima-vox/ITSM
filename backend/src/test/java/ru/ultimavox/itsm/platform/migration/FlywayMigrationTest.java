@@ -29,7 +29,13 @@ class FlywayMigrationTest {
         var result = flyway.migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("66");
+        String latestScript = java.util.Arrays.stream(flyway.info().all())
+                .map(org.flywaydb.core.api.MigrationInfo::getVersion)
+                .filter(java.util.Objects::nonNull)
+                .max(java.util.Comparator.naturalOrder())
+                .orElseThrow()
+                .toString();
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo(latestScript);
         assertThat(flyway.info().pending()).isEmpty();
         flyway.validate();
     }
