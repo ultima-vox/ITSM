@@ -30,6 +30,10 @@ itsm:
       secret-key: ${S3_SECRET_KEY:minioadmin}
       region: ${S3_REGION:us-east-1}
       path-style-access: ${S3_PATH_STYLE:true}
+    clamav:
+      enabled: ${CLAMAV_ENABLED:false}
+      host: ${CLAMAV_HOST:localhost}
+      port: ${CLAMAV_PORT:3310}
 
 logging:
   level:

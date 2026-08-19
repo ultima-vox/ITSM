@@ -40,6 +40,24 @@ class AttachmentServiceTest {
                                       java.time.Instant createdAt) {}
       @Override public void revokeSource(UUID id, String subjectId, String sourceType,
                                          String sourceId) {}
+      @Override public void updateScan(UUID id, ScanStatus status, String engine, String detail,
+                                       java.time.Instant scannedAt) {
+        Attachment current = db.get(id);
+        if (current == null) return;
+        db.put(id, new Attachment(
+            current.id(), current.filename(), current.contentType(), current.sizeBytes(),
+            current.storageKey(), current.uploadedBy(), current.createdAt(),
+            status, engine, detail, scannedAt));
+      }
+      @Override public java.util.List<Attachment> listUnscanned(int limit) {
+        return db.values().stream()
+            .filter(a -> a.scanStatus() == ScanStatus.PENDING)
+            .limit(limit)
+            .toList();
+      }
+      @Override public java.util.List<String> distinctOrgIdsWithUnscanned() {
+        return java.util.List.of("default");
+      }
     };
     service = new AttachmentService(storage, repo, new ContentSignatureMalwareScan());
   }

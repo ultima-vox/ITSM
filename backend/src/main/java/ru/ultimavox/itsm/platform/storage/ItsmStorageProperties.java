@@ -14,6 +14,8 @@ public class ItsmStorageProperties {
 
   private final S3 s3 = new S3();
 
+  private final ClamAv clamav = new ClamAv();
+
   public String getType() {
     return type;
   }
@@ -24,6 +26,10 @@ public class ItsmStorageProperties {
 
   public S3 getS3() {
     return s3;
+  }
+
+  public ClamAv getClamav() {
+    return clamav;
   }
 
   public boolean isS3() {
@@ -91,6 +97,54 @@ public class ItsmStorageProperties {
 
     public void setPathStyleAccess(boolean pathStyleAccess) {
       this.pathStyleAccess = pathStyleAccess;
+    }
+  }
+
+  public static class ClamAv {
+    private boolean enabled = false;
+    private String host = "localhost";
+    private int port = 3310;
+    private java.time.Duration connectTimeout = java.time.Duration.ofSeconds(2);
+    private java.time.Duration readTimeout = java.time.Duration.ofSeconds(30);
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public String getHost() {
+      return host;
+    }
+
+    public void setHost(String host) {
+      this.host = host;
+    }
+
+    public int getPort() {
+      return port;
+    }
+
+    public void setPort(int port) {
+      this.port = port;
+    }
+
+    public java.time.Duration getConnectTimeout() {
+      return connectTimeout;
+    }
+
+    public void setConnectTimeout(java.time.Duration connectTimeout) {
+      this.connectTimeout = connectTimeout;
+    }
+
+    public java.time.Duration getReadTimeout() {
+      return readTimeout;
+    }
+
+    public void setReadTimeout(java.time.Duration readTimeout) {
+      this.readTimeout = readTimeout;
     }
   }
 }

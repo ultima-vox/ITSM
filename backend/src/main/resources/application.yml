@@ -132,3 +132,11 @@ itsm:
       secret-key: ${S3_SECRET_KEY:minioadmin}
       region: ${S3_REGION:us-east-1}
       path-style-access: ${S3_PATH_STYLE:true}
+    clamav:
+      enabled: ${CLAMAV_ENABLED:false}
+      host: ${CLAMAV_HOST:localhost}
+      port: ${CLAMAV_PORT:3310}
+      connect-timeout: ${CLAMAV_CONNECT_TIMEOUT:PT2S}
+      read-timeout: ${CLAMAV_READ_TIMEOUT:PT30S}
+    scan-retry-interval: ${ITSM_STORAGE_SCAN_RETRY_INTERVAL:PT1M}
+    scan-retry-initial-delay: ${ITSM_STORAGE_SCAN_RETRY_INITIAL_DELAY:PT30S}

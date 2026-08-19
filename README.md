@@ -24,7 +24,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
 | Notifications | PostgreSQL-backed store + SSE |
 | Search | JDBC fallback and OpenSearch integration |
-| Attachments | S3/MinIO path + scan status; production malware pipeline still needs verification |
+| Attachments | S3/MinIO + signature scan + optional ClamAV INSTREAM; download blocked until CLEAN. Full #21 live verification still open |
 | Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC |
 | Reports | Backend workload/SLA reports |
 | Locales | **ru (default), en, de** — not ten languages |

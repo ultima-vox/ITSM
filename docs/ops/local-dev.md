@@ -13,7 +13,7 @@ docker compose up -d postgres redis rabbitmq opensearch minio minio-init keycloa
 
 Full stack publishes frontend on port `80` and backend on `8080`. Infra-only starts PostgreSQL (`5432`), Redis (AOF), RabbitMQ, OpenSearch, MinIO (`itsm-attachments` via `minio-init`), and Keycloak (`8081`). Defaults match `application.yml` (`itsm` / `itsm` / `itsm` for Postgres).
 
-Container-to-container traffic uses Compose DNS (`postgres:5432`, `redis:6379`, `rabbitmq:5672`, `opensearch:9200`, `minio:9000`, `keycloak:8080`). Do not point backend containers at `host.docker.internal`.
+Container-to-container traffic uses Compose DNS (`postgres:5432`, `redis:6379`, `rabbitmq:5672`, `opensearch:9200`, `minio:9000`, `keycloak:8080`, `clamav:3310`). Do not point backend containers at `host.docker.internal`. Host-run backend keeps ClamAV off unless `CLAMAV_ENABLED=true`.
 
 Host ports are overrideable with `ITSM_POSTGRES_PORT`, `ITSM_REDIS_PORT`,
 `ITSM_RABBITMQ_PORT`, `ITSM_RABBITMQ_UI_PORT`, `ITSM_OPENSEARCH_PORT`,

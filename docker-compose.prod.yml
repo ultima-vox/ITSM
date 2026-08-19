@@ -122,6 +122,9 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       S3_PATH_STYLE: "true"
       ITSM_REDIS_ENABLED: "true"
+      CLAMAV_ENABLED: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
       OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:-http://localhost:8081/realms/itsm}
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/itsm/protocol/openid-connect/certs
       ITSM_CORS_ORIGINS: ${ITSM_CORS_ORIGINS:-http://localhost,http://127.0.0.1}
@@ -133,12 +136,25 @@ services:
       opensearch: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
       keycloak: { condition: service_healthy }
+      clamav: { condition: service_started }
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       start_period: 50s
       retries: 8
+
+  clamav:
+    image: clamav/clamav:1.4.2
+    environment:
+      CLAMD_STARTUP_TIMEOUT: "180"
+    volumes: [clamav_data:/var/lib/clamav]
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 5 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 90s
 
   frontend:
     build:
@@ -166,3 +182,4 @@ volumes:
   redis_data:
   opensearch_data:
   minio_data:
+  clamav_data:

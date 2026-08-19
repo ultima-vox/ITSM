@@ -89,6 +89,48 @@ public class JdbcAttachmentRepository implements AttachmentRepository {
         id, OrganizationContext.current(), subjectId, sourceType, sourceId);
   }
 
+  @Override
+  public void updateScan(UUID id, ScanStatus status, String engine, String detail, Instant scannedAt) {
+    jdbc.update(
+        """
+        UPDATE attachment
+        SET scan_status = ?, scan_engine = ?, scan_detail = ?, scanned_at = ?
+        WHERE id = ? AND org_id = ?
+        """,
+        status.name(),
+        engine,
+        detail,
+        scannedAt == null ? null : Timestamp.from(scannedAt),
+        id,
+        OrganizationContext.current()
+    );
+  }
+
+  @Override
+  public List<Attachment> listUnscanned(int limit) {
+    return jdbc.query(
+        """
+        SELECT id, filename, content_type, size_bytes, storage_key, uploaded_by, created_at,
+               scan_status, scan_engine, scan_detail, scanned_at
+        FROM attachment
+        WHERE org_id = ? AND scan_status = 'PENDING'
+        ORDER BY created_at ASC
+        LIMIT ?
+        """,
+        (rs, i) -> mapRow(rs),
+        OrganizationContext.current(),
+        Math.max(1, limit)
+    );
+  }
+
+  @Override
+  public List<String> distinctOrgIdsWithUnscanned() {
+    return jdbc.query(
+        "SELECT DISTINCT org_id FROM attachment WHERE scan_status = 'PENDING'",
+        (rs, i) -> rs.getString(1)
+    );
+  }
+
   public static Attachment mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
     Timestamp scanned = rs.getTimestamp("scanned_at");
     String statusRaw = rs.getString("scan_status");

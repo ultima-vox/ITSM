@@ -2,9 +2,11 @@ package ru.ultimavox.itsm.platform.storage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 /**
  * Selects {@link AttachmentStorage}: local metadata-only (default) or S3-compatible (MinIO).
@@ -14,6 +16,21 @@ import org.springframework.context.annotation.Configuration;
 class StorageConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(StorageConfiguration.class);
+
+  @Bean
+  @Primary
+  MalwareScanPort malwareScanPort(
+      ContentSignatureMalwareScan signature,
+      ObjectProvider<ClamAvMalwareScan> clamav
+  ) {
+    ClamAvMalwareScan engine = clamav.getIfAvailable();
+    if (engine == null) {
+      log.info("Malware scan engine=content-signature (ClamAV disabled)");
+      return signature;
+    }
+    log.info("Malware scan engine=content-signature+clamav");
+    return new CompositeMalwareScan(signature, engine);
+  }
 
   @Bean(destroyMethod = "closeIfNeeded")
   AttachmentStorage attachmentStorage(ItsmStorageProperties props) {

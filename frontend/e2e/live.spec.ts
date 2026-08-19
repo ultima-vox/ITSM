@@ -71,4 +71,37 @@ test.describe('live backend', () => {
     expect(article.status).toBe('PUBLISHED');
     expect(article.title).toBe(marker);
   });
+
+  test('uploads a clean file and blocks EICAR download', async ({ request }) => {
+    const clean = await request.post('/api/v1/attachments', {
+      multipart: {
+        file: {
+          name: 'note.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('live e2e clean attachment'),
+        },
+      },
+    });
+    expect(clean.status()).toBe(201);
+    const cleanMeta = (await clean.json()) as { id: string; scanStatus: string };
+    expect(cleanMeta.scanStatus).toBe('CLEAN');
+
+    const eicarBody =
+      'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+    const infected = await request.post('/api/v1/attachments', {
+      multipart: {
+        file: {
+          name: 'readme.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from(eicarBody),
+        },
+      },
+    });
+    expect(infected.status()).toBe(201);
+    const infectedMeta = (await infected.json()) as { id: string; scanStatus: string };
+    expect(infectedMeta.scanStatus).toBe('INFECTED');
+
+    const blocked = await request.get(`/api/v1/attachments/${infectedMeta.id}/content`);
+    expect(blocked.status()).toBe(403);
+  });
 });

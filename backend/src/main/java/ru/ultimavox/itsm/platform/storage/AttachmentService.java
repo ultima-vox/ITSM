@@ -52,6 +52,31 @@ public class AttachmentService {
         : contentType;
 
     PrefixAndStream prepared = readPrefix(content, sizeBytes);
+    Instant now = Instant.now();
+    Attachment pending = new Attachment(
+        id,
+        filename,
+        type,
+        sizeBytes,
+        storageKey,
+        uploadedBy,
+        now,
+        ScanStatus.PENDING,
+        "pending",
+        "quarantine until scanned",
+        null
+    );
+    repository.save(pending);
+
+    // Store bytes even when later marked infected so quarantine retains the object.
+    storage.store(new AttachmentStorage.StoreRequest(
+        storageKey,
+        type,
+        sizeBytes,
+        filename,
+        prepared.forStore()
+    ));
+
     MalwareScanPort.ScanResult scan = malwareScan.scan(
         new MalwareScanPort.ScanRequest(
             filename,
@@ -61,19 +86,9 @@ public class AttachmentService {
             prepared.prefix()
         )
     );
-
-    // Store bytes even when infected so quarantine / forensics retain the object;
-    // download remains blocked via scan_status.
-    storage.store(new AttachmentStorage.StoreRequest(
-        storageKey,
-        type,
-        sizeBytes,
-        filename,
-        prepared.forStore()
-    ));
-
-    Instant now = Instant.now();
-    Attachment attachment = new Attachment(
+    Instant scannedAt = scan.status() == ScanStatus.PENDING ? null : Instant.now();
+    repository.updateScan(id, scan.status(), scan.engine(), scan.detail(), scannedAt);
+    return new Attachment(
         id,
         filename,
         type,
@@ -84,9 +99,50 @@ public class AttachmentService {
         scan.status(),
         scan.engine(),
         scan.detail(),
-        now
+        scannedAt
     );
-    return repository.save(attachment);
+  }
+
+  public Attachment rescan(Attachment attachment) {
+    byte[] prefix = new byte[0];
+    try (InputStream stored = storage.openContent(attachment.storageKey()).orElse(null)) {
+      if (stored != null) {
+        prefix = stored.readNBytes(SCAN_PREFIX_BYTES);
+      }
+    } catch (IOException ex) {
+      repository.updateScan(
+          attachment.id(),
+          ScanStatus.PENDING,
+          attachment.scanEngine(),
+          "rescan read failed: " + ex.getMessage(),
+          null
+      );
+      return attachment;
+    }
+    MalwareScanPort.ScanResult scan = malwareScan.scan(
+        new MalwareScanPort.ScanRequest(
+            attachment.filename(),
+            attachment.contentType(),
+            attachment.sizeBytes(),
+            attachment.storageKey(),
+            prefix
+        )
+    );
+    Instant scannedAt = scan.status() == ScanStatus.PENDING ? null : Instant.now();
+    repository.updateScan(attachment.id(), scan.status(), scan.engine(), scan.detail(), scannedAt);
+    return new Attachment(
+        attachment.id(),
+        attachment.filename(),
+        attachment.contentType(),
+        attachment.sizeBytes(),
+        attachment.storageKey(),
+        attachment.uploadedBy(),
+        attachment.createdAt(),
+        scan.status(),
+        scan.engine(),
+        scan.detail(),
+        scannedAt
+    );
   }
 
   public Optional<Attachment> findById(UUID id) {
