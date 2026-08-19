@@ -34,7 +34,7 @@ class SearchController {
   @Operation(summary = "Full-text search across indexed projections (scope-filtered)")
   List<SearchHit> search(
       Authentication authentication,
-      @RequestParam(name = "q", defaultValue = "") String q,
+      @RequestParam(name = "q", defaultValue = "") @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false) String scopes,
       @RequestParam(required = false, defaultValue = "50") int limit
   ) {

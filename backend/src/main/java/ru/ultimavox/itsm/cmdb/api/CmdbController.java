@@ -47,7 +47,7 @@ class CmdbController {
       Authentication authentication,
       @RequestParam(required = false) String classKey,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String q
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q
   ) {
     access.require(authentication.getName(), "cmdb.read", "configuration-item", null);
     return query.search(classKey, status, q);

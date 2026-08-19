@@ -61,7 +61,7 @@ class CatalogController {
   List<CatalogQuery.CatalogItemView> list(
       Authentication authentication,
       @RequestParam(required = false) String category,
-      @RequestParam(required = false) String q,
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false, defaultValue = "ru") String locale
   ) {
     access.require(authentication.getName(), "catalog.read", "catalog-item", null);

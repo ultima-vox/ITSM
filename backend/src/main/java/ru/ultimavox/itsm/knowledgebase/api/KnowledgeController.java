@@ -50,7 +50,7 @@ class KnowledgeController {
   @Operation(summary = "List articles; publishedOnly=false for CMS (requires knowledge.write)")
   List<KnowledgeQuery.ArticleSummary> list(
       Authentication authentication,
-      @RequestParam(required = false) String q,
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false, defaultValue = "ru") String locale,
       @RequestParam(required = false, defaultValue = "true") boolean publishedOnly
   ) {

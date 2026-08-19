@@ -51,7 +51,7 @@ class ProblemController {
   ProblemListResponse list(
       Authentication authentication,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String q,
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false, defaultValue = "0") int page,
       @RequestParam(required = false, defaultValue = "50") int size
   ) {

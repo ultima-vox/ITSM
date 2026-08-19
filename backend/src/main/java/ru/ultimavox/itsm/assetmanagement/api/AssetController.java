@@ -62,7 +62,7 @@ class AssetController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String kind,
       @RequestParam(required = false) String owner,
-      @RequestParam(required = false) String q
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q
   ) {
     access.require(authentication.getName(), "asset.read", "asset", null);
     return query.list(status, kind, owner, q);

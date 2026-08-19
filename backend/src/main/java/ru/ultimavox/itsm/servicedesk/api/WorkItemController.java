@@ -180,7 +180,7 @@ class WorkItemController {
       @RequestParam(required = false) Type type,
       @RequestParam(required = false) String assigneeId,
       @RequestParam(required = false) Priority priority,
-      @RequestParam(required = false) String q,
+      @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false) String sortBy,
       @RequestParam(required = false, defaultValue = "true") boolean sortDesc,
       @RequestParam(defaultValue = "0") int page,
@@ -336,6 +336,9 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.assign", "work-item", null);
+    for (UUID id : request.ids()) {
+      requireRead(actor, id);
+    }
     return bulkWorkItems.assign(request.ids(), request.assigneeId(), request.teamId(), actor);
   }
 
@@ -346,6 +349,9 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.update", "work-item", null);
+    for (UUID id : request.ids()) {
+      requireRead(actor, id);
+    }
     return bulkWorkItems.setPriority(request.ids(), request.priority(), actor);
   }
 
@@ -356,6 +362,9 @@ class WorkItemController {
   ) {
     String actor = authentication.getName();
     access.require(actor, "work-item.transition", "work-item", null);
+    for (UUID id : request.ids()) {
+      requireRead(actor, id);
+    }
     return bulkWorkItems.transition(request.ids(), request.targetState(),
         request.resolutionCode(), request.resolutionNotes(), actor);
   }
