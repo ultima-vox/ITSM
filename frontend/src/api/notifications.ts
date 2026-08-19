@@ -210,12 +210,15 @@ export function subscribeNotifications(listener: () => void): () => void {
  * - Mock mode: reads in-memory store.
  * - Live mode: returns empty array (use async `fetchNotifications` instead).
  */
+/** Stable identity: useSyncExternalStore treats a fresh array as a changed snapshot. */
+const NO_NOTIFICATIONS: AppNotification[] = [];
+
 export function listNotifications(): AppNotification[] {
   if (isMockMode()) {
     ensureNotificationCenter();
     return listMockNotifications();
   }
-  return [];
+  return NO_NOTIFICATIONS;
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
