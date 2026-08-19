@@ -62,14 +62,16 @@ public class AutomationActionRetryService {
 
   /**
    * Records a retry for a failed action. Idempotent per (organization, rule, event, action);
-   * an existing retry row is never reset.
+   * an existing retry row is never reset. The row starts at one attempt because the inline
+   * execution that just failed already consumed one, so {@code max-attempts} bounds the total
+   * number of executions rather than the retries alone.
    */
   public void schedule(DomainEvent event, String ruleKey, String actionType, Map<String, Object> parameters, String error) {
     try {
       jdbc.update("""
               INSERT INTO automation_action_retry
                 (org_id, rule_key, event_id, action_type, attempts, next_attempt_at, last_error, event_json, action_parameters)
-              VALUES (?, ?, ?, ?, 0, ?, ?, ?::jsonb, ?::jsonb)
+              VALUES (?, ?, ?, ?, 1, ?, ?, ?::jsonb, ?::jsonb)
               ON CONFLICT (org_id, rule_key, event_id, action_type) DO NOTHING
               """,
           OrganizationContext.current(),
@@ -136,7 +138,7 @@ public class AutomationActionRetryService {
       if (attempts >= maxAttempts) {
         jdbc.update("""
                 UPDATE automation_action_retry
-                SET attempts = ?, last_error = ?, quarantined_at = now(), next_attempt_at = NULL
+                SET attempts = ?, last_error = ?, quarantined_at = now()
                 WHERE id = ?
                 """,
             attempts, error, item.id());
