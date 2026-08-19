@@ -38,7 +38,7 @@ const crumbMap: Record<string, string> = {
 export function AppShell() {
   const t = useT();
   const location = useLocation();
-  const { needsSignIn, login } = useAuth();
+  const { needsSignIn, login, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createKind, setCreateKind] = useState<CreateKind | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -82,6 +82,16 @@ export function AppShell() {
   }, [location.pathname, t]);
 
   const openCreate = useCallback((kind: CreateKind) => setCreateKind(kind), []);
+
+  // Hold the app while the identity provider session is being restored, so pages do not
+  // fire a burst of unauthenticated requests that resolve as 401 right before the redirect.
+  if (authLoading) {
+    return (
+      <div className="shell shell--booting" role="status" aria-live="polite">
+        <p>{t('app.loading')}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">

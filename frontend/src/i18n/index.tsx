@@ -9,7 +9,8 @@ import {
 } from 'react';
 import type { LocaleCode } from '@/types';
 import { fetchLocalePreference, updateLocalePreference } from '@/api/locale';
-import { isMockMode } from '@/api/client';
+import { getApiToken, isMockMode, onApiTokenChange } from '@/api/client';
+import { isOidcEnabled } from '@/auth/config';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 import de from './locales/de.json';
@@ -67,21 +68,31 @@ function readStoredLocale(): LocaleCode {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<LocaleCode>(readStoredLocale);
 
-  // Live mode: hydrate from GET /api/v1/me/locale once
+  // Live mode: hydrate from GET /api/v1/me/locale once a bearer token exists.
+  // Calling it while anonymous only produces a 401 and races the OIDC restore.
   useEffect(() => {
     if (isMockMode()) return;
     let cancelled = false;
-    void fetchLocalePreference().then((remote) => {
-      if (cancelled || !remote) return;
-      setLocaleState(remote);
-      try {
-        localStorage.setItem(STORAGE_KEY, remote);
-      } catch {
-        /* ignore */
-      }
-    });
+    let hydrated = false;
+    const hydrate = () => {
+      if (cancelled || hydrated) return;
+      if (isOidcEnabled() && !getApiToken()) return;
+      hydrated = true;
+      void fetchLocalePreference().then((remote) => {
+        if (cancelled || !remote) return;
+        setLocaleState(remote);
+        try {
+          localStorage.setItem(STORAGE_KEY, remote);
+        } catch {
+          /* ignore */
+        }
+      });
+    };
+    hydrate();
+    const unsubscribe = onApiTokenChange(hydrate);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 

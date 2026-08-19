@@ -89,8 +89,20 @@ export function getApiToken(): string | null {
   return apiToken;
 }
 
+type ApiTokenListener = (token: string | null) => void;
+const apiTokenListeners = new Set<ApiTokenListener>();
+
+/** Notified whenever the in-memory bearer token appears, changes, or is cleared. */
+export function onApiTokenChange(listener: ApiTokenListener): () => void {
+  apiTokenListeners.add(listener);
+  return () => apiTokenListeners.delete(listener);
+}
+
 export function setApiToken(token: string | null): void {
-  apiToken = token?.trim() || null;
+  const next = token?.trim() || null;
+  const changed = next !== apiToken;
+  apiToken = next;
+  if (changed) apiTokenListeners.forEach((listener) => listener(apiToken));
 }
 
 /**

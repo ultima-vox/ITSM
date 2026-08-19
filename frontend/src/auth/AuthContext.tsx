@@ -44,6 +44,41 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Authorization-server answers to prompt=none that simply mean "not signed in". */
+const SILENT_RESTORE_DECLINED = new Set([
+  'login_required',
+  'interaction_required',
+  'consent_required',
+  'account_selection_required',
+]);
+
+const SILENT_RESTORE_KEY = 'vox-itsm.oidc.silent-restore';
+
+function silentRestoreTried(): boolean {
+  try {
+    return sessionStorage.getItem(SILENT_RESTORE_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+
+function markSilentRestoreTried(): void {
+  try {
+    sessionStorage.setItem(SILENT_RESTORE_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Allow one silent restore again once a real session exists (survives reloads). */
+function resetSilentRestore(): void {
+  try {
+    sessionStorage.removeItem(SILENT_RESTORE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 async function postToken(
   tokenEndpoint: string,
   body: Record<string, string>,
@@ -78,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = next;
     writeSession(next);
     setSession(next);
+    if (next) resetSilentRestore();
   }, []);
 
   const refreshTokens = useCallback(async (): Promise<boolean> => {
@@ -135,6 +171,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshTokens],
   );
 
+  const startAuthorization = useCallback(
+    async (returnTo: string | undefined, silent: boolean) => {
+      const cfg = getOidcConfig();
+      if (!cfg) {
+        if (!silent) setError('OIDC is not configured');
+        return;
+      }
+      if (!silent) setError(null);
+      const { codeVerifier, codeChallenge, state } = await createPkceLoginParams();
+      storePkceSession(
+        codeVerifier,
+        state,
+        returnTo ??
+          (typeof window !== 'undefined'
+            ? `${window.location.pathname}${window.location.search}`
+            : '/'),
+      );
+      const url = new URL(cfg.authorizationEndpoint);
+      url.searchParams.set('client_id', cfg.clientId);
+      url.searchParams.set('redirect_uri', cfg.redirectUri);
+      url.searchParams.set('response_type', 'code');
+      url.searchParams.set('scope', cfg.scopes);
+      url.searchParams.set('state', state);
+      url.searchParams.set('code_challenge', codeChallenge);
+      url.searchParams.set('code_challenge_method', 'S256');
+      // Silent restore rides the identity provider session cookie; it never shows a form.
+      if (silent) url.searchParams.set('prompt', 'none');
+      window.location.assign(url.toString());
+    },
+    [],
+  );
+
   // Hydrate current in-memory session once on mount.
   const hydrated = useRef(false);
   useEffect(() => {
@@ -145,6 +213,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const existing = readSession();
+    if (!existing && typeof window !== 'undefined'
+        && !window.location.pathname.startsWith('/auth/callback')
+        && !silentRestoreTried()) {
+      // Tokens are never persisted, so a reload starts anonymous. Ask the identity
+      // provider once per tab whether an SSO session exists and restore it without a form.
+      markSilentRestoreTried();
+      void startAuthorization(
+        `${window.location.pathname}${window.location.search}`,
+        true,
+      );
+      return;
+    }
     if (existing) {
       // Ensure api token mirror is in sync
       writeSession(existing);
@@ -161,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setLoading(false);
-  }, [oidcEnabled, refreshTokens]);
+  }, [oidcEnabled, refreshTokens, startAuthorization]);
 
   useEffect(() => {
     scheduleRefresh(session);
@@ -191,38 +271,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [oidcEnabled, refreshTokens]);
 
-  const login = useCallback(async (returnTo?: string) => {
-    const cfg = getOidcConfig();
-    if (!cfg) {
-      setError('OIDC is not configured');
-      return;
-    }
-    setError(null);
-    const { codeVerifier, codeChallenge, state } = await createPkceLoginParams();
-    storePkceSession(
-      codeVerifier,
-      state,
-      returnTo ??
-        (typeof window !== 'undefined'
-          ? `${window.location.pathname}${window.location.search}`
-          : '/'),
-    );
-    const url = new URL(cfg.authorizationEndpoint);
-    url.searchParams.set('client_id', cfg.clientId);
-    url.searchParams.set('redirect_uri', cfg.redirectUri);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', cfg.scopes);
-    url.searchParams.set('state', state);
-    url.searchParams.set('code_challenge', codeChallenge);
-    url.searchParams.set('code_challenge_method', 'S256');
-    window.location.assign(url.toString());
-  }, []);
+  const login = useCallback(
+    async (returnTo?: string) => startAuthorization(returnTo, false),
+    [startAuthorization],
+  );
 
   const logout = useCallback(async () => {
     const cfg = getOidcConfig();
     const idToken = sessionRef.current?.idToken;
     clearPkceSession();
     applySession(null);
+    // Explicit sign-out must not be undone by a silent restore on the next load.
+    markSilentRestoreTried();
     setError(null);
     if (cfg && idToken) {
       const url = new URL(cfg.endSessionEndpoint);
@@ -260,6 +320,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           search.startsWith('?') ? search.slice(1) : search,
         );
         const err = params.get('error');
+        if (err && SILENT_RESTORE_DECLINED.has(err)) {
+          // prompt=none answered "no active session" — stay anonymous, no error banner.
+          const declined = consumePkceSession();
+          applySession(null);
+          return declined.returnTo || '/';
+        }
         if (err) {
           throw new Error(params.get('error_description') || err);
         }

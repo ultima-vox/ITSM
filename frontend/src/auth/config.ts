@@ -29,6 +29,17 @@ export function getDefaultRedirectUri(): string {
   return 'http://localhost:5173/auth/callback';
 }
 
+function sameOriginOrDefault(configured: string | undefined): string {
+  const fallback = getDefaultRedirectUri();
+  if (!configured) return fallback;
+  if (typeof window === 'undefined' || !window.location?.origin) return configured;
+  try {
+    return new URL(configured).origin === window.location.origin ? configured : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * OIDC UI + flow is on when VITE_OIDC_ENABLED=true and issuer + client id are set.
  * When false/unset, auth is optional (mock / dev-local still work).
@@ -54,7 +65,10 @@ export function getOidcConfig(): OidcConfig | null {
   const redirectFromEnv = (
     import.meta.env.VITE_OIDC_REDIRECT_URI as string | undefined
   )?.trim();
-  const redirectUri = redirectFromEnv || getDefaultRedirectUri();
+  // PKCE state lives in sessionStorage, which is per-origin: a redirect URI pointing at a
+  // different origin than the one being browsed can never complete the exchange. When the
+  // build-time value disagrees with the current origin, the current origin wins.
+  const redirectUri = sameOriginOrDefault(redirectFromEnv);
 
   return {
     issuer,
