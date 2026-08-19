@@ -39,6 +39,15 @@ test.describe('Keycloak login against the deployed stack', () => {
       .poll(() => apiStatuses.filter((entry) => entry.startsWith('200')).length, { timeout: 15_000 })
       .toBeGreaterThan(0);
 
+    // Walk the primary operator routes the way a user does, in-app: they pull queues,
+    // assignees and profiles, which is where a secondary endpoint failing quietly turns
+    // into an error panel instead of data.
+    for (const link of [/Очереди|Queues/, /Моя работа|My work/, /База знаний|Knowledge/, /Изменения|Changes/]) {
+      await page.getByRole('link', { name: link }).first().click();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+    }
+
     expect(apiStatuses.filter((entry) => entry.startsWith('401') || entry.startsWith('403'))).toEqual([]);
     expect(apiStatuses.filter((entry) => entry.startsWith('5'))).toEqual([]);
   });

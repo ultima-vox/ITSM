@@ -61,8 +61,16 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Sources hold UTF-8 text (API tag names, Russian messages). Without this, javac decodes
+// them with the build machine's default charset and the same source produces different,
+// mojibake strings on Linux and Windows.
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    systemProperty("file.encoding", "UTF-8")
     systemProperty("docker.api.version", System.getenv("DOCKER_API_VERSION") ?: "1.44")
     System.getenv("DOCKER_HOST")?.let { systemProperty("docker.host", it) }
 }
