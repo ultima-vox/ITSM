@@ -9,6 +9,7 @@ export interface BackendProblemSummary {
   rootCause?: string | null;
   workaround?: string | null;
   resolution?: string | null;
+  ownerSubject?: string;
   createdAt?: string;
   updatedAt?: string;
   linkedWorkItems?: string[];
@@ -36,6 +37,7 @@ export function mapProblem(dto: BackendProblemSummary): Problem {
   const knownError = (dto.status ?? '').toUpperCase() === 'KNOWN_ERROR';
   const priority: Priority = knownError ? 'high' : 'medium';
   const linked = dto.linkedWorkItems?.length ?? 0;
+  const owner = dto.ownerSubject;
 
   return {
     id: String(dto.id),
@@ -46,7 +48,7 @@ export function mapProblem(dto: BackendProblemSummary): Problem {
     priority,
     knownError,
     relatedIncidents: linked,
-    assignee: null,
+    assignee: owner ? { id: owner, name: owner, initials: owner.slice(0, 2).toUpperCase() } : null,
     updatedAt: dto.updatedAt ?? dto.createdAt ?? new Date().toISOString(),
     description: dto.title,
     rootCause: dto.rootCause ?? undefined,

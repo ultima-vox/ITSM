@@ -32,6 +32,7 @@ class UserProfileController {
       @RequestParam("ids") @Size(max = 100) Collection<String> subjectIds
   ) {
     String actor = user.getUsername();
+    access.require(actor, "work-item.read", "user-profile", null);
     boolean showEmail = access.isAllowed(actor, "admin.full", "user", null);
     Map<String, UserProfile> raw = service.resolve(subjectIds);
     return raw.entrySet().stream()

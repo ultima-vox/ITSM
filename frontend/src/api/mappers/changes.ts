@@ -113,7 +113,7 @@ export function mapChange(dto: BackendChange): Change {
     plannedStart: dto.plannedStart ?? '',
     plannedEnd: dto.plannedEnd ?? '',
     assignee: null,
-    updatedAt: dto.plannedStart ?? '',
+    updatedAt: '',
     description: dto.businessJustification ?? undefined,
     implementationPlan: dto.implementationPlan ?? undefined,
     backoutPlan: dto.rollbackPlan ?? undefined,
