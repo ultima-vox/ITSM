@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 /**
@@ -39,6 +40,12 @@ final class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstrac
           .collect(Collectors.toCollection(() -> authorities));
     }
 
-    return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
+    String subject = jwt.getSubject();
+    if (subject == null || subject.isBlank()) {
+      throw new InvalidBearerTokenException(
+          "Access token has no 'sub' claim; the identity provider client must include the "
+              + "'basic' client scope");
+    }
+    return new JwtAuthenticationToken(jwt, authorities, subject);
   }
 }
