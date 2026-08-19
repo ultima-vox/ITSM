@@ -93,12 +93,13 @@ else
 fi
 
 if [ "$BACKEND_UP" = true ]; then
-  # OpenAPI docs
-  if curl -sf http://localhost:8080/swagger-ui.html >/dev/null 2>&1; then
-    pass "Swagger UI available"
-  else
-    fail "Swagger UI not available"
-  fi
+  # OpenAPI docs are ADMIN-gated outside profile dev, so a rejection is the healthy answer.
+  DOCS_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/swagger-ui.html 2>/dev/null || echo "000")
+  case "$DOCS_CODE" in
+    200) pass "Swagger UI available (open — expected only under profile dev)" ;;
+    401|403) pass "Swagger UI gated (HTTP $DOCS_CODE)" ;;
+    *) fail "Swagger UI returned HTTP $DOCS_CODE" ;;
+  esac
 
   # Public endpoint
   HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/work-items 2>/dev/null || echo "000")
