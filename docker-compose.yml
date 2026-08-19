@@ -16,7 +16,7 @@ name: vox-itsm
 
 services:
   postgres:
-    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     environment:
       POSTGRES_DB: itsm
       POSTGRES_USER: itsm
@@ -43,13 +43,14 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:4-management-alpine@sha256:44bf7eb50fe1765885659e49ccfdc775f8e531964d979321aee380a071f49f94
+    image: rabbitmq:4-management-alpine@sha256:002a875e96365eeed67be445becfd240947ca82279103b592a859ea7a8e2a746
     ports: ["${ITSM_RABBITMQ_PORT:-5672}:5672", "${ITSM_RABBITMQ_UI_PORT:-15672}:15672"]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD-SHELL", "su-exec rabbitmq rabbitmq-diagnostics -q ping"]
       interval: 10s
-      timeout: 5s
-      retries: 10
+      timeout: 10s
+      retries: 12
+      start_period: 60s
 
   opensearch:
     image: opensearchproject/opensearch:2.19.1@sha256:72fe2fc84be8295906b8efca020b46c58ed45c8da60cd9b8b49e1991e38e89a4
@@ -93,12 +94,20 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin} &&
-      mc mb --ignore-existing local/itsm-attachments &&
-      echo 'MinIO bucket itsm-attachments ready'
-      "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        for i in $$(seq 1 30); do
+          if mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin}; then
+            break
+          fi
+          echo "minio not reachable yet (attempt $$i)"
+          sleep 2
+        done
+        mc mb --ignore-existing local/itsm-attachments
+        echo 'MinIO bucket itsm-attachments ready'
     restart: "no"
 
   keycloak:
@@ -172,7 +181,7 @@ services:
       retries: 8
 
   clamav:
-    image: clamav/clamav:1.4.2
+    image: clamav/clamav:1.4.6@sha256:c3bfbf2a2c9abc1fc179e63832a9e8bfac901ede83853e3fa10acf6f1fb5c803
     environment:
       CLAMD_STARTUP_TIMEOUT: "180"
     ports: ["${ITSM_CLAMAV_PORT:-3310}:3310"]
