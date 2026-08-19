@@ -69,11 +69,13 @@ class SecurityConfiguration {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(
                 "/actuator/health",
-                "/actuator/health/**",
+                "/actuator/health/**"
+            ).permitAll()
+            .requestMatchers(
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html"
-            ).permitAll()
+            ).hasRole("ADMIN")
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .anyRequest().authenticated()
         )
