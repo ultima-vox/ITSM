@@ -20,10 +20,11 @@ import {
   listConfigurationItems,
   removeCiRelation as storeRemoveCiRelation,
   updateCiRelation as storeUpdateCiRelation,
-  subscribeConfigurationItems,
-  subscribeSecondaryModules,
+  subscribeConfigurationItems as mockSubscribeCi,
+  subscribeSecondaryModules as mockSubscribeSecondary,
   transitionAsset as storeTransitionAsset,
 } from '@/mock/store';
+import { subscribeNotifications } from '@/api/notifications';
 import type {
   Asset,
   AssetStatus,
@@ -225,8 +226,15 @@ export async function updateConfigurationItem(
   return mapConfigurationItem(updated);
 }
 
-export { subscribeConfigurationItems };
-export { subscribeSecondaryModules };
+export function subscribeConfigurationItems(listener: () => void): () => void {
+  if (isMockMode()) return mockSubscribeCi(listener);
+  return subscribeNotifications(listener);
+}
+
+export function subscribeSecondaryModules(listener: () => void): () => void {
+  if (isMockMode()) return mockSubscribeSecondary(listener);
+  return subscribeNotifications(listener);
+}
 
 export async function fetchAssets(): Promise<Asset[]> {
   if (isMockMode()) {
