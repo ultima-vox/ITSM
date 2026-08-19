@@ -6,8 +6,7 @@ import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.ultimavox.itsm.platform.authorization.AccessControl;
 import ru.ultimavox.itsm.platform.users.UserProfile;
@@ -28,10 +27,10 @@ class UserProfileController {
   @GetMapping
   @Operation(summary = "Resolve subject IDs to user profiles (email stripped for non-admin)")
   Map<String, SafeProfile> resolve(
-      @AuthenticationPrincipal UserDetails user,
+      Authentication authentication,
       @RequestParam("ids") @Size(max = 100) Collection<String> subjectIds
   ) {
-    String actor = user.getUsername();
+    String actor = authentication.getName();
     access.require(actor, "work-item.read", "user-profile", null);
     boolean showEmail = access.isAllowed(actor, "admin.full", "user", null);
     Map<String, UserProfile> raw = service.resolve(subjectIds);
@@ -45,10 +44,10 @@ class UserProfileController {
   @PostMapping
   @Operation(summary = "Create or update a user profile")
   UserProfile upsert(
-      @AuthenticationPrincipal UserDetails user,
+      Authentication authentication,
       @RequestBody UpsertProfileRequest body
   ) {
-    access.require(user.getUsername(), "admin.full", "user", body.subjectId());
+    access.require(authentication.getName(), "admin.full", "user", body.subjectId());
     UserProfile profile = new UserProfile(
         body.subjectId(), body.username(), body.displayName(), body.email(), body.avatarUrl()
     );
