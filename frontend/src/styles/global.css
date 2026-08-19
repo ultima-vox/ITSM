@@ -3988,6 +3988,33 @@ html[data-theme='high-contrast'] .map-footer__label {
   font-weight: 600;
 }
 
+.settings-template-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-template-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-template-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-template-form__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .api-mode-pill {
   display: inline-flex;
   align-items: center;

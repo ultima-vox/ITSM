@@ -29,6 +29,7 @@ import {
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { resetDemoData } from '@/mock/store';
 import { Button, Tabs, Toggle, SkeletonRows, ErrorState } from '@/components/ui';
+import { TemplatesPanel } from './TemplatesPanel';
 import type { LocaleCode, NotificationPrefs } from '@/types';
 import {
   loadNotificationPrefs,
@@ -48,6 +49,7 @@ type SettingsSection =
   | 'language'
   | 'appearance'
   | 'notifications'
+  | 'templates'
   | 'api'
   | 'integrations'
   | 'demo';
@@ -128,6 +130,7 @@ export function SettingsPage() {
       { id: 'language', label: t('settings.language') },
       { id: 'appearance', label: t('settings.appearance') },
       { id: 'notifications', label: t('settings.notifications') },
+      { id: 'templates', label: t('settings.templates.title') },
       { id: 'api', label: t('settings.tabApi') },
       { id: 'integrations', label: t('settings.integrations') },
       { id: 'demo', label: t('settings.tabDemo') },
@@ -508,6 +511,8 @@ export function SettingsPage() {
               </div>
             </section>
           )}
+
+          {section === 'templates' && <TemplatesPanel />}
 
           {section === 'api' && (
             <section className="panel settings-card settings-card--solo">

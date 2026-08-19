@@ -76,9 +76,85 @@ const mockTemplates: WorkItemTemplate[] = [
     service: 'workplace', impact: 'MEDIUM', urgency: 'MEDIUM', active: true, version: 0 },
 ];
 
-export async function fetchWorkItemTemplates(): Promise<WorkItemTemplate[]> {
-  if (isMockMode()) { await delay(40); return mockTemplates; }
-  return apiRequest<WorkItemTemplate[]>('/work-item-templates');
+export async function fetchWorkItemTemplates(
+  includeInactive = false,
+): Promise<WorkItemTemplate[]> {
+  if (isMockMode()) {
+    await delay(40);
+    return includeInactive
+      ? mockTemplates.map((item) => ({ ...item }))
+      : mockTemplates.filter((item) => item.active).map((item) => ({ ...item }));
+  }
+  const qs = includeInactive ? '?includeInactive=true' : '';
+  return apiRequest<WorkItemTemplate[]>(`/work-item-templates${qs}`);
+}
+
+export type WorkItemTemplateDraft = Omit<
+  WorkItemTemplate,
+  'id' | 'active' | 'version'
+>;
+
+export async function createWorkItemTemplate(
+  draft: WorkItemTemplateDraft,
+): Promise<WorkItemTemplate> {
+  if (isMockMode()) {
+    await delay(80);
+    const created: WorkItemTemplate = {
+      ...draft,
+      id: `mock-template-${Date.now()}`,
+      active: true,
+      version: 0,
+    };
+    mockTemplates.push(created);
+    return { ...created };
+  }
+  return apiRequest<WorkItemTemplate>('/work-item-templates', {
+    method: 'POST',
+    body: draft,
+  });
+}
+
+export async function updateWorkItemTemplate(
+  id: string,
+  version: number,
+  draft: WorkItemTemplateDraft,
+): Promise<void> {
+  if (isMockMode()) {
+    await delay(80);
+    const idx = mockTemplates.findIndex((item) => item.id === id);
+    if (idx < 0) throw new ApiError(404, 'not found');
+    mockTemplates[idx] = {
+      ...mockTemplates[idx],
+      ...draft,
+      version: mockTemplates[idx].version + 1,
+    };
+    return;
+  }
+  await apiRequest(`/work-item-templates/${encodeURIComponent(id)}?version=${version}`, {
+    method: 'PUT',
+    body: draft,
+  });
+}
+
+export async function archiveWorkItemTemplate(
+  id: string,
+  version: number,
+): Promise<void> {
+  if (isMockMode()) {
+    await delay(60);
+    const idx = mockTemplates.findIndex((item) => item.id === id);
+    if (idx < 0) throw new ApiError(404, 'not found');
+    mockTemplates[idx] = {
+      ...mockTemplates[idx],
+      active: false,
+      version: mockTemplates[idx].version + 1,
+    };
+    return;
+  }
+  await apiRequest(
+    `/work-item-templates/${encodeURIComponent(id)}?version=${version}`,
+    { method: 'DELETE' },
+  );
 }
 
 export async function fetchMajorIncident(id: string): Promise<MajorIncident | null> {
