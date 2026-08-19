@@ -139,7 +139,8 @@ final class WorkItemResponses {
       String linkedBy,
       Instant linkedAt,
       String scanStatus,
-      String scanEngine
+      String scanEngine,
+      String scanDetail
   ) {
     static AttachmentLinkResponse from(WorkItemAttachmentService.LinkedAttachment link) {
       var a = link.attachment();
@@ -152,7 +153,8 @@ final class WorkItemResponses {
           link.linkedBy(),
           link.linkedAt(),
           a.scanStatus() == null ? "PENDING" : a.scanStatus().name(),
-          a.scanEngine()
+          a.scanEngine(),
+          a.scanDetail()
       );
     }
   }

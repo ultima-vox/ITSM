@@ -125,6 +125,9 @@ export async function listWorkItemAttachments(
       objectKey: string;
       linkedBy?: string;
       linkedAt?: string;
+      scanStatus?: string;
+      scanEngine?: string;
+      scanDetail?: string;
     }>
   >(`/work-items/${encodeURIComponent(workItemId)}/attachments`);
   return (list ?? []).map((a) => ({
@@ -135,8 +138,9 @@ export async function listWorkItemAttachments(
     objectKey: a.objectKey,
     linkedBy: a.linkedBy,
     linkedAt: a.linkedAt,
-    scanStatus: (a as { scanStatus?: AttachmentScanStatus }).scanStatus,
-    scanEngine: (a as { scanEngine?: string }).scanEngine,
+    scanStatus: a.scanStatus as AttachmentScanStatus | undefined,
+    scanEngine: a.scanEngine,
+    scanDetail: a.scanDetail,
   }));
 }
 
@@ -163,6 +167,9 @@ export async function linkWorkItemAttachment(
     objectKey: string;
     linkedBy?: string;
     linkedAt?: string;
+    scanStatus?: string;
+    scanEngine?: string;
+    scanDetail?: string;
   }>(`/work-items/${encodeURIComponent(workItemId)}/attachments`, {
     method: 'POST',
     body: { attachmentId },
@@ -175,6 +182,9 @@ export async function linkWorkItemAttachment(
     objectKey: a.objectKey,
     linkedBy: a.linkedBy,
     linkedAt: a.linkedAt,
+    scanStatus: a.scanStatus as AttachmentScanStatus | undefined,
+    scanEngine: a.scanEngine,
+    scanDetail: a.scanDetail,
   };
 }
 
