@@ -43,6 +43,37 @@ Use TLS for every network hop. Provide CA certificates through platform trust st
 Do not use `application-dev.yml`, default demo credentials, public MinIO buckets, or
 OpenSearch with its security plugin disabled.
 
+## Production-shaped Compose stack
+
+`docker-compose.prod.yml` is the rehearsal stack. It differs from `docker-compose.yml`:
+
+- every long-running service declares `restart: unless-stopped`;
+- all images are pinned by digest;
+- Keycloak runs `start` (not `start-dev`) against its own `keycloak-db` PostgreSQL service with a
+  persistent volume, so realms, users, and sessions survive a restart;
+- RabbitMQ has a data volume and explicit credentials (`RABBITMQ_USER` / `RABBITMQ_PASSWORD`)
+  instead of the `guest` account.
+
+Required overrides before it is a real deployment — `SPRING_PROFILES_ACTIVE=prod` refuses to start
+until they are set (`ProductionSafetyGuard`):
+
+```text
+SPRING_PROFILES_ACTIVE=prod,compose
+DB_PASSWORD, KC_DB_PASSWORD, KC_ADMIN_PASSWORD, RABBITMQ_PASSWORD, S3_ACCESS_KEY, S3_SECRET_KEY
+OIDC_ISSUER_URI=https://…            # https is mandatory
+ITSM_CORS_ORIGINS=https://itsm.example   # explicit https origins only, no wildcards/localhost
+```
+
+Still not production-grade in this file: OpenSearch runs with its security plugin disabled and
+TLS terminates outside the stack. Use `deploy/kubernetes` for an actual production rollout.
+
+Because Keycloak now stores state in `keycloak-db`, `--import-realm` only seeds a realm that does
+not exist yet. Editing `infra/keycloak/itsm-realm.json` and redeploying changes nothing on an
+existing installation: apply realm changes through the admin API/console, or recreate the
+`keycloak_db_data` volume in a throwaway environment. The SPA origin must appear in the client's
+Web Origins — Keycloak cannot derive it from a redirect URI that uses a wildcard port, and a
+missing origin fails the token exchange with a CORS error after an otherwise successful login.
+
 ## Rollout order
 
 1. Verify PostgreSQL backup and restore point.

@@ -40,7 +40,7 @@ Shared infrastructure: `authorization/` (AccessControl, PermissionChecker chain)
 
 ### Database
 
-Flyway migrations in `backend/src/main/resources/db/migration/`. Current chain: V1–V74. Never edit released migrations. Forward-only.
+Flyway migrations in `backend/src/main/resources/db/migration/`. Current chain: V1–V75. Never edit released migrations. Forward-only.
 
 ### CI/CD
 

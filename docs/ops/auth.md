@@ -34,15 +34,34 @@ When OIDC is disabled, mock mode and backend `dev` profile still work without a 
 5. **Refresh (silent renew)** — if `refresh_token` is present:
    - timer refreshes slightly before `expires_at` and reschedules;
    - on load, near-expiry sessions (&lt; 90s) refresh immediately;
-   - on tab **visible** / window **focus**, refresh if &lt; 120s remaining;
-   - reload or tab close clears the session; user signs in again.
-6. **401 interceptor** — `apiRequest` / `apiFetch` (attachments multipart):
+   - on tab **visible** / window **focus**, refresh if &lt; 120s remaining.
+6. **Silent restore after reload** — tokens are memory-only, so a reload starts anonymous.
+   Once per browser tab the SPA replays the authorize request with `prompt=none`:
+   - Keycloak's SSO cookie answers with a code → the session is restored without a form;
+   - no SSO session → Keycloak returns `login_required` and the SPA stays anonymous
+     without an error banner;
+   - the shell renders a loading state while this resolves, so pages do not fire
+     unauthenticated requests in the meantime;
+   - explicit sign-out suppresses the next silent attempt.
+7. **401 interceptor** — `apiRequest` / `apiFetch` (attachments multipart):
    - on HTTP **401**, call registered `setAuthRefreshHandler` (wired by `AuthProvider`);
    - **single-flight**: concurrent 401s share one refresh promise;
    - on success, **one retry** with new Bearer from the in-memory session;
    - on failure, original 401 surfaces; session cleared by refresh failure path;
    - skipped when `VITE_USE_MOCK=true`, or `skipAuthRefresh: true`.
-7. **Logout** — clears session + token; RP-initiated logout at Keycloak end-session when possible.
+8. **Logout** — clears session + token; RP-initiated logout at Keycloak end-session when possible.
+
+## Realm requirement: the `basic` client scope
+
+Keycloak only emits the `sub` claim in an access token when the client carries the built-in
+`basic` client scope. Without it every request authenticates as a subject-less principal and
+deny-by-default RBAC rejects it — the UI looks logged in but every call returns 401/403.
+
+`infra/keycloak/itsm-realm.json` therefore declares the `basic` scope (with `oidc-sub-mapper`)
+and lists it in `defaultClientScopes` for `itsm-spa` and `itsm-backend`. CI asserts this, the
+Compose smoke asserts the minted token carries `sub`, and the backend rejects a token without a
+subject instead of treating it as anonymous. Keep the fixed user ids in the realm import: they
+are the RBAC `principal_role.subject_id` values seeded by migration V14.
 
 ## Soft banner
 
