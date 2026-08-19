@@ -108,7 +108,7 @@ class AttachmentController {
     headers.setContentLength(attachment.sizeBytes());
     headers.set(
         HttpHeaders.CONTENT_DISPOSITION,
-        "attachment; filename=\"" + attachment.filename().replace("\"", "") + "\""
+        "attachment; filename=\"" + attachment.filename().replaceAll("[\\r\\n\\0]", "_").replace("\"", "") + "\""
     );
 
     return new ResponseEntity<>(new InputStreamResource(stream), headers, HttpStatus.OK);
