@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)][string]$Backup,
-  [string]$Container = "itsm-postgres-1",
+  [string]$Container = "vox-itsm-postgres-1",
   [string]$User = "itsm"
 )
 

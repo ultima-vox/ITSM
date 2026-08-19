@@ -1,5 +1,5 @@
 param(
-  [string]$Container = "itsm-postgres-1",
+  [string]$Container = "vox-itsm-postgres-1",
   [string]$Database = "itsm",
   [string]$User = "itsm",
   [string]$OutputDirectory = "backups"

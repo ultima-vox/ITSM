@@ -187,8 +187,12 @@ jobs:
           path: scripts/load-smoke.js
         env:
           BASE_URL: http://127.0.0.1:8080
-          VUS: '10'
-          DURATION: 30s
+          OIDC_TOKEN_URL: http://127.0.0.1:8081/realms/itsm/protocol/openid-connect/token
+          READ_VUS: '10'
+          WRITE_VUS: '4'
+          ITERATIONS: '40'
+          MAX_DURATION: 2m
+          SUMMARY_PATH: /tmp/itsm-performance-summary.json
 
       - name: Upload backend log on failure
         if: failure()
@@ -284,6 +288,10 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
+          # Build output and agent scratch directories are not shipped, and walking them is
+          # what pushes this scan past the default timeout.
+          skip-dirs: node_modules,.git,backend/build,backend/.gradle,frontend/dist,.codex,.cursor,.grok,.opencode,.vault
+          timeout: 20m
 
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@v0.24.0

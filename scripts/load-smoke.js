@@ -59,7 +59,27 @@ export const options = {
   },
 };
 
-const jsonHeaders = { 'Content-Type': 'application/json', 'X-Actor-Id': 'load-baseline' };
+const baseHeaders = { 'Content-Type': 'application/json', 'X-Actor-Id': 'load-baseline' };
+
+// A secured deployment needs a bearer token; the dev profile accepts anonymous calls.
+// setup() resolves one once and hands it to every scenario through the setup data.
+
+export function issueToken() {
+  const response = http.post(oidcUrl, {
+    grant_type: 'password', client_id: 'itsm-backend', client_secret: 'itsm-backend-secret',
+    username: 'anna', password: 'anna',
+  });
+  if (response.status !== 200) return null;
+  try {
+    return response.json('access_token') || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function headersFor(token) {
+  return token ? Object.assign({}, baseHeaders, { Authorization: `Bearer ${token}` }) : baseHeaders;
+}
 
 function timed(metric, request) {
   const started = Date.now();
@@ -77,15 +97,23 @@ function incident(title) {
 
 export function setup() {
   // Exclude one-time Keycloak/JVM cold start from the steady-state login SLO.
-  http.post(oidcUrl, {
-    grant_type: 'password', client_id: 'itsm-backend', client_secret: 'itsm-backend-secret',
-    username: 'anna', password: 'anna',
-  });
-  const cis = http.get(`${baseUrl}/api/v1/cmdb/cis`, { headers: jsonHeaders }).json();
-  return { ciId: Array.isArray(cis) && cis.length ? cis[0].id : null };
+  const token = issueToken();
+  const headers = headersFor(token);
+  const response = http.get(`${baseUrl}/api/v1/cmdb/cis`, { headers });
+  let cis = null;
+  try {
+    cis = response.json();
+  } catch (_) {
+    cis = null;
+  }
+  if (response.status !== 200) {
+    throw new Error(`cannot reach ${baseUrl}/api/v1/cmdb/cis: HTTP ${response.status}`);
+  }
+  return { ciId: Array.isArray(cis) && cis.length ? cis[0].id : null, token };
 }
 
-export function login() {
+export function login(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const response = timed(loginLatency, () => http.post(oidcUrl, {
     grant_type: 'password', client_id: 'itsm-backend', client_secret: 'itsm-backend-secret',
     username: 'anna', password: 'anna',
@@ -93,13 +121,15 @@ export function login() {
   check(response, { 'login token issued': (r) => r.status === 200 && !!r.json('access_token') });
 }
 
-export function ticketList() {
+export function ticketList(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const response = timed(ticketListLatency,
     () => http.get(`${baseUrl}/api/v1/work-items?page=0&size=20`, { headers: jsonHeaders }));
   check(response, { 'ticket list 200': (r) => r.status === 200 });
 }
 
-export function ticketLifecycle() {
+export function ticketLifecycle(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const title = `k6 lifecycle ${__VU}-${__ITER}-${Date.now()}`;
   const created = timed(ticketCreateLatency,
     () => http.post(`${baseUrl}/api/v1/work-items`, incident(title), { headers: jsonHeaders }));
@@ -117,32 +147,37 @@ export function ticketLifecycle() {
   check(transitioned, { 'ticket transition 200': (r) => r.status === 200 });
 }
 
-export function catalogSearch() {
+export function catalogSearch(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const response = timed(catalogSearchLatency,
     () => http.get(`${baseUrl}/api/v1/catalog/items?q=access&locale=ru`, { headers: jsonHeaders }));
   check(response, { 'catalog search 200': (r) => r.status === 200 });
 }
 
-export function globalSearch() {
+export function globalSearch(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const response = timed(globalSearchLatency,
     () => http.get(`${baseUrl}/api/v1/search?q=service&limit=20`, { headers: jsonHeaders }));
   check(response, { 'global search 200': (r) => r.status === 200 });
 }
 
 export function cmdbTraversal(data) {
+  const jsonHeaders = headersFor(data && data.token);
   if (!data.ciId) return;
   const response = timed(cmdbTraversalLatency,
     () => http.get(`${baseUrl}/api/v1/cmdb/cis/${data.ciId}/impact?hops=3`, { headers: jsonHeaders }));
   check(response, { 'CMDB traversal 200': (r) => r.status === 200 });
 }
 
-export function dashboard() {
+export function dashboard(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const response = timed(dashboardLatency,
     () => http.get(`${baseUrl}/api/v1/reports/workload`, { headers: jsonHeaders }));
   check(response, { 'dashboard report 200': (r) => r.status === 200 });
 }
 
-export function notificationDispatch() {
+export function notificationDispatch(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const created = http.post(`${baseUrl}/api/v1/work-items`,
     incident(`k6 notification ${__VU}-${__ITER}-${Date.now()}`), { headers: jsonHeaders });
   const id = created.json('id');
@@ -154,7 +189,8 @@ export function notificationDispatch() {
   check(assigned, { 'assignment notification accepted': (r) => r.status === 200 });
 }
 
-export function bulkImport() {
+export function bulkImport(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const started = Date.now();
   const requests = [];
   for (let i = 0; i < 10; i += 1) {
@@ -166,7 +202,8 @@ export function bulkImport() {
   check(responses, { '10-row client batch imported': (rows) => rows.every((r) => r.status === 201) });
 }
 
-export function openSearchIndexing() {
+export function openSearchIndexing(data) {
+  const jsonHeaders = headersFor(data && data.token);
   const marker = `k6-index-${__VU}-${__ITER}-${Date.now()}`;
   const created = http.post(`${baseUrl}/api/v1/work-items`, incident(marker), { headers: jsonHeaders });
   check(created, { 'index fixture created': (r) => r.status === 201 });
@@ -183,8 +220,10 @@ export function openSearchIndexing() {
 }
 
 export function handleSummary(data) {
+  // Writing outside the working directory fails when /results is not mounted.
+  const summaryPath = __ENV.SUMMARY_PATH || 'performance-summary.json';
   return {
     stdout: JSON.stringify(data.metrics, null, 2),
-    '/results/performance-summary.json': JSON.stringify(data, null, 2),
+    [summaryPath]: JSON.stringify(data, null, 2),
   };
 }
