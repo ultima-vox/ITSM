@@ -192,6 +192,22 @@ class AssetController {
     }
   }
 
+  @GetMapping("/transitions")
+  @Operation(summary = "List available target statuses from a given asset status")
+  List<String> listTransitions(
+      Authentication authentication,
+      @RequestParam Asset.Status status
+  ) {
+    access.require(authentication.getName(), "asset.read", "asset", null);
+    return switch (status) {
+      case ORDERED -> List.of("IN_STOCK", "RETIRED");
+      case IN_STOCK -> List.of("IN_USE", "REPAIRED", "RETIRED");
+      case IN_USE -> List.of("IN_STOCK", "REPAIRED", "LOST", "RETIRED");
+      case REPAIRED -> List.of("IN_STOCK", "IN_USE", "RETIRED");
+      case LOST, RETIRED -> List.of();
+    };
+  }
+
   @PostMapping({"/{id}/transition", "/{id}/transitions"})
   @Operation(summary = "Transition asset lifecycle status")
   Asset transition(

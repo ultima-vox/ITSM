@@ -293,7 +293,8 @@ export async function getAssetTransitions(status: string): Promise<string[]> {
     const { getAssetTransitions: mockGet } = await import('@/mock/store');
     return mockGet(status as never);
   }
-  return [];
+  const list = await apiRequest<string[]>(`/assets/transitions?status=${encodeURIComponent(status.toUpperCase())}`);
+  return (list ?? []).map((s) => s.toLowerCase());
 }
 
 export async function bulkAssignAssets(ids: string[]): Promise<number> {
