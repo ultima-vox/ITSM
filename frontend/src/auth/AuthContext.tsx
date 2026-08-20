@@ -14,6 +14,7 @@ import {
   clearPkceSession,
   consumePkceSession,
   createPkceLoginParams,
+  peekPkceSession,
   storePkceSession,
 } from './pkce';
 import {
@@ -53,6 +54,10 @@ const SILENT_RESTORE_DECLINED = new Set([
 ]);
 
 const SILENT_RESTORE_KEY = 'vox-itsm.oidc.silent-restore';
+/** Set once this browser has held a session, so first-time visitors are never redirected. */
+const HAD_SESSION_KEY = 'vox-itsm.oidc.had-session';
+/** Marks the authorization request currently in flight as a silent one. */
+const SILENT_PENDING_KEY = 'vox-itsm.oidc.silent-pending';
 
 function silentRestoreTried(): boolean {
   try {
@@ -67,6 +72,42 @@ function markSilentRestoreTried(): void {
     sessionStorage.setItem(SILENT_RESTORE_KEY, '1');
   } catch {
     /* ignore */
+  }
+}
+
+function rememberHadSession(had: boolean): void {
+  try {
+    if (had) localStorage.setItem(HAD_SESSION_KEY, '1');
+    else localStorage.removeItem(HAD_SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function hadSession(): boolean {
+  try {
+    return localStorage.getItem(HAD_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSilentPending(pending: boolean): void {
+  try {
+    if (pending) sessionStorage.setItem(SILENT_PENDING_KEY, '1');
+    else sessionStorage.removeItem(SILENT_PENDING_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function consumeSilentPending(): boolean {
+  try {
+    const pending = sessionStorage.getItem(SILENT_PENDING_KEY) === '1';
+    sessionStorage.removeItem(SILENT_PENDING_KEY);
+    return pending;
+  } catch {
+    return false;
   }
 }
 
@@ -113,7 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = next;
     writeSession(next);
     setSession(next);
-    if (next) resetSilentRestore();
+    if (next) {
+      resetSilentRestore();
+      rememberHadSession(true);
+    }
   }, []);
 
   const refreshTokens = useCallback(async (): Promise<boolean> => {
@@ -196,7 +240,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       url.searchParams.set('state', state);
       url.searchParams.set('code_challenge', codeChallenge);
       url.searchParams.set('code_challenge_method', 'S256');
-      // Silent restore rides the identity provider session cookie; it never shows a form.
+      // Silent restore rides the identity provider session cookie; it never shows a form,
+      // and it must never surface an error if the round trip does not work out.
+      markSilentPending(silent);
       if (silent) url.searchParams.set('prompt', 'none');
       window.location.assign(url.toString());
     },
@@ -215,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const existing = readSession();
     if (!existing && typeof window !== 'undefined'
         && !window.location.pathname.startsWith('/auth/callback')
+        && hadSession()
         && !silentRestoreTried()) {
       // Tokens are never persisted, so a reload starts anonymous. Ask the identity
       // provider once per tab whether an SSO session exists and restore it without a form.
@@ -283,6 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySession(null);
     // Explicit sign-out must not be undone by a silent restore on the next load.
     markSilentRestoreTried();
+    rememberHadSession(false);
     setError(null);
     if (cfg && idToken) {
       const url = new URL(cfg.endSessionEndpoint);
@@ -315,14 +363,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(true);
       setError(null);
+      const wasSilent = consumeSilentPending();
+      let pkceReturnTo: string | null = null;
+      const clearPkceSessionReturnTo = () => pkceReturnTo;
       try {
         const params = new URLSearchParams(
           search.startsWith('?') ? search.slice(1) : search,
         );
         const err = params.get('error');
+        const state = params.get('state');
         if (err && SILENT_RESTORE_DECLINED.has(err)) {
           // prompt=none answered "no active session" — stay anonymous, no error banner.
-          const declined = consumePkceSession();
+          const declined = peekPkceSession();
+          if (declined.state && state && declined.state === state) {
+            consumePkceSession();
+          }
           applySession(null);
           return declined.returnTo || '/';
         }
@@ -330,15 +385,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(params.get('error_description') || err);
         }
         const code = params.get('code');
-        const state = params.get('state');
         if (!code) {
           throw new Error('Missing authorization code');
         }
-        const pkce = consumePkceSession();
-        if (!pkce.state || !state || pkce.state !== state) {
-          throw new Error('Invalid OAuth state');
+        // A callback can arrive stale: the silent restore and an interactive login can
+        // overlap, and one redirect can be replayed. Look before consuming, so a stale
+        // answer neither destroys the authorization still in flight nor reports a failure.
+        const pending = peekPkceSession();
+        pkceReturnTo = pending.returnTo;
+        if (!state || !pending.state || pending.state !== state) {
+          return pending.returnTo || '/';
         }
+        const pkce = consumePkceSession();
+        pkceReturnTo = pkce.returnTo;
         if (!pkce.codeVerifier) {
+          if (sessionRef.current !== null) return pkce.returnTo || '/';
           throw new Error('Missing PKCE verifier');
         }
         const tokens = await postToken(cfg.tokenEndpoint, {
@@ -352,8 +413,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         applySession(next);
         return pkce.returnTo || '/';
       } catch (e) {
+        const returnTo = clearPkceSessionReturnTo();
         clearPkceSession();
         applySession(null);
+        if (wasSilent) {
+          // A silent restore that cannot complete simply leaves the user anonymous.
+          return returnTo || '/';
+        }
         const message = e instanceof Error ? e.message : 'Login failed';
         setError(message);
         return null;

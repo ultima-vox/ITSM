@@ -61,6 +61,23 @@ export function storePkceSession(
   }
 }
 
+/** Read the pending authorization without consuming it (stale-callback detection). */
+export function peekPkceSession(): {
+  codeVerifier: string | null;
+  state: string | null;
+  returnTo: string | null;
+} {
+  try {
+    return {
+      codeVerifier: sessionStorage.getItem(PKCE_VERIFIER_KEY),
+      state: sessionStorage.getItem(PKCE_STATE_KEY),
+      returnTo: sessionStorage.getItem(PKCE_RETURN_KEY),
+    };
+  } catch {
+    return { codeVerifier: null, state: null, returnTo: null };
+  }
+}
+
 export function consumePkceSession(): {
   codeVerifier: string | null;
   state: string | null;
