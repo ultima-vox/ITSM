@@ -1,0 +1,19 @@
+# The base denies all ingress inside the namespace; the in-cluster dependencies need an
+# explicit path from the backend.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-dependencies
+  namespace: vox-itsm
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [postgres, rabbitmq, keycloak]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend

@@ -1,0 +1,17 @@
+# Point the production configuration at the in-cluster dependencies and switch off the
+# integrations this overlay does not run.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itsm-config
+  namespace: vox-itsm
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  ITSM_REDIS_ENABLED: "false"
+  RABBITMQ_HOST: rabbitmq.vox-itsm.svc.cluster.local
+  RABBITMQ_PORT: "5672"
+  OPENSEARCH_URL: ""
+  ITSM_STORAGE_TYPE: local
+  ITSM_CORS_ORIGINS: https://itsm.test
+  OTEL_TRACING_ENABLED: "false"
+  OTEL_EXPORTER_OTLP_ENABLED: "false"
