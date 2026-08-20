@@ -23,7 +23,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/dist /usr/share/nginx/html
 RUN touch /var/run/nginx.pid && \
     chown -R nginx:nginx /var/cache/nginx /var/run/nginx.pid /etc/nginx/conf.d /usr/share/nginx/html
-USER nginx
+# Numeric so Kubernetes can verify runAsNonRoot without resolving /etc/passwd.
+USER 101:101
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
