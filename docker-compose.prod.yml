@@ -51,16 +51,26 @@ services:
   opensearch:
     restart: unless-stopped
     image: opensearchproject/opensearch:2.19.1@sha256:72fe2fc84be8295906b8efca020b46c58ed45c8da60cd9b8b49e1991e38e89a4
+    # Security plugin on: the cluster holds ticket content and must not answer anonymously.
+    # ./scripts/gen-opensearch-certs.sh and ./scripts/gen-opensearch-users.sh produce the
+    # transport certificates and the hashed user database mounted below.
     environment:
-      discovery.type: single-node
-      DISABLE_SECURITY_PLUGIN: "true"
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
       bootstrap.memory_lock: "true"
     ulimits:
       memlock: { soft: -1, hard: -1 }
-    volumes: [opensearch_data:/usr/share/opensearch/data]
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+      - ./deploy/opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/node.pem:/usr/share/opensearch/config/certs/node.pem:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/node-key.pem:/usr/share/opensearch/config/certs/node-key.pem:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/root-ca.pem:/usr/share/opensearch/config/certs/root-ca.pem:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/roles.yml:/usr/share/opensearch/config/opensearch-security/roles.yml:ro
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -u \"${OPENSEARCH_USERNAME:-itsm-search}:${OPENSEARCH_PASSWORD:-itsm-search}\" http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 12
@@ -158,6 +168,8 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-itsm}
       OPENSEARCH_URL: http://opensearch:9200
       OPENSEARCH_INDEX: itsm
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME:-itsm-search}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD:-itsm-search}
       ITSM_STORAGE_TYPE: s3
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: itsm-attachments

@@ -28,7 +28,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC; browser login verified end-to-end against the Compose stack, session survives reload via `prompt=none` restore |
 | Reports | Backend workload/SLA reports |
 | Locales | **ru (default), en, de** — not ten languages |
-| Production readiness | **Not ready** — no HA, TLS terminates outside the stack, OpenSearch runs without its security plugin |
+| Production readiness | **Not ready** — no high availability, and the rehearsal certificates are self-signed |
 
 A reasonable characterization is **pre-production alpha / integration-stage platform**.
 
@@ -61,7 +61,7 @@ Then open **http://localhost**
 | PostgreSQL | localhost:5432 | `itsm` / `itsm` / `itsm` |
 | RabbitMQ UI | http://localhost:15672 | guest / guest |
 | MinIO console | http://localhost:9001 | minioadmin / minioadmin |
-| OpenSearch | http://localhost:9200 | security plugin disabled (local only) |
+| OpenSearch | http://localhost:9200 | security plugin disabled — local stack only; the production stack requires authentication |
 
 Internal container DNS (never `host.docker.internal` for service-to-service traffic):
 
@@ -191,6 +191,7 @@ Existence of a screen or API is not a production-completeness claim.
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis |
 | `RABBITMQ_HOST` / `RABBITMQ_PORT` | `localhost` / `5672` | RabbitMQ |
 | `OPENSEARCH_URL` | (empty) | OpenSearch URL; empty = JDBC search |
+| `OPENSEARCH_USERNAME` / `OPENSEARCH_PASSWORD` | (empty) | Cluster credentials; required when the security plugin is enabled |
 | `ITSM_STORAGE_TYPE` | `local` | `local` or `s3` |
 | `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` | JWT `iss` claim |
 | `OIDC_JWK_SET_URI` | (empty) | Optional internal JWKS URL for containerized backend |

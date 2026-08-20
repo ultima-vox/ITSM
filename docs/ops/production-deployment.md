@@ -52,6 +52,8 @@ port is published. Nothing else changes for the containers behind it.
 ```bash
 cp .env.prod.example .env          # then replace every secret
 ./scripts/gen-tls-cert.sh          # or point ITSM_TLS_DIR at your own certificates
+./scripts/gen-opensearch-certs.sh  # transport certificates for the search cluster
+OPENSEARCH_ADMIN_PASSWORD=… OPENSEARCH_PASSWORD=… ./scripts/gen-opensearch-users.sh
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
@@ -78,8 +80,14 @@ OIDC_ISSUER_URI=https://…            # https is mandatory
 ITSM_CORS_ORIGINS=https://itsm.example   # explicit https origins only, no wildcards/localhost
 ```
 
-Still not production-grade in this file: OpenSearch runs with its security plugin disabled, and
-`scripts/gen-tls-cert.sh` issues a self-signed certificate that no client trusts by default. Use
+OpenSearch runs with its security plugin enabled: anonymous requests are rejected and the
+backend authenticates as a user restricted to the `itsm*` indices. Its HTTP layer stays
+plaintext inside the private container network — set `plugins.security.ssl.http.enabled` and the
+http pem paths in `deploy/opensearch/opensearch.yml` to terminate TLS there as well, and supply
+the CA to the backend JVM truststore.
+
+Still not production-grade in this file: `scripts/gen-tls-cert.sh` issues a self-signed
+certificate that no client trusts by default, and there is no high availability. Use
 `deploy/kubernetes` with certificates from your own CA for an actual production rollout.
 
 Because Keycloak now stores state in `keycloak-db`, `--import-realm` only seeds a realm that does
