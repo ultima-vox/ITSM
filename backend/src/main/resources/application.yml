@@ -45,6 +45,14 @@ management:
         enabled: ${OTEL_EXPORTER_OTLP_ENABLED:false}
       connect-timeout: ${OTEL_EXPORTER_OTLP_CONNECT_TIMEOUT:3s}
       timeout: ${OTEL_EXPORTER_OTLP_TIMEOUT:10s}
+  metrics:
+    distribution:
+      # The latency alert and dashboard read http_server_requests_seconds_bucket; without
+      # this Micrometer publishes only count/sum/max and the p95 panel and alert are dead.
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,5s
   endpoints:
     web:
       exposure:
