@@ -7,6 +7,10 @@ import { defineConfig, devices } from '@playwright/test';
  * IPv6 listener on the same port.
  */
 const deployedBaseUrl = process.env.ITSM_E2E_BASE_URL;
+// Rehearsing the production topology means a self-signed edge and hostnames that only
+// exist in the deployment, so allow both to be supplied per run.
+const hostResolverRules = process.env.ITSM_E2E_HOST_RESOLVER;
+const insecureTls = process.env.ITSM_E2E_INSECURE_TLS === 'true';
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,6 +23,10 @@ export default defineConfig({
     baseURL: deployedBaseUrl ?? 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     locale: 'ru-RU',
+    ignoreHTTPSErrors: insecureTls,
+    launchOptions: hostResolverRules
+      ? { args: [`--host-resolver-rules=${hostResolverRules}`] }
+      : {},
   },
   // A deployed stack (Compose) serves the app itself; only start Vite for local specs.
   webServer: deployedBaseUrl ? undefined : {

@@ -45,7 +45,21 @@ OpenSearch with its security plugin disabled.
 
 ## Production-shaped Compose stack
 
-`docker-compose.prod.yml` is the rehearsal stack. It differs from `docker-compose.yml`:
+`docker-compose.prod.yml` is the rehearsal stack. An nginx `edge` service is the only ingress:
+it terminates TLS for the SPA and for Keycloak and forwards `X-Forwarded-*`, so no application
+port is published. Nothing else changes for the containers behind it.
+
+```bash
+cp .env.prod.example .env          # then replace every secret
+./scripts/gen-tls-cert.sh          # or point ITSM_TLS_DIR at your own certificates
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+With `SPRING_PROFILES_ACTIVE=prod` the backend refuses to start unless the issuer is https,
+the CORS origins are explicit non-local https URLs, and no secret is left at a demo value —
+the defaults in `.env.prod.example` satisfy the shape, not the secrecy.
+
+It differs from `docker-compose.yml`:
 
 - every long-running service declares `restart: unless-stopped`;
 - all images are pinned by digest;
@@ -64,8 +78,9 @@ OIDC_ISSUER_URI=https://…            # https is mandatory
 ITSM_CORS_ORIGINS=https://itsm.example   # explicit https origins only, no wildcards/localhost
 ```
 
-Still not production-grade in this file: OpenSearch runs with its security plugin disabled and
-TLS terminates outside the stack. Use `deploy/kubernetes` for an actual production rollout.
+Still not production-grade in this file: OpenSearch runs with its security plugin disabled, and
+`scripts/gen-tls-cert.sh` issues a self-signed certificate that no client trusts by default. Use
+`deploy/kubernetes` with certificates from your own CA for an actual production rollout.
 
 Because Keycloak now stores state in `keycloak-db`, `--import-realm` only seeds a realm that does
 not exist yet. Editing `infra/keycloak/itsm-realm.json` and redeploying changes nothing on an

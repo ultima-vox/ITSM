@@ -36,13 +36,18 @@ When OIDC is disabled, mock mode and backend `dev` profile still work without a 
    - on load, near-expiry sessions (&lt; 90s) refresh immediately;
    - on tab **visible** / window **focus**, refresh if &lt; 120s remaining.
 6. **Silent restore after reload** — tokens are memory-only, so a reload starts anonymous.
-   Once per browser tab the SPA replays the authorize request with `prompt=none`:
+   Once per browser tab, and only for a browser that has already held a session, the SPA
+   replays the authorize request with `prompt=none`:
    - Keycloak's SSO cookie answers with a code → the session is restored without a form;
    - no SSO session → Keycloak returns `login_required` and the SPA stays anonymous
      without an error banner;
    - the shell renders a loading state while this resolves, so pages do not fire
      unauthenticated requests in the meantime;
-   - explicit sign-out suppresses the next silent attempt.
+   - explicit sign-out suppresses the next silent attempt and clears the marker, so a
+     first-time visitor is never bounced through the identity provider;
+   - a callback whose `state` does not match the pending request is treated as stale: it is
+     ignored without consuming the authorization still in flight and without an error
+     screen, because a silent attempt and an interactive login can overlap.
 7. **401 interceptor** — `apiRequest` / `apiFetch` (attachments multipart):
    - on HTTP **401**, call registered `setAuthRefreshHandler` (wired by `AuthProvider`);
    - **single-flight**: concurrent 401s share one refresh promise;

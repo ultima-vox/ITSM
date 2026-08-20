@@ -31,12 +31,17 @@ test.describe('Keycloak login against the deployed stack', () => {
 
     await page.waitForURL((url) => !url.pathname.startsWith('/realms'));
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Reloading before the code exchange lands would simply leave the browser signed out,
+    // so wait until authenticated traffic proves the session is in place.
+    await expect
+      .poll(() => apiStatuses.filter((entry) => entry.startsWith('200')).length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     apiStatuses.length = 0;
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect
-      .poll(() => apiStatuses.filter((entry) => entry.startsWith('200')).length, { timeout: 15_000 })
+      .poll(() => apiStatuses.filter((entry) => entry.startsWith('200')).length, { timeout: 30_000 })
       .toBeGreaterThan(0);
 
     // Walk the primary operator routes the way a user does, in-app: they pull queues,

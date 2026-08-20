@@ -7,8 +7,12 @@
 set -euo pipefail
 
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1}"
-BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8080}"
+# Empty BACKEND_URL means the API is not published outside the network, which is the
+# expected production posture; the direct-backend checks are then skipped.
+BACKEND_URL="${BACKEND_URL-http://127.0.0.1:8080}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://127.0.0.1:8081}"
+# Extra curl arguments, e.g. --resolve/-k when rehearsing TLS with a self-signed edge.
+read -r -a SMOKE_CURL_ARGS <<< "${SMOKE_CURL_OPTS:-}"
 FRONTEND_URL="${FRONTEND_URL%/}"
 BACKEND_URL="${BACKEND_URL%/}"
 KEYCLOAK_URL="${KEYCLOAK_URL%/}"
@@ -21,7 +25,7 @@ fail() { printf '  FAIL %s\n' "$*"; failed=$((failed + 1)); }
 
 http_code() {
   curl -sS -o /tmp/itsm-compose-body.$$ -w "%{http_code}" \
-    --connect-timeout 10 --max-time 20 -L "$@" || true
+    --connect-timeout 10 --max-time 20 -L "${SMOKE_CURL_ARGS[@]}" "$@" || true
 }
 
 check() {
@@ -42,13 +46,17 @@ trap cleanup EXIT
 
 echo "VOX ITSM Compose smoke — frontend ${FRONTEND_URL}  backend ${BACKEND_URL}"
 
-check "backend health" "${BACKEND_URL}/actuator/health"
+if [[ -n "${BACKEND_URL}" ]]; then
+  check "backend health" "${BACKEND_URL}/actuator/health"
+else
+  ok "backend not published outside the network (skipping direct checks)"
+fi
 check "frontend healthz" "${FRONTEND_URL}/healthz"
 check "frontend index" "${FRONTEND_URL}/"
 check "keycloak realm" "${KEYCLOAK_URL}/realms/itsm/.well-known/openid-configuration"
 
 TOKEN=""
-if curl -sS --connect-timeout 10 --max-time 20 -X POST \
+if curl -sS --connect-timeout 10 --max-time 20 "${SMOKE_CURL_ARGS[@]}" -X POST \
   "${KEYCLOAK_URL}/realms/itsm/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&client_id=itsm-spa&username=anna&password=anna" \
@@ -74,26 +82,31 @@ if [[ -n "${TOKEN}" ]]; then
   else
     fail "access token has no sub claim (client is missing the 'basic' client scope)"
   fi
-  check "work-items via backend" "${BACKEND_URL}/api/v1/work-items" \
-    -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/json"
+  if [[ -n "${BACKEND_URL}" ]]; then
+    check "work-items via backend" "${BACKEND_URL}/api/v1/work-items" \
+      -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/json"
+  fi
   check "work-items via frontend proxy" "${FRONTEND_URL}/api/v1/work-items" \
     -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/json"
 else
   fail "keycloak password grant (anna)"
 fi
 
-# API documentation is ADMIN-only: anonymous must be rejected, ADMIN must pass.
+# API documentation is ADMIN-only, and profile prod switches springdoc off entirely.
+# Anonymous must never see it; 404 means the endpoints are not published at all.
+DOCS_PUBLISHED=1
 for path in /swagger-ui.html /v3/api-docs; do
+  [[ -z "${BACKEND_URL}" ]] && { DOCS_PUBLISHED=0; continue; }
   code=$(http_code "${BACKEND_URL}${path}")
-  if [[ "${code}" == "401" || "${code}" == "403" ]]; then
-    ok "api docs reject anonymous (${code}) ${path}"
-  else
-    fail "api docs reachable without authentication (${code}) ${path}"
-  fi
+  case "${code}" in
+    401|403) ok "api docs reject anonymous (${code}) ${path}" ;;
+    404) ok "api docs not published (${code}) ${path}"; DOCS_PUBLISHED=0 ;;
+    *) fail "api docs reachable without authentication (${code}) ${path}" ;;
+  esac
 done
 
 ADMIN_TOKEN=""
-if curl -sS --connect-timeout 10 --max-time 20 -X POST \
+if curl -sS --connect-timeout 10 --max-time 20 "${SMOKE_CURL_ARGS[@]}" -X POST \
   "${KEYCLOAK_URL}/realms/itsm/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&client_id=itsm-spa&username=${ITSM_ADMIN_USER:-admin}&password=${ITSM_ADMIN_PASSWORD:-admin}" \
@@ -103,8 +116,10 @@ fi
 
 if [[ -n "${ADMIN_TOKEN}" ]]; then
   ok "keycloak password grant (admin)"
-  check "backend swagger as ADMIN" "${BACKEND_URL}/swagger-ui.html"     -H "Authorization: Bearer ${ADMIN_TOKEN}"
-  check "backend openapi as ADMIN" "${BACKEND_URL}/v3/api-docs"     -H "Authorization: Bearer ${ADMIN_TOKEN}"
+  if [[ "${DOCS_PUBLISHED}" == "1" ]]; then
+    check "backend swagger as ADMIN" "${BACKEND_URL}/swagger-ui.html"       -H "Authorization: Bearer ${ADMIN_TOKEN}"
+    check "backend openapi as ADMIN" "${BACKEND_URL}/v3/api-docs"       -H "Authorization: Bearer ${ADMIN_TOKEN}"
+  fi
 else
   fail "keycloak password grant (admin)"
 fi
