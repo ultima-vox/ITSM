@@ -24,6 +24,12 @@ public class ItsmOpenSearchProperties {
 
   private String password = "";
 
+  /**
+   * PEM file holding the certificate authority that signed the cluster's HTTP certificate.
+   * Empty uses the JVM default trust store, which is right for a publicly trusted certificate.
+   */
+  private String caCertificate = "";
+
   private Duration connectTimeout = Duration.ofSeconds(2);
 
   private Duration readTimeout = Duration.ofSeconds(5);
@@ -48,6 +54,14 @@ public class ItsmOpenSearchProperties {
 
   public void setUsername(String username) {
     this.username = username;
+  }
+
+  public String getCaCertificate() {
+    return caCertificate;
+  }
+
+  public void setCaCertificate(String caCertificate) {
+    this.caCertificate = caCertificate;
   }
 
   public String getPassword() {

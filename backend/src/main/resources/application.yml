@@ -109,6 +109,8 @@ itsm:
     # Required once the cluster runs with its security plugin enabled.
     username: ${OPENSEARCH_USERNAME:}
     password: ${OPENSEARCH_PASSWORD:}
+    # PEM authority for an https cluster endpoint signed by a private CA.
+    ca-certificate: ${OPENSEARCH_CA_CERTIFICATE:}
     connect-timeout: ${OPENSEARCH_CONNECT_TIMEOUT:PT2S}
     read-timeout: ${OPENSEARCH_READ_TIMEOUT:PT5S}
   notifications:

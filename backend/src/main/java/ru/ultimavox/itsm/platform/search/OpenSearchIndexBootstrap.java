@@ -34,7 +34,8 @@ class OpenSearchIndexBootstrap implements ApplicationRunner {
   @Autowired
   OpenSearchIndexBootstrap(ItsmOpenSearchProperties props, ObjectMapper json) {
     this(props, json,
-        OpenSearchHttpClient.jdk(props.getConnectTimeout(), props.basicAuthorizationHeader()));
+        OpenSearchHttpClient.jdk(
+            props.getConnectTimeout(), props.basicAuthorizationHeader(), props.getCaCertificate()));
   }
 
   /** Package-private for unit tests. */

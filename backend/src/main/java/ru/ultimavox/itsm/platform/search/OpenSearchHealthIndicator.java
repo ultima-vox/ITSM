@@ -22,7 +22,7 @@ class OpenSearchHealthIndicator implements HealthIndicator {
   OpenSearchHealthIndicator(ItsmOpenSearchProperties props) {
     this(props, OpenSearchHttpClient.jdk(
         props.getConnectTimeout() == null ? Duration.ofSeconds(2) : props.getConnectTimeout(),
-        props.basicAuthorizationHeader()));
+        props.basicAuthorizationHeader(), props.getCaCertificate()));
   }
 
   /** Package-private for unit tests. */

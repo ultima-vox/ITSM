@@ -2,6 +2,8 @@ package ru.ultimavox.itsm.platform.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +39,19 @@ class OpenSearchAuthenticationTest {
     props.setPassword("");
 
     assertThat(props.basicAuthorizationHeader()).isNull();
+  }
+
+  @Test
+  void noCaCertificateKeepsTheDefaultTrustStore() {
+    assertThat(OpenSearchHttpClient.trustStoreFor(null)).isNull();
+    assertThat(OpenSearchHttpClient.trustStoreFor("  ")).isNull();
+  }
+
+  @Test
+  void aMissingCaCertificateFailsLoudly() {
+    assertThatThrownBy(() -> OpenSearchHttpClient.trustStoreFor("/nonexistent/ca.pem"))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Cannot load OpenSearch CA certificate");
   }
 
   @Test
