@@ -10,6 +10,7 @@ dist/
 *.iml
 .env
 .env.*
+!.env.prod.example
 !.env.example
 target/
 backend/.gradle/
@@ -22,4 +23,5 @@ vite.config.d.ts
 playwright-report/
 test-results/
 backups/
-
+# Self-signed TLS material for local production rehearsals
+certs/
