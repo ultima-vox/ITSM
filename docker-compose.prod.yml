@@ -191,6 +191,7 @@ services:
       minio-init: { condition: service_completed_successfully }
       keycloak: { condition: service_healthy }
       clamav: { condition: service_started }
+    stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]
       interval: 15s

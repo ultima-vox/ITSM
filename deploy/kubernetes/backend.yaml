@@ -24,6 +24,7 @@ spec:
         app.kubernetes.io/part-of: vox-itsm
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
       securityContext:
         runAsNonRoot: true
         runAsUser: 100
@@ -32,6 +33,33 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        # Kubernetes has no dependency ordering: without this the pod crashloops through
+        # Flyway until the database accepts connections, which looks like an app fault.
+        - name: wait-for-database
+          image: vox-itsm-backend:0.2.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              host=$(printf '%s' "$DATABASE_URL" | sed -e 's|.*//||' -e 's|[:/].*||')
+              port=$(printf '%s' "$DATABASE_URL" | sed -e 's|.*//[^:]*:||' -e 's|/.*||')
+              until nc -z "$host" "${port:-5432}"; do
+                echo "waiting for $host:${port:-5432}"
+                sleep 2
+              done
+          envFrom:
+            - secretRef:
+                name: itsm-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }
       containers:
         - name: backend
           image: vox-itsm-backend:0.2.0
@@ -74,6 +102,12 @@ spec:
               port: http
             periodSeconds: 20
             timeoutSeconds: 3
+          lifecycle:
+            preStop:
+              # Endpoint removal is asynchronous: keep serving while the change propagates,
+              # otherwise a rolling update drops requests already routed to this pod.
+              exec:
+                command: ["sh", "-c", "sleep 5"]
           volumeMounts:
             - name: tmp
               mountPath: /tmp
