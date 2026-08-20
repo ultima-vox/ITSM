@@ -103,5 +103,35 @@ test.describe('live backend', () => {
 
     const blocked = await request.get(`/api/v1/attachments/${infectedMeta.id}/content`);
     expect(blocked.status()).toBe(403);
+
+    // The clean file has to come back too: blocking the infected one proves nothing if the
+    // download path is broken for everything. A metadata-only storage backend answers 501,
+    // which is a deliberate answer; a 500 is the bug this guards against.
+    const download = await request.get(`/api/v1/attachments/${cleanMeta.id}/content`);
+    expect([200, 501]).toContain(download.status());
+    if (download.status() === 200) {
+      expect(await download.text()).toBe('live e2e clean attachment');
+      expect(download.headers()['content-disposition']).toContain('filename="note.txt"');
+    }
+  });
+
+  test('serves a download whose filename cannot inject headers', async ({ request }) => {
+    const hostile = await request.post('/api/v1/attachments', {
+      multipart: {
+        file: {
+          name: 'in\r\nSet-Cookie: stolen=1.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('header injection probe'),
+        },
+      },
+    });
+    expect(hostile.status()).toBe(201);
+    const meta = (await hostile.json()) as { id: string };
+
+    const download = await request.get(`/api/v1/attachments/${meta.id}/content`);
+    expect([200, 501]).toContain(download.status());
+    const disposition = download.headers()['content-disposition'] ?? '';
+    expect(disposition).not.toContain('Set-Cookie');
+    expect(download.headers()['set-cookie']).toBeUndefined();
   });
 });

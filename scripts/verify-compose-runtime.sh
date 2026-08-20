@@ -95,6 +95,28 @@ else
   fail "migration history changed after restart (${applied} then ${reapplied})"
 fi
 
+# 3. Attachment round trip against the real object store: upload, scan, then download.
+UPLOAD=$(printf 'compose runtime attachment'   | curl -sS -X POST "${BACKEND_URL}/api/v1/attachments"       -H "Authorization: Bearer ${TOKEN}"       -F "file=@-;filename=clean.txt;type=text/plain")
+ATTACHMENT_ID=$(printf '%s' "${UPLOAD}" | tr ',' '
+' | grep -m1 '"id"' | cut -d'"' -f4)
+SCAN_STATUS=$(printf '%s' "${UPLOAD}" | tr ',' '
+' | grep -m1 '"scanStatus"' | cut -d'"' -f4)
+
+if [[ "${SCAN_STATUS}" == "CLEAN" ]]; then
+  ok "attachment uploaded and scanned CLEAN"
+else
+  fail "attachment scan status was ${SCAN_STATUS:-unknown}: ${UPLOAD:0:160}"
+fi
+
+DOWNLOAD=$(curl -sS -w '|%{http_code}'   -H "Authorization: Bearer ${TOKEN}" "${BACKEND_URL}/api/v1/attachments/${ATTACHMENT_ID}/content")
+DOWNLOAD_CODE="${DOWNLOAD##*|}"
+DOWNLOAD_BODY="${DOWNLOAD%|*}"
+if [[ "${DOWNLOAD_CODE}" == "200" && "${DOWNLOAD_BODY}" == "compose runtime attachment" ]]; then
+  ok "attachment downloaded with its content intact"
+else
+  fail "attachment download returned ${DOWNLOAD_CODE}"
+fi
+
 BUCKETS=$(compose run --rm --entrypoint sh minio-init -c \
   "mc alias set local http://minio:9000 \${S3_ACCESS_KEY:-minioadmin} \${S3_SECRET_KEY:-minioadmin} >/dev/null && mc ls local" 2>/dev/null || true)
 if printf '%s' "${BUCKETS}" | grep -q 'itsm-attachments'; then

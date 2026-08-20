@@ -24,7 +24,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
 | Notifications | PostgreSQL-backed store + SSE |
 | Search | JDBC fallback and OpenSearch integration; the production stack requires credentials and TLS |
-| Attachments | S3/MinIO + signature scan + optional ClamAV INSTREAM; download blocked until CLEAN. Scan status, detail, and retry job verified (#21) |
+| Attachments | S3/MinIO + signature scan + optional ClamAV INSTREAM; upload, scan, download and the block on an infected file are verified against the Compose stack by `scripts/verify-compose-runtime.sh` |
 | Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC; browser login verified end-to-end against the Compose stack, session survives reload via `prompt=none` restore |
 | Reports | Backend workload/SLA reports |
 | Locales | **ru (default), en, de** — not ten languages |
