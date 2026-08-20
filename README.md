@@ -76,6 +76,26 @@ Keycloak    http://keycloak:8080
 
 Stop: `docker compose down`. Wipe data: `docker compose down -v`.
 
+Verify the runtime after it starts — live smoke, then a clean-install and restart-persistence
+check (no mock mode involved):
+
+```bash
+./scripts/smoke-compose.sh
+./scripts/verify-compose-runtime.sh
+```
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `port is already allocated` on `up` | Another project or host service holds the port. `docker ps` to find it, or override: `ITSM_BACKEND_PORT=18080 docker compose up -d`. |
+| Backend answers on a published port but behaves like a different app | A host process is bound to the same port on `127.0.0.1` and wins over the container publish. Confirm with `docker compose port backend 8080` and query that address. |
+| `failed to resolve reference … not found` while pulling | A pinned digest was garbage-collected upstream. Refresh the digest in `docker-compose.yml` for the affected image. |
+| Backend restarts or never turns healthy | `docker compose logs backend`. Usual causes: PostgreSQL not healthy yet (it is a `service_healthy` dependency), or profile `prod` refusing to start on an http issuer, localhost CORS origins, or demo secrets. |
+| Signed in, but every request answers 401/403 | The access token has no `sub` claim: the Keycloak client is missing the built-in `basic` client scope. `./scripts/smoke-compose.sh` asserts this explicitly. |
+| Realm edits do not take effect | `--import-realm` only seeds a realm that does not exist. With a persistent Keycloak database, apply changes through the admin API, or recreate the Keycloak volume in a throwaway environment. |
+| RabbitMQ exits at boot with `.erlang.cookie: eacces` | An old container kept a root-owned cookie. `docker compose rm -sf rabbitmq` and start again. |
+
 ### Host-run development
 
 Keep infrastructure in Compose; run backend and frontend on the host (avoids port 8080/80 collision with the app containers):

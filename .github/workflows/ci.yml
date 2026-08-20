@@ -224,6 +224,10 @@ jobs:
           bash -n scripts/smoke-integrations.sh
           bash -n scripts/smoke-compose.sh
           bash -n scripts/smoke-setup.sh
+          bash -n scripts/verify-compose-runtime.sh
+          bash -n scripts/gen-tls-cert.sh
+          bash -n scripts/gen-opensearch-certs.sh
+          bash -n scripts/gen-opensearch-users.sh
           test -f scripts/smoke-api.ps1
           test -f scripts/smoke-integrations.ps1
       - name: Validate Compose files
@@ -440,6 +444,12 @@ jobs:
           BACKEND_URL=http://127.0.0.1:28080 \
           KEYCLOAK_URL=http://127.0.0.1:28081 \
           bash scripts/smoke-compose.sh
+
+      - name: Verify clean Flyway install and restart persistence
+        env:
+          BACKEND_URL: http://127.0.0.1:28080
+          KEYCLOAK_URL: http://127.0.0.1:28081
+        run: bash scripts/verify-compose-runtime.sh
 
       - name: Set up Node.js for deployed-stack E2E
         uses: actions/setup-node@v4
