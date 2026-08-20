@@ -1,7 +1,6 @@
-# Security plugin enabled: no anonymous access to indexed ticket data.
-# Transport is TLS with certificates from the deployment's own CA. The HTTP layer stays
-# plaintext inside the private container network and is reached only by the backend;
-# set plugins.security.ssl.http.enabled and the http pem paths to terminate TLS there too.
+# Security plugin enabled: no anonymous access to indexed ticket data, and both the
+# transport and HTTP layers use certificates from the deployment's own CA. The backend
+# trusts that CA through OPENSEARCH_CA_CERTIFICATE.
 cluster.name: vox-itsm
 network.host: 0.0.0.0
 discovery.type: single-node
@@ -11,7 +10,10 @@ plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
 plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
 plugins.security.ssl.transport.pemtrustedcas_filepath: certs/root-ca.pem
 plugins.security.ssl.transport.enforce_hostname_verification: false
-plugins.security.ssl.http.enabled: false
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: certs/node.pem
+plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: certs/root-ca.pem
 plugins.security.allow_default_init_securityindex: true
 plugins.security.authcz.admin_dn:
   - "CN=admin,OU=itsm,O=vox,C=US"

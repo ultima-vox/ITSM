@@ -70,7 +70,7 @@ services:
       - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/roles.yml:/usr/share/opensearch/config/opensearch-security/roles.yml:ro
       - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u \"${OPENSEARCH_USERNAME:-itsm-search}:${OPENSEARCH_PASSWORD:-itsm-search}\" http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf --cacert config/certs/root-ca.pem -u \"${OPENSEARCH_USERNAME:-itsm-search}:${OPENSEARCH_PASSWORD:-itsm-search}\" https://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 12
@@ -166,10 +166,11 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-itsm}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-itsm}
-      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_URL: https://opensearch:9200
       OPENSEARCH_INDEX: itsm
       OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME:-itsm-search}
       OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD:-itsm-search}
+      OPENSEARCH_CA_CERTIFICATE: /etc/itsm/opensearch-ca.pem
       ITSM_STORAGE_TYPE: s3
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: itsm-attachments
@@ -191,6 +192,8 @@ services:
       minio-init: { condition: service_completed_successfully }
       keycloak: { condition: service_healthy }
       clamav: { condition: service_started }
+    volumes:
+      - ${ITSM_OPENSEARCH_TLS_DIR:-./certs/opensearch}/root-ca.pem:/etc/itsm/opensearch-ca.pem:ro
     stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]

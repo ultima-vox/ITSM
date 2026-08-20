@@ -80,11 +80,12 @@ OIDC_ISSUER_URI=https://…            # https is mandatory
 ITSM_CORS_ORIGINS=https://itsm.example   # explicit https origins only, no wildcards/localhost
 ```
 
-OpenSearch runs with its security plugin enabled: anonymous requests are rejected and the
-backend authenticates as a user restricted to the `itsm*` indices. Its HTTP layer stays
-plaintext inside the private container network — set `plugins.security.ssl.http.enabled` and the
-http pem paths in `deploy/opensearch/opensearch.yml` to terminate TLS there as well, and supply
-the CA to the backend JVM truststore.
+OpenSearch runs with its security plugin enabled on both layers: transport and HTTP use
+certificates from the deployment's own CA, anonymous requests are rejected, and the backend
+authenticates as a user restricted to the `itsm*` indices. The backend trusts that authority
+through `OPENSEARCH_CA_CERTIFICATE`, which loads exactly that certificate — verification is
+never disabled. Point it at your own CA, or leave it empty when the cluster presents a
+publicly trusted certificate.
 
 Still not production-grade in this file: `scripts/gen-tls-cert.sh` issues a self-signed
 certificate that no client trusts by default, and there is no high availability. Use

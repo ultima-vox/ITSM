@@ -212,6 +212,7 @@ Existence of a screen or API is not a production-completeness claim.
 | `RABBITMQ_HOST` / `RABBITMQ_PORT` | `localhost` / `5672` | RabbitMQ |
 | `OPENSEARCH_URL` | (empty) | OpenSearch URL; empty = JDBC search |
 | `OPENSEARCH_USERNAME` / `OPENSEARCH_PASSWORD` | (empty) | Cluster credentials; required when the security plugin is enabled |
+| `OPENSEARCH_CA_CERTIFICATE` | (empty) | PEM authority for an https cluster endpoint signed by a private CA |
 | `ITSM_STORAGE_TYPE` | `local` | `local` or `s3` |
 | `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` | JWT `iss` claim |
 | `OIDC_JWK_SET_URI` | (empty) | Optional internal JWKS URL for containerized backend |
