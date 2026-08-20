@@ -8,7 +8,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 
 ## Current status
 
-**Status date:** 2026-08-19
+**Status date:** 2026-08-20
 
 | Area | Current state |
 | --- | --- |
@@ -23,12 +23,12 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | Service Catalog | Items, requests, fulfillment foundations |
 | SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
 | Notifications | PostgreSQL-backed store + SSE |
-| Search | JDBC fallback and OpenSearch integration |
+| Search | JDBC fallback and OpenSearch integration; the production stack requires credentials and TLS |
 | Attachments | S3/MinIO + signature scan + optional ClamAV INSTREAM; download blocked until CLEAN. Scan status, detail, and retry job verified (#21) |
 | Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC; browser login verified end-to-end against the Compose stack, session survives reload via `prompt=none` restore |
 | Reports | Backend workload/SLA reports |
 | Locales | **ru (default), en, de** — not ten languages |
-| Production readiness | **Not ready** — no high availability, and the rehearsal certificates are self-signed |
+| Production readiness | **Not ready** — the datastores are single instances, and the rehearsal certificates are self-signed |
 
 A reasonable characterization is **pre-production alpha / integration-stage platform**.
 
@@ -37,11 +37,15 @@ services healthy, `scripts/smoke-compose.sh` passes 13 checks, `./gradlew test` 
 typechecks/lints/tests clean, and a real Keycloak browser login loads live data
 (`frontend/e2e/oidc-login.spec.ts`).
 
-Every CI job was also reproduced locally: Kustomize renders and validates (14 resources), Prometheus
-rules check out, the live contract E2E passes against a `dev` backend, both container images scan
-clean, and the k6 baseline runs against the secured stack within its thresholds. A PostgreSQL backup
-and restore drill (`scripts/backup-db.ps1` → `scripts/verify-db-backup.ps1`) restored 60 tables into
-an isolated database.
+Every CI job was also reproduced locally: Kustomize renders and validates, Prometheus rules check
+out, the live contract E2E passes against a `dev` backend, both container images scan clean, and the
+k6 baseline runs against the secured stack within its thresholds. A PostgreSQL backup and restore
+drill (`scripts/backup-db.ps1` → `scripts/verify-db-backup.ps1`) restored 60 tables into an isolated
+database.
+
+The production-shaped stack was rehearsed under `SPRING_PROFILES_ACTIVE=prod` behind a TLS edge,
+and `deploy/kubernetes` was applied to a real cluster: both deployments reach two ready replicas,
+a cold deploy comes up without restarts, and a rolling restart served 400 of 400 requests.
 
 ## Quick start
 
