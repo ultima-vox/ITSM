@@ -15,10 +15,25 @@ public interface OpenSearchHttpClient {
   HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException;
 
   static OpenSearchHttpClient jdk(Duration connectTimeout) {
+    return jdk(connectTimeout, null);
+  }
+
+  /**
+   * @param authorization value for the {@code Authorization} header, or {@code null} for an
+   *     unauthenticated cluster. Applied here so no call site can forget it.
+   */
+  static OpenSearchHttpClient jdk(Duration connectTimeout, String authorization) {
     HttpClient client = HttpClient.newBuilder()
         .connectTimeout(connectTimeout == null ? Duration.ofSeconds(2) : connectTimeout)
         .build();
-    return request -> client.send(request, HttpResponse.BodyHandlers.ofString());
+    return request -> {
+      HttpRequest outbound = authorization == null
+          ? request
+          : HttpRequest.newBuilder(request, (name, value) -> true)
+              .header("Authorization", authorization)
+              .build();
+      return client.send(outbound, HttpResponse.BodyHandlers.ofString());
+    };
   }
 
   static HttpRequest.Builder request(URI uri, Duration readTimeout) {

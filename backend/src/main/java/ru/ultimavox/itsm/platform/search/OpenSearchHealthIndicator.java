@@ -21,7 +21,8 @@ class OpenSearchHealthIndicator implements HealthIndicator {
   @Autowired
   OpenSearchHealthIndicator(ItsmOpenSearchProperties props) {
     this(props, OpenSearchHttpClient.jdk(
-        props.getConnectTimeout() == null ? Duration.ofSeconds(2) : props.getConnectTimeout()));
+        props.getConnectTimeout() == null ? Duration.ofSeconds(2) : props.getConnectTimeout(),
+        props.basicAuthorizationHeader()));
   }
 
   /** Package-private for unit tests. */

@@ -100,6 +100,9 @@ itsm:
     # When set (e.g. http://localhost:9200), SearchIndexService uses OpenSearch HTTP; else JDBC.
     url: ${OPENSEARCH_URL:}
     index: ${OPENSEARCH_INDEX:itsm}
+    # Required once the cluster runs with its security plugin enabled.
+    username: ${OPENSEARCH_USERNAME:}
+    password: ${OPENSEARCH_PASSWORD:}
     connect-timeout: ${OPENSEARCH_CONNECT_TIMEOUT:PT2S}
     read-timeout: ${OPENSEARCH_READ_TIMEOUT:PT5S}
   notifications:

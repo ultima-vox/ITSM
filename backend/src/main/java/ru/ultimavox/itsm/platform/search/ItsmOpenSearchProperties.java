@@ -1,6 +1,8 @@
 package ru.ultimavox.itsm.platform.search;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -17,12 +19,43 @@ public class ItsmOpenSearchProperties {
 
   private String index = "itsm";
 
+  /** Optional cluster credentials; required once the security plugin is enabled. */
+  private String username = "";
+
+  private String password = "";
+
   private Duration connectTimeout = Duration.ofSeconds(2);
 
   private Duration readTimeout = Duration.ofSeconds(5);
 
   public boolean isConfigured() {
     return url != null && !url.isBlank();
+  }
+
+  /** {@code null} when no credentials are configured, so requests stay unauthenticated. */
+  public String basicAuthorizationHeader() {
+    if (username == null || username.isBlank() || password == null || password.isEmpty()) {
+      return null;
+    }
+    String token = username + ":" + password;
+    return "Basic " + Base64.getEncoder()
+        .encodeToString(token.getBytes(StandardCharsets.UTF_8));
+  }
+
+  public String getUsername() {
+    return username;
+  }
+
+  public void setUsername(String username) {
+    this.username = username;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
   }
 
   public String getUrl() {
