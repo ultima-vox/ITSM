@@ -226,6 +226,10 @@ jobs:
           bash -n scripts/smoke-setup.sh
           test -f scripts/smoke-api.ps1
           test -f scripts/smoke-integrations.ps1
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.prod.yml config --quiet
       - name: Validate Keycloak organization claims
         run: |
           jq -e '
