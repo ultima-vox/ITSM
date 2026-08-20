@@ -107,12 +107,22 @@ class AttachmentController {
     headers.setContentType(mediaType);
     headers.setContentLength(attachment.sizeBytes());
     headers.set("X-Content-Type-Options", "nosniff");
-    headers.set(
-        HttpHeaders.CONTENT_DISPOSITION,
-        "attachment; filename=\"" + attachment.filename().replaceAll("[\\r\\n\\0]", "_").replace("\"", "") + "\""
-    );
+    headers.set(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(attachment.filename()));
 
     return new ResponseEntity<>(new InputStreamResource(stream), headers, HttpStatus.OK);
+  }
+
+  /**
+   * A filename carrying control characters could inject header lines, so they are replaced.
+   * The previous character class used \0, which the regex engine rejects as an illegal
+   * octal escape, so every download failed before this ever guarded anything.
+   */
+  static String contentDisposition(String filename) {
+    String safe = filename == null ? "" : filename.replaceAll("\\p{Cntrl}", "_").replace("\"", "");
+    if (safe.isBlank()) {
+      safe = "file";
+    }
+    return "attachment; filename=\"" + safe + "\"";
   }
 
   private void authorizeRead(String actor, Attachment attachment) {
