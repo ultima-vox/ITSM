@@ -28,6 +28,7 @@ import {
   fetchWorkItems,
   fetchWorkloadReport,
   isMockMode,
+  type WorkloadReport,
 } from '@/api';
 import { getActivities } from '@/mock/store';
 import type { Priority, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
@@ -77,6 +78,69 @@ function isResolvedStatus(s: WorkItemStatus): boolean {
 
 function isActiveStatus(s: WorkItemStatus): boolean {
   return s === 'new' || s === 'in_progress' || s === 'waiting';
+}
+
+function countFrom(map: Record<string, number> | undefined, ...keys: string[]): number {
+  if (!map) return 0;
+  let total = 0;
+  for (const key of keys) {
+    const needle = key.toUpperCase();
+    for (const [entry, value] of Object.entries(map)) {
+      if (entry.toUpperCase() === needle) total += value;
+    }
+  }
+  return total;
+}
+
+function overlayLiveSnapshot(
+  derived: {
+    resolved: number;
+    active: number;
+    breached: number;
+    atRisk: number;
+    unassigned: number;
+    total: number;
+    byPriority: Record<Priority, number>;
+    byStatus: Record<WorkItemStatus, number>;
+    byType: { incident: number; request: number; change: number; problem: number };
+    maxPriority: number;
+    maxStatus: number;
+    resolutionRate: number;
+    mttrHours: number;
+  },
+  report: WorkloadReport,
+) {
+  const byPriority = Object.fromEntries(
+    PRIORITIES.map((p) => [p, countFrom(report.byPriority, p)]),
+  ) as Record<Priority, number>;
+  const byStatus = Object.fromEntries(
+    STATUSES.map((s) => [s, countFrom(report.byState, s)]),
+  ) as Record<WorkItemStatus, number>;
+  const byType = {
+    incident: countFrom(report.byType, 'incident'),
+    request: countFrom(report.byType, 'request', 'service_request'),
+    change: countFrom(report.byType, 'change'),
+    problem: countFrom(report.byType, 'problem'),
+  };
+  const active = report.open;
+  const resolved = report.resolved;
+  const denom = resolved + active;
+  return {
+    ...derived,
+    active,
+    resolved,
+    breached: report.breached,
+    atRisk: report.atRisk,
+    unassigned: report.unassigned,
+    total: Object.values(report.byState).reduce((sum, n) => sum + n, 0),
+    byPriority,
+    byStatus,
+    byType,
+    maxPriority: Math.max(1, ...Object.values(byPriority)),
+    maxStatus: Math.max(1, ...Object.values(byStatus)),
+    resolutionRate: denom === 0 ? 0 : Math.round((resolved / denom) * 100),
+    mttrHours: report.mttrHours ?? derived.mttrHours,
+  };
 }
 
 function csvEscape(value: string): string {
@@ -318,7 +382,7 @@ export function ReportsPage() {
       ? (metrics.data?.satisfaction ?? null)
       : computeFilteredCsat(list);
 
-    return {
+    const fromList = {
       resolved: resolved.length,
       active: active.length,
       breached,
@@ -348,7 +412,11 @@ export function ReportsPage() {
         )
         .slice(0, 5),
     };
-  }, [filtered, liveMode, metrics.data?.satisfaction]);
+    if (liveMode && !typeFilter && !priorityFilter && workload.data) {
+      return { ...fromList, ...overlayLiveSnapshot(fromList, workload.data) };
+    }
+    return fromList;
+  }, [filtered, liveMode, metrics.data?.satisfaction, typeFilter, priorityFilter, workload.data]);
 
   const barPct = (n: number, max: number) =>
     `${Math.round((n / max) * 100)}%`;
