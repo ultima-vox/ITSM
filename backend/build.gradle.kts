@@ -73,6 +73,7 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     systemProperty("file.encoding", "UTF-8")
+    systemProperty("itsm.rate-limit.enabled", "false")
     systemProperty("docker.api.version", System.getenv("DOCKER_API_VERSION") ?: "1.44")
     System.getenv("DOCKER_HOST")?.let { systemProperty("docker.host", it) }
 }

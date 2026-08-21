@@ -101,6 +101,12 @@ itsm:
   cors:
     # Vite default dev server; override for additional frontends.
     allowed-origins: ${ITSM_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  rate-limit:
+    # Token bucket per authenticated principal (or client IP). Disabled in Gradle tests.
+    enabled: ${ITSM_RATE_LIMIT_ENABLED:true}
+    capacity: ${ITSM_RATE_LIMIT_CAPACITY:120}
+    refill-tokens: ${ITSM_RATE_LIMIT_REFILL:60}
+    refill-period: ${ITSM_RATE_LIMIT_REFILL_PERIOD:PT1M}
   # --- Optional integrations (safe defaults: no live Redis/OpenSearch/MinIO required) ---
   redis:
     enabled: ${ITSM_REDIS_ENABLED:false}
