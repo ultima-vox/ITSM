@@ -111,6 +111,11 @@ missing origin fails the token exchange with a CORS error after an otherwise suc
 Never roll database schema backward. Roll application back only when prior version is
 compatible with current schema; otherwise deploy a forward corrective migration.
 
+API rate limit (`itsm.rate-limit`) is on by default: 120 burst tokens, 60 refilled per minute,
+keyed by authenticated principal or client IP. Health probes and CORS preflight skip the bucket.
+`429 Too Many Requests` includes `Retry-After`. Tighten `ITSM_RATE_LIMIT_CAPACITY` /
+`ITSM_RATE_LIMIT_REFILL` at the edge if the ingress already enforces quotas.
+
 ## Runtime controls
 
 - Run containers with read-only root filesystems where platform permits; mount only required temp paths.

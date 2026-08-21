@@ -26,7 +26,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | Search | JDBC fallback and OpenSearch integration; the production stack requires credentials and TLS |
 | Attachments | S3/MinIO + signature scan + optional ClamAV INSTREAM; upload, scan, download and the block on an infected file are verified against the Compose stack by `scripts/verify-compose-runtime.sh` |
 | Auth | Keycloak OIDC (PKCE) + deny-by-default RBAC; browser login verified end-to-end against the Compose stack, session survives reload via `prompt=none` restore |
-| Reports | Backend workload/SLA reports |
+| Reports | Backend workload/SLA plus change, problem, CMDB, and asset snapshots |
 | Locales | **ru (default), en, de** — not ten languages |
 | Production readiness | **Not ready** — the datastores are single instances, and the rehearsal certificates are self-signed |
 
@@ -221,6 +221,9 @@ Existence of a screen or API is not a production-completeness claim.
 | `OIDC_ISSUER_URI` | `http://localhost:8081/realms/itsm` | JWT `iss` claim |
 | `OIDC_JWK_SET_URI` | (empty) | Optional internal JWKS URL for containerized backend |
 | `ITSM_CORS_ORIGINS` | Vite `5173` | Allowed CORS origins |
+| `ITSM_RATE_LIMIT_ENABLED` | `true` | Token-bucket API rate limit (per principal, else IP) |
+| `ITSM_RATE_LIMIT_CAPACITY` | `120` | Burst tokens |
+| `ITSM_RATE_LIMIT_REFILL` | `60` | Tokens added each refill period |
 | `ITSM_REDIS_ENABLED` | `false` | Enable Redis cache |
 
 ### Frontend environment variables
