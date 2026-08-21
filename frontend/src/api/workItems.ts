@@ -42,7 +42,35 @@ import type {
   WorkItemComment,
 } from '@/types';
 
-const LIST_PAGE_SIZE = 100;
+const LIST_PAGE_SIZE = 200;
+const LIST_MAX_ITEMS = 2000;
+
+export function shouldFetchNextWorkItemPage(
+  loaded: number,
+  batchLength: number,
+  total: number,
+  max = LIST_MAX_ITEMS,
+): boolean {
+  return batchLength > 0 && loaded < total && loaded < max;
+}
+
+function toBackendWorkItemFilter(
+  kind: 'type' | 'state' | 'priority',
+  value?: string,
+): string | undefined {
+  if (!value) return undefined;
+  if (kind === 'type') {
+    const normalized = value.toLowerCase();
+    if (normalized === 'incident') return 'INCIDENT';
+    if (normalized === 'request' || normalized === 'service_request') return 'SERVICE_REQUEST';
+    return undefined;
+  }
+  if (kind === 'state') {
+    if (value.toLowerCase() === 'waiting') return 'PENDING';
+    return value.toUpperCase();
+  }
+  return value.toUpperCase();
+}
 
 export interface MajorIncident {
   id: string;
@@ -218,18 +246,29 @@ export async function fetchWorkItems(params?: {
   const qs = new URLSearchParams();
   if (params?.assigneeId) qs.set('assigneeId', params.assigneeId);
   if (params?.q) qs.set('q', params.q);
-  if (params?.state) qs.set('state', params.state);
-  if (params?.type) qs.set('type', params.type);
-  if (params?.priority) qs.set('priority', params.priority);
-  qs.set('page', '0');
+  const state = toBackendWorkItemFilter('state', params?.state);
+  const type = toBackendWorkItemFilter('type', params?.type);
+  const priority = toBackendWorkItemFilter('priority', params?.priority);
+  if (state) qs.set('state', state);
+  if (type) qs.set('type', type);
+  if (priority) qs.set('priority', priority);
   qs.set('size', String(LIST_PAGE_SIZE));
-  const suffix = `?${qs}`;
-  const page = await apiRequest<BackendWorkItemPage>(`/work-items${suffix}`);
-  const items = (page.items ?? []).map(mapWorkItem);
-  // Pre-warm user profile cache for assignees and requesters
-  const sids = items.flatMap((w) => [w.assignee?.id, w.requester?.id].filter(Boolean) as string[]);
+  const collected: WorkItem[] = [];
+  let pageNum = 0;
+  for (;;) {
+    qs.set('page', String(pageNum));
+    const page = await apiRequest<BackendWorkItemPage>(`/work-items?${qs}`);
+    const batch = (page.items ?? []).map(mapWorkItem);
+    collected.push(...batch);
+    const total = page.total ?? collected.length;
+    if (!shouldFetchNextWorkItemPage(collected.length, batch.length, total)) {
+      break;
+    }
+    pageNum += 1;
+  }
+  const sids = collected.flatMap((w) => [w.assignee?.id, w.requester?.id].filter(Boolean) as string[]);
   if (sids.length > 0) await preloadUserProfiles(sids);
-  return items;
+  return collected;
 }
 
 export async function fetchMyOpenCount(): Promise<number> {
