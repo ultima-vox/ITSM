@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.assetmanagement.domain;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -15,13 +16,15 @@ public record Asset(
     LocalDate acquiredOn,
     LocalDate warrantyUntil,
     String location,
+    String supplier,
+    BigDecimal cost,
     long version
 ) {
   public Asset assignTo(String subject) {
     if (status != Status.IN_STOCK && status != Status.IN_USE) {
       throw new IllegalStateException("Only stock or active assets may be assigned");
     }
-    return new Asset(id, assetTag, name, kind, Status.IN_USE, requireSubject(subject), configurationItemId, acquiredOn, warrantyUntil, location, version + 1);
+    return copy(Status.IN_USE, requireSubject(subject), configurationItemId, name, location, supplier, cost);
   }
 
   public Asset linkToCi(UUID ciId) {
@@ -31,24 +34,40 @@ public record Asset(
     if (status == Status.RETIRED || status == Status.LOST) {
       throw new IllegalStateException("Cannot link retired or lost assets to a CI");
     }
-    return new Asset(id, assetTag, name, kind, status, ownerSubject, ciId, acquiredOn, warrantyUntil, location, version + 1);
+    return copy(status, ownerSubject, ciId, name, location, supplier, cost);
   }
 
   public Asset transitionTo(Status target) {
     if (!allowed(status, target)) {
       throw new IllegalStateException("Asset transition %s -> %s is not allowed".formatted(status, target));
     }
-    return new Asset(id, assetTag, name, kind, target, ownerSubject, configurationItemId, acquiredOn, warrantyUntil, location, version + 1);
+    return copy(target, ownerSubject, configurationItemId, name, location, supplier, cost);
   }
 
-  public Asset updateFields(String newName, String newLocation) {
-    return new Asset(
-        id, assetTag,
+  public Asset updateFields(String newName, String newLocation, String newSupplier, BigDecimal newCost) {
+    return copy(
+        status,
+        ownerSubject,
+        configurationItemId,
         newName != null ? newName : name,
-        kind, status, ownerSubject, configurationItemId,
-        acquiredOn, warrantyUntil,
         newLocation != null ? newLocation : location,
-        version + 1
+        newSupplier != null ? blankToNull(newSupplier) : supplier,
+        newCost != null ? newCost : cost
+    );
+  }
+
+  private Asset copy(
+      Status nextStatus,
+      String nextOwner,
+      UUID nextCi,
+      String nextName,
+      String nextLocation,
+      String nextSupplier,
+      BigDecimal nextCost
+  ) {
+    return new Asset(
+        id, assetTag, nextName, kind, nextStatus, nextOwner, nextCi,
+        acquiredOn, warrantyUntil, nextLocation, nextSupplier, nextCost, version + 1
     );
   }
 
@@ -57,6 +76,10 @@ public record Asset(
       throw new IllegalArgumentException("Owner is required");
     }
     return subject;
+  }
+
+  private static String blankToNull(String value) {
+    return value.isBlank() ? null : value;
   }
 
   private static boolean allowed(Status from, Status to) {

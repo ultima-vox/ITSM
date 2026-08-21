@@ -36,6 +36,8 @@ export interface BackendAsset {
   acquiredOn?: string | null;
   warrantyUntil?: string | null;
   location?: string;
+  supplier?: string | null;
+  cost?: number | null;
 }
 
 const CI_ICONS: ConfigurationItem['icon'][] = [
@@ -135,6 +137,8 @@ export function mapAsset(dto: BackendAsset): Asset {
     purchasedAt: dto.acquiredOn ?? new Date().toISOString().slice(0, 10),
     serial: undefined,
     model: dto.kind,
+    vendor: dto.supplier ?? undefined,
+    cost: dto.cost ?? null,
     notes: dto.configurationItemId
       ? `CI: ${dto.configurationItemId}`
       : undefined,

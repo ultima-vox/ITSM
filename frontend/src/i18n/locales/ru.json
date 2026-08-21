@@ -800,6 +800,7 @@
     "model": "Модель",
     "vendor": "Производитель",
     "costCenter": "Cost center",
+    "cost": "Стоимость",
     "notes": "Заметки",
     "types": {
       "laptop": "Ноутбук",
@@ -1113,7 +1114,16 @@
     "slaComplianceSnapshot": "По текущему slaState · met/on-track {met} · breached {breached}",
     "byAssignee": "Нагрузка исполнителей",
     "byAssigneeHint": "Топ-5 исполнителей по числу тикетов (фильтр)",
-    "noAssignees": "Нет назначенных в текущем фильтре."
+    "noAssignees": "Нет назначенных в текущем фильтре.",
+    "modulesTitle": "Смежные модули",
+    "changeSuccess": "Успех изменений",
+    "changeSuccessDetail": "закрыто {closed} · отклонено {rejected}",
+    "problemsOpen": "Открытые проблемы",
+    "problemsOpenDetail": "{known} known error",
+    "cmdb": "Конфигурационные единицы",
+    "cmdbDetail": "{orphans} без связей",
+    "assets": "Активы",
+    "assetsDetail": "в работе {inUse} · на складе {inStock}"
   },
   "settings": {
     "title": "Настройки",

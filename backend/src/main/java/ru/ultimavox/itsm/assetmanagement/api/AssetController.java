@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -87,7 +88,9 @@ class AssetController {
               body.configurationItemId(),
               body.acquiredOn(),
               body.warrantyUntil(),
-              body.location()
+              body.location(),
+              body.supplier(),
+              body.cost()
           ),
           authentication.getName()
       );
@@ -98,7 +101,7 @@ class AssetController {
   }
 
   @PatchMapping("/{id}")
-  @Operation(summary = "Update asset fields (name, location)")
+  @Operation(summary = "Update asset fields (name, location, supplier, cost)")
   Asset patch(
       Authentication authentication,
       @PathVariable UUID id,
@@ -111,15 +114,17 @@ class AssetController {
       if (body.expectedVersion() >= 0 && current.version() != body.expectedVersion()) {
         throw new org.springframework.dao.OptimisticLockingFailureException("Asset changed since version " + body.expectedVersion());
       }
-      Asset updated = current.updateFields(body.name(), body.location());
-      // Persist directly since AssetCommands.persist expects a before snapshot
+      Asset updated = current.updateFields(body.name(), body.location(), body.supplier(), body.cost());
       java.sql.Timestamp now = java.sql.Timestamp.from(java.time.Instant.now());
-      jdbc.update("""
-          UPDATE asset SET name = ?, location = ?, version = version + 1, updated_at = ?
+      int changed = jdbc.update("""
+          UPDATE asset SET name = ?, location = ?, supplier = ?, cost = ?, version = version + 1, updated_at = ?
           WHERE id = ? AND org_id = ? AND version = ?
           """,
-          updated.name(), updated.location(), now, id,
+          updated.name(), updated.location(), updated.supplier(), updated.cost(), now, id,
           ru.ultimavox.itsm.platform.authorization.OrganizationContext.current(), current.version());
+      if (changed == 0) {
+        throw new org.springframework.dao.OptimisticLockingFailureException("Asset changed since version " + current.version());
+      }
       return query.findById(id).orElseThrow();
     } catch (org.springframework.dao.OptimisticLockingFailureException ex) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
@@ -137,12 +142,16 @@ class AssetController {
       UUID configurationItemId,
       LocalDate acquiredOn,
       LocalDate warrantyUntil,
-      @Size(max = 240) String location
+      @Size(max = 240) String location,
+      @Size(max = 240) String supplier,
+      BigDecimal cost
   ) {}
 
   record PatchAssetRequest(
       @Size(max = 240) String name,
       @Size(max = 240) String location,
+      @Size(max = 240) String supplier,
+      BigDecimal cost,
       long expectedVersion
   ) {}
 

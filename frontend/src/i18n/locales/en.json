@@ -800,6 +800,7 @@
     "model": "Model",
     "vendor": "Vendor",
     "costCenter": "Cost center",
+    "cost": "Cost",
     "notes": "Notes",
     "types": {
       "laptop": "Laptop",
@@ -1113,7 +1114,16 @@
     "slaComplianceSnapshot": "From current slaState · met/on-track {met} · breached {breached}",
     "byAssignee": "Assignee load",
     "byAssigneeHint": "Top 5 assignees by ticket count (filtered set)",
-    "noAssignees": "No assigned items in the current filter."
+    "noAssignees": "No assigned items in the current filter.",
+    "modulesTitle": "Adjacent modules",
+    "changeSuccess": "Change success",
+    "changeSuccessDetail": "closed {closed} · rejected {rejected}",
+    "problemsOpen": "Open problems",
+    "problemsOpenDetail": "{known} known errors",
+    "cmdb": "Configuration items",
+    "cmdbDetail": "{orphans} without relationships",
+    "assets": "Assets",
+    "assetsDetail": "in use {inUse} · in stock {inStock}"
   },
   "settings": {
     "title": "Settings",

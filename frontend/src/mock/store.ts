@@ -1011,6 +1011,7 @@ export function addAsset(payload: CreateAssetPayload): Asset {
     serial: payload.serial?.trim() || undefined,
     model: payload.model?.trim() || undefined,
     vendor: payload.vendor?.trim() || undefined,
+    cost: payload.cost ?? null,
     notes: payload.notes?.trim() || undefined,
     updatedAt: nowIso(),
   };

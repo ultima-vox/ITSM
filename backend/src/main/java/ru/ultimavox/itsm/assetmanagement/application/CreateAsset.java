@@ -1,5 +1,6 @@
 package ru.ultimavox.itsm.assetmanagement.application;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,8 +50,8 @@ public class CreateAsset {
     jdbc.update(
         """
         INSERT INTO asset (id, org_id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
-            acquired_on, warranty_until, location, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            acquired_on, warranty_until, location, supplier, cost, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         id,
         OrganizationContext.current(),
@@ -63,6 +64,8 @@ public class CreateAsset {
         command.acquiredOn() == null ? null : java.sql.Date.valueOf(command.acquiredOn()),
         command.warrantyUntil() == null ? null : java.sql.Date.valueOf(command.warrantyUntil()),
         command.location(),
+        command.supplier(),
+        command.cost(),
         Timestamp.from(now),
         Timestamp.from(now)
     );
@@ -91,6 +94,8 @@ public class CreateAsset {
       UUID configurationItemId,
       LocalDate acquiredOn,
       LocalDate warrantyUntil,
-      String location
+      String location,
+      String supplier,
+      BigDecimal cost
   ) {}
 }

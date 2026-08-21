@@ -63,6 +63,7 @@ public class AssetCommands {
         """
         UPDATE asset
         SET status = ?, owner_subject = ?, configuration_item_id = ?, name = ?, location = ?,
+            supplier = ?, cost = ?,
             version = version + 1, updated_at = ?
         WHERE id = ? AND org_id = ? AND version = ?
         """,
@@ -71,6 +72,8 @@ public class AssetCommands {
         updated.configurationItemId(),
         updated.name(),
         updated.location(),
+        updated.supplier(),
+        updated.cost(),
         Timestamp.from(now),
         updated.id(),
         OrganizationContext.current(),

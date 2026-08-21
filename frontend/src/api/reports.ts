@@ -13,6 +13,27 @@ export interface WorkloadReport {
   byType: Record<string, number>;
   agingBuckets: Record<string, number>;
   source: string;
+  change?: {
+    open: number;
+    closed: number;
+    rejected: number;
+    successRate: number | null;
+  };
+  problem?: {
+    open: number;
+    knownErrors: number;
+    resolved: number;
+  };
+  cmdb?: {
+    configurationItems: number;
+    orphans: number;
+    relationships: number;
+  };
+  assets?: {
+    total: number;
+    inUse: number;
+    inStock: number;
+  };
 }
 
 /**

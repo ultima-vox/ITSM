@@ -26,7 +26,7 @@ public class AssetQuery {
     StringBuilder sql = new StringBuilder(
         """
             SELECT id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
-                   acquired_on, warranty_until, location, version
+                   acquired_on, warranty_until, location, supplier, cost, version
             FROM asset
             WHERE org_id = ?
               AND (?::text IS NULL OR status = ?)
@@ -40,8 +40,8 @@ public class AssetQuery {
     args.add(ownerFilter); args.add(ownerFilter);
     if (queryFilter != null) {
         String pattern = "%" + queryFilter.toLowerCase() + "%";
-        sql.append(" AND (lower(asset_tag) LIKE ? OR lower(name) LIKE ? OR lower(location) LIKE ? OR lower(owner_subject) LIKE ?)");
-        args.add(pattern); args.add(pattern); args.add(pattern); args.add(pattern);
+        sql.append(" AND (lower(asset_tag) LIKE ? OR lower(name) LIKE ? OR lower(location) LIKE ? OR lower(owner_subject) LIKE ? OR lower(coalesce(supplier,'')) LIKE ?)");
+        args.add(pattern); args.add(pattern); args.add(pattern); args.add(pattern); args.add(pattern);
     }
     sql.append(" ORDER BY asset_tag");
     return jdbc.query(sql.toString(),
@@ -54,7 +54,7 @@ public class AssetQuery {
     List<Asset> rows = jdbc.query(
         """
             SELECT id, asset_tag, name, kind, status, owner_subject, configuration_item_id,
-                   acquired_on, warranty_until, location, version
+                   acquired_on, warranty_until, location, supplier, cost, version
             FROM asset WHERE id = ? AND org_id = ?
             """,
         (rs, i) -> map(rs),
@@ -74,9 +74,11 @@ public class AssetQuery {
     java.sql.Date acquired = rs.getDate("acquired_on");
     java.sql.Date warranty = rs.getDate("warranty_until");
     String location = rs.getString("location");
+    String supplier = rs.getString("supplier");
+    java.math.BigDecimal cost = rs.getBigDecimal("cost");
     long version = rs.getLong("version");
     return new Asset(id, tag, name, Asset.Kind.valueOf(kind), Asset.Status.valueOf(status),
-        owner, ciId, toLocalDate(acquired), toLocalDate(warranty), location, version);
+        owner, ciId, toLocalDate(acquired), toLocalDate(warranty), location, supplier, cost, version);
   }
 
   private static LocalDate toLocalDate(Date date) {

@@ -262,6 +262,8 @@ export async function createAsset(payload: CreateAssetPayload): Promise<Asset> {
       ownerSubject: payload.assignedTo ?? null,
       acquiredOn: payload.purchasedAt ?? null,
       location: payload.location ?? null,
+      supplier: payload.vendor ?? null,
+      cost: payload.cost ?? null,
     },
   });
   return mapAsset(created);

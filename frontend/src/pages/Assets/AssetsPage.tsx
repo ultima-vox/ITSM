@@ -457,6 +457,12 @@ export function AssetsPage() {
                   <dd>{selected.vendor}</dd>
                 </div>
               )}
+              {selected.cost != null && (
+                <div>
+                  <dt>{t('assets.cost')}</dt>
+                  <dd>{selected.cost}</dd>
+                </div>
+              )}
               {selected.costCenter && (
                 <div>
                   <dt>{t('assets.costCenter')}</dt>
@@ -521,6 +527,8 @@ function CreateAssetModal({
   const [typeKey, setTypeKey] = useState('assets.types.laptop');
   const [location, setLocation] = useState('');
   const [serial, setSerial] = useState('');
+  const [vendor, setVendor] = useState('');
+  const [cost, setCost] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -532,6 +540,8 @@ function CreateAssetModal({
       setTypeKey('assets.types.laptop');
       setLocation('');
       setSerial('');
+      setVendor('');
+      setCost('');
       setNotes('');
       setErrors({});
       setSubmitting(false);
@@ -554,6 +564,8 @@ function CreateAssetModal({
         typeKey,
         location: location.trim(),
         serial: serial.trim() || undefined,
+        vendor: vendor.trim() || undefined,
+        cost: cost.trim() ? Number(cost) : undefined,
         notes: notes.trim() || undefined,
         status: 'stock',
       });
@@ -606,6 +618,17 @@ function CreateAssetModal({
           label={t('assets.serial')}
           value={serial}
           onChange={(e) => setSerial(e.target.value)}
+        />
+        <Input
+          label={t('assets.vendor')}
+          value={vendor}
+          onChange={(e) => setVendor(e.target.value)}
+        />
+        <Input
+          label={t('assets.cost')}
+          value={cost}
+          onChange={(e) => setCost(e.target.value)}
+          type="number"
         />
         <Textarea
           label={t('assets.notes')}

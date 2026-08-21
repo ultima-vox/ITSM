@@ -42,7 +42,7 @@ class AssetOptimisticIntegrationTest {
     OrganizationContext.runAs("asset-version-" + UUID.randomUUID(), () -> {
       Asset asset = create.create(new CreateAsset.Command(
           "AST-" + UUID.randomUUID(), "Laptop", Asset.Kind.LAPTOP, Asset.Status.IN_STOCK,
-          null, null, null, null, null), "alice");
+          null, null, null, null, null, null, null), "alice");
       assertThat(asset.version()).isZero();
 
       Asset active = commands.transition(asset.id(), Asset.Status.IN_USE, 0, "alice");

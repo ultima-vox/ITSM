@@ -2868,6 +2868,8 @@ export interface components {
             /** Format: date */
             warrantyUntil?: string;
             location?: string;
+            supplier?: string;
+            cost?: number;
         };
         Asset: {
             /** Format: uuid */
@@ -2888,6 +2890,8 @@ export interface components {
             location?: string;
             /** Format: int64 */
             version?: number;
+            supplier?: string;
+            cost?: number;
         };
         PromptRequest: {
             content: string;
@@ -2988,6 +2992,8 @@ export interface components {
             location?: string;
             /** Format: int64 */
             expectedVersion?: number;
+            supplier?: string;
+            cost?: number;
         };
         WorkItemPageResponse: {
             items?: components["schemas"]["WorkItemResponse"][];
@@ -3094,6 +3100,10 @@ export interface components {
                 [key: string]: number;
             };
             source?: string;
+            change?: unknown;
+            problem?: unknown;
+            cmdb?: unknown;
+            assets?: unknown;
         };
         RoleResponse: {
             /** Format: uuid */
@@ -3364,6 +3374,40 @@ export interface components {
             afterState?: {
                 [key: string]: unknown;
             };
+        };
+        ChangeSnapshot: {
+            /** Format: int64 */
+            open?: number;
+            /** Format: int64 */
+            closed?: number;
+            /** Format: int64 */
+            rejected?: number;
+            /** Format: double */
+            successRate?: number;
+        };
+        ProblemSnapshot: {
+            /** Format: int64 */
+            open?: number;
+            /** Format: int64 */
+            knownErrors?: number;
+            /** Format: int64 */
+            resolved?: number;
+        };
+        CmdbSnapshot: {
+            /** Format: int64 */
+            configurationItems?: number;
+            /** Format: int64 */
+            orphans?: number;
+            /** Format: int64 */
+            relationships?: number;
+        };
+        AssetSnapshot: {
+            /** Format: int64 */
+            total?: number;
+            /** Format: int64 */
+            inUse?: number;
+            /** Format: int64 */
+            inStock?: number;
         };
     };
     responses: never;

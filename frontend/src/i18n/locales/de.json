@@ -800,6 +800,7 @@
     "model": "Modell",
     "vendor": "Hersteller",
     "costCenter": "Kostenstelle",
+    "cost": "Kosten",
     "notes": "Notizen",
     "types": {
       "laptop": "Notebook",
@@ -1113,7 +1114,16 @@
     "slaComplianceSnapshot": "Aus aktuellem slaState · met/on-track {met} · breached {breached}",
     "byAssignee": "Bearbeiter-Last",
     "byAssigneeHint": "Top 5 Bearbeiter nach Ticketanzahl (Filter)",
-    "noAssignees": "Keine zugewiesenen Tickets im aktuellen Filter."
+    "noAssignees": "Keine zugewiesenen Tickets im aktuellen Filter.",
+    "modulesTitle": "Angrenzende Module",
+    "changeSuccess": "Change-Erfolg",
+    "changeSuccessDetail": "geschlossen {closed} · abgelehnt {rejected}",
+    "problemsOpen": "Offene Probleme",
+    "problemsOpenDetail": "{known} Known Errors",
+    "cmdb": "Configuration Items",
+    "cmdbDetail": "{orphans} ohne Beziehungen",
+    "assets": "Assets",
+    "assetsDetail": "in Nutzung {inUse} · auf Lager {inStock}"
   },
   "settings": {
     "title": "Einstellungen",

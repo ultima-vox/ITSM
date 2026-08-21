@@ -2,27 +2,62 @@ package ru.ultimavox.itsm.reporting;
 
 import java.util.Map;
 import org.springframework.stereotype.Service;
+import ru.ultimavox.itsm.assetmanagement.AssetReportQuery;
+import ru.ultimavox.itsm.changemanagement.ChangeReportQuery;
+import ru.ultimavox.itsm.cmdb.CmdbReportQuery;
 import ru.ultimavox.itsm.platform.sla.SlaReportQuery;
+import ru.ultimavox.itsm.problemmanagement.ProblemReportQuery;
 import ru.ultimavox.itsm.servicedesk.ServiceDeskReportQuery;
 
 @Service
 public class WorkloadReportService {
   private final ServiceDeskReportQuery serviceDesk;
   private final SlaReportQuery sla;
+  private final ChangeReportQuery changes;
+  private final ProblemReportQuery problems;
+  private final CmdbReportQuery cmdb;
+  private final AssetReportQuery assets;
 
-  public WorkloadReportService(ServiceDeskReportQuery serviceDesk, SlaReportQuery sla) {
+  public WorkloadReportService(
+      ServiceDeskReportQuery serviceDesk,
+      SlaReportQuery sla,
+      ChangeReportQuery changes,
+      ProblemReportQuery problems,
+      CmdbReportQuery cmdb,
+      AssetReportQuery assets
+  ) {
     this.serviceDesk = serviceDesk;
     this.sla = sla;
+    this.changes = changes;
+    this.problems = problems;
+    this.cmdb = cmdb;
+    this.assets = assets;
   }
 
   public WorkloadReport snapshot() {
     ServiceDeskReportQuery.Snapshot work = serviceDesk.snapshot();
     SlaReportQuery.Snapshot clocks = sla.snapshot();
+    ChangeReportQuery.Snapshot change = changes.snapshot();
+    ProblemReportQuery.Snapshot problem = problems.snapshot();
+    CmdbReportQuery.Snapshot configuration = cmdb.snapshot();
+    AssetReportQuery.Snapshot asset = assets.snapshot();
     return new WorkloadReport(
         work.open(), work.resolved(), work.unassigned(), clocks.breached(), clocks.atRisk(),
         work.mttrHours(), work.byPriority(), work.byState(), work.byType(),
-        work.agingBuckets(), "module-contracts");
+        work.agingBuckets(), "module-contracts",
+        new ChangeSnapshot(change.open(), change.closed(), change.rejected(), change.successRate()),
+        new ProblemSnapshot(problem.open(), problem.knownErrors(), problem.resolved()),
+        new CmdbSnapshot(configuration.configurationItems(), configuration.orphans(), configuration.relationships()),
+        new AssetSnapshot(asset.total(), asset.inUse(), asset.inStock()));
   }
+
+  public record ChangeSnapshot(long open, long closed, long rejected, Double successRate) {}
+
+  public record ProblemSnapshot(long open, long knownErrors, long resolved) {}
+
+  public record CmdbSnapshot(long configurationItems, long orphans, long relationships) {}
+
+  public record AssetSnapshot(long total, long inUse, long inStock) {}
 
   public record WorkloadReport(
       long open,
@@ -35,6 +70,10 @@ public class WorkloadReportService {
       Map<String, Long> byState,
       Map<String, Long> byType,
       Map<String, Long> agingBuckets,
-      String source
+      String source,
+      ChangeSnapshot change,
+      ProblemSnapshot problem,
+      CmdbSnapshot cmdb,
+      AssetSnapshot assets
   ) {}
 }

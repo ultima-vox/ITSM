@@ -39,6 +39,7 @@ public class AssetSearchIndexer {
     String displayName = a.name() != null ? a.name() : a.assetTag() + " · " + a.kind().name().replace('_', ' ');
     String body = a.ownerSubject() == null ? "" : a.ownerSubject();
     if (a.location() != null) { if (!body.isEmpty()) body += " "; body += a.location(); }
+    if (a.supplier() != null) { if (!body.isEmpty()) body += " "; body += a.supplier(); }
     return new SearchDocument(
         a.id().toString(), "asset", displayName, body,
         Set.of("asset"), null,

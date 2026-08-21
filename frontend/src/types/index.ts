@@ -230,6 +230,7 @@ export interface Asset {
   serial?: string;
   model?: string;
   vendor?: string;
+  cost?: number | null;
   costCenter?: string;
   notes?: string;
   relatedCiIds?: string[];
@@ -327,6 +328,7 @@ export interface CreateAssetPayload {
   serial?: string;
   model?: string;
   vendor?: string;
+  cost?: number | null;
   notes?: string;
   /** ISO date (yyyy-MM-dd) when asset was acquired */
   purchasedAt?: string;

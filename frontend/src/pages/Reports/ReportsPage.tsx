@@ -16,6 +16,9 @@ import {
   Users,
   Printer,
   ShieldCheck,
+  Share2,
+  Package,
+  Bug,
 } from 'lucide-react';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
@@ -506,6 +509,53 @@ export function ReportsPage() {
           </>
         )}
       </div>
+
+      {liveMode && workload.data?.change && workload.data.problem && workload.data.cmdb && workload.data.assets && (
+        <div className="metrics-grid" aria-label={t('reports.modulesTitle')}>
+          <MetricCard
+            icon={<ShieldCheck size={18} />}
+            color="mint"
+            value={
+              workload.data.change.successRate != null
+                ? `${workload.data.change.successRate}%`
+                : '—'
+            }
+            label={t('reports.changeSuccess')}
+            detail={t('reports.changeSuccessDetail', {
+              closed: workload.data.change.closed,
+              rejected: workload.data.change.rejected,
+            })}
+          />
+          <MetricCard
+            icon={<Bug size={18} />}
+            color="amber"
+            value={String(workload.data.problem.open)}
+            label={t('reports.problemsOpen')}
+            detail={t('reports.problemsOpenDetail', {
+              known: workload.data.problem.knownErrors,
+            })}
+          />
+          <MetricCard
+            icon={<Share2 size={18} />}
+            color="violet"
+            value={String(workload.data.cmdb.configurationItems)}
+            label={t('reports.cmdb')}
+            detail={t('reports.cmdbDetail', {
+              orphans: workload.data.cmdb.orphans,
+            })}
+          />
+          <MetricCard
+            icon={<Package size={18} />}
+            color="mint"
+            value={String(workload.data.assets.total)}
+            label={t('reports.assets')}
+            detail={t('reports.assetsDetail', {
+              inUse: workload.data.assets.inUse,
+              inStock: workload.data.assets.inStock,
+            })}
+          />
+        </div>
+      )}
 
       <div className="dashboard-grid">
         <section className="panel">
