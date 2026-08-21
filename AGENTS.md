@@ -38,7 +38,7 @@ frontend/src/
   types/                — TypeScript types
   i18n/locales/         — ru (default), en, de
 
-backend/src/main/resources/db/migration/  — Flyway SQL (V1–V75)
+backend/src/main/resources/db/migration/  — Flyway SQL (V1–V77)
 infra/                  — Keycloak realm
 docker-compose.yml      — full local stack (infra + backend + frontend)
 ```

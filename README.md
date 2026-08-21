@@ -12,7 +12,7 @@ The target is a production-grade service-management platform, not an MVP. **The 
 
 | Area | Current state |
 | --- | --- |
-| Architecture | Modular monolith with Flyway V1–V75; still being hardened |
+| Architecture | Modular monolith with Flyway V1–V77; still being hardened |
 | Frontend | Broad operator coverage; live API mode wired at the API layer |
 | Service Desk | Incidents, requests, tasks, assignment, comments, links, SLA clocks |
 | Change / CAB | Lifecycle, votes, schedule windows; calendar/CAB depth still evolving |
@@ -143,7 +143,7 @@ Open **http://localhost:5173**. Profile `dev` disables JWT enforcement — never
 ├─────────────────────────────────────────────────────────┤
 │  Infrastructure                                         │
 │  PostgreSQL · Redis · RabbitMQ · OpenSearch · MinIO     │
-│  Keycloak (OIDC) · Flyway V1–V75                        │
+│  Keycloak (OIDC) · Flyway V1–V77                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -153,7 +153,7 @@ Open **http://localhost:5173**. Profile `dev` disables JWT enforcement — never
 |-------|-----------|
 | Backend | Java 25, Spring Boot 3.5, Spring Modulith, Gradle, Flyway |
 | Frontend | React 18, TypeScript 5.6, Vite 8.2, React Router 7 |
-| Database | PostgreSQL 17, Flyway (V1–V75) |
+| Database | PostgreSQL 17, Flyway (V1–V77) |
 | Cache | Redis 7 (optional; AOF) |
 | Messaging | RabbitMQ 4 (outbox pattern) |
 | Search | OpenSearch 2.19 (JDBC fallback when unset) |
