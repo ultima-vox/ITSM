@@ -355,7 +355,11 @@
     "viewSaved": "Ansicht gespeichert: {name}",
     "viewApplied": "Ansicht angewendet: {name}",
     "builtinView": "Standard",
-    "summary": "Warteschlangen-Übersicht"
+    "summary": "Warteschlangen-Übersicht",
+    "deleteView": "Ansicht {name} löschen",
+    "viewDeleted": "Ansicht gelöscht: {name}",
+    "viewSaveFailed": "Ansicht konnte nicht gespeichert werden",
+    "viewDeleteFailed": "Ansicht konnte nicht gelöscht werden"
   },
   "catalog": {
     "kicker": "Servicekatalog",

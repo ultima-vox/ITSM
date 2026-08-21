@@ -355,7 +355,11 @@
     "viewSaved": "Вид сохранён: {name}",
     "viewApplied": "Применён вид: {name}",
     "builtinView": "По умолчанию",
-    "summary": "Сводка очередей"
+    "summary": "Сводка очередей",
+    "deleteView": "Удалить вид {name}",
+    "viewDeleted": "Вид удалён: {name}",
+    "viewSaveFailed": "Не удалось сохранить вид",
+    "viewDeleteFailed": "Не удалось удалить вид"
   },
   "catalog": {
     "kicker": "Сервисный каталог",

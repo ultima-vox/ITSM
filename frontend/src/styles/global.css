@@ -9187,6 +9187,12 @@ html[data-density='compact'] .data-table td {
   gap: 2px;
 }
 
+.saved-views__row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
 .saved-views__menu button {
   display: flex;
   align-items: flex-start;
@@ -9200,6 +9206,20 @@ html[data-density='compact'] .data-table td {
   cursor: pointer;
   color: var(--vox-ink-800);
   font: inherit;
+}
+
+.saved-views__apply {
+  flex: 1;
+}
+
+.saved-views__delete {
+  width: auto;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  color: var(--vox-ink-500);
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .saved-views__menu button:hover {

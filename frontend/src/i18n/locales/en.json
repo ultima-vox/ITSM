@@ -355,7 +355,11 @@
     "viewSaved": "View saved: {name}",
     "viewApplied": "Applied view: {name}",
     "builtinView": "Default",
-    "summary": "Queue summary"
+    "summary": "Queue summary",
+    "deleteView": "Delete view {name}",
+    "viewDeleted": "View deleted: {name}",
+    "viewSaveFailed": "Could not save the view",
+    "viewDeleteFailed": "Could not delete the view"
   },
   "catalog": {
     "kicker": "Service catalog",

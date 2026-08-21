@@ -6,7 +6,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
-import { fetchWorkItems } from '@/api';
+import {
+  createQueueSavedView,
+  deleteQueueSavedView,
+  fetchQueueSavedViews,
+  fetchWorkItems,
+  isMockMode,
+} from '@/api';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   isBreached,
@@ -82,9 +88,11 @@ function persistCustomViews(views: QueueSavedView[]) {
 export function QueuesPage() {
   const t = useT();
   const { isCompact, toggleDensity } = useDensity();
-  const { success, info } = useToast();
+  const { success, info, error: toastError } = useToast();
   const [params, setParams] = useSearchParams();
-  const [savedViews, setSavedViews] = useState<QueueSavedView[]>(loadSavedViews);
+  const [savedViews, setSavedViews] = useState<QueueSavedView[]>(
+    isMockMode() ? loadSavedViews() : DEFAULT_VIEWS,
+  );
   const [viewsOpen, setViewsOpen] = useState(false);
   const currentUser = useCurrentUser();
 
@@ -149,10 +157,25 @@ export function QueuesPage() {
     [setParams, info, t],
   );
 
-  const saveCurrentView = () => {
+  useEffect(() => {
+    if (isMockMode()) return;
+    let cancelled = false;
+    fetchQueueSavedViews()
+      .then((custom) => {
+        if (!cancelled) setSavedViews([...DEFAULT_VIEWS, ...custom]);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedViews(DEFAULT_VIEWS);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveCurrentView = async () => {
     const name = window.prompt(t('queues.saveViewPrompt'));
     if (!name?.trim()) return;
-    const view: QueueSavedView = {
+    const draft: QueueSavedView = {
       id: `view-${Date.now()}`,
       name: name.trim(),
       tab,
@@ -161,10 +184,38 @@ export function QueuesPage() {
       status,
       sla,
     };
-    const next = [...savedViews, view];
-    setSavedViews(next);
-    persistCustomViews(next);
-    success(t('queues.viewSaved', { name: view.name }));
+    if (isMockMode()) {
+      const next = [...savedViews, draft];
+      setSavedViews(next);
+      persistCustomViews(next);
+      success(t('queues.viewSaved', { name: draft.name }));
+      return;
+    }
+    try {
+      const created = await createQueueSavedView(draft);
+      setSavedViews((current) => [...current, created]);
+      success(t('queues.viewSaved', { name: created.name }));
+    } catch {
+      toastError(t('queues.viewSaveFailed'));
+    }
+  };
+
+  const removeView = async (view: QueueSavedView) => {
+    if (view.builtin) return;
+    if (isMockMode()) {
+      const next = savedViews.filter((item) => item.id !== view.id);
+      setSavedViews(next);
+      persistCustomViews(next);
+      info(t('queues.viewDeleted', { name: view.name }));
+      return;
+    }
+    try {
+      await deleteQueueSavedView(view.id);
+      setSavedViews((current) => current.filter((item) => item.id !== view.id));
+      info(t('queues.viewDeleted', { name: view.name }));
+    } catch {
+      toastError(t('queues.viewDeleteFailed'));
+    }
   };
 
   useEffect(() => {
@@ -274,24 +325,36 @@ export function QueuesPage() {
             {viewsOpen && (
               <div className="saved-views__menu" role="listbox">
                 {savedViews.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    role="option"
-                    onClick={() => applyView(v)}
-                  >
-                    <span>
-                      <b>{v.name}</b>
-                      {v.builtin && (
-                        <small>{t('queues.builtinView')}</small>
-                      )}
-                    </span>
-                  </button>
+                  <div key={v.id} className="saved-views__row">
+                    <button
+                      type="button"
+                      role="option"
+                      className="saved-views__apply"
+                      onClick={() => applyView(v)}
+                    >
+                      <span>
+                        <b>{v.name}</b>
+                        {v.builtin && (
+                          <small>{t('queues.builtinView')}</small>
+                        )}
+                      </span>
+                    </button>
+                    {!v.builtin && (
+                      <button
+                        type="button"
+                        className="saved-views__delete"
+                        aria-label={t('queues.deleteView', { name: v.name })}
+                        onClick={() => void removeView(v)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 ))}
                 <button
                   type="button"
                   className="saved-views__save"
-                  onClick={saveCurrentView}
+                  onClick={() => void saveCurrentView()}
                 >
                   <BookmarkPlus size={14} aria-hidden />
                   {t('queues.saveCurrentView')}

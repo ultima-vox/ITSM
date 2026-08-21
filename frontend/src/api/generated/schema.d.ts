@@ -2104,6 +2104,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/queue-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved queue views for the current operator */
+        get: operations["listQueueSavedViews"];
+        put?: never;
+        /** Save the current queue filters as a named view */
+        post: operations["createQueueSavedView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/queue-views/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a saved queue view owned by the current operator */
+        delete: operations["deleteQueueSavedView"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3408,6 +3443,28 @@ export interface components {
             inUse?: number;
             /** Format: int64 */
             inStock?: number;
+        };
+        SavedView: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            tab?: string;
+            priority?: string;
+            type?: string;
+            status?: string;
+            sla?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        CreateQueueViewRequest: {
+            name: string;
+            tab?: string;
+            priority?: string;
+            type?: string;
+            status?: string;
+            sla?: string;
         };
     };
     responses: never;
@@ -7156,6 +7213,70 @@ export interface operations {
         };
     };
     revokeDelegation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listQueueSavedViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": unknown[];
+                };
+            };
+        };
+    };
+    createQueueSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": unknown;
+                };
+            };
+        };
+    };
+    deleteQueueSavedView: {
         parameters: {
             query?: never;
             header?: never;
