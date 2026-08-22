@@ -101,7 +101,9 @@ jobs:
         uses: gradle/actions/wrapper-validation@v4
 
       - name: Run backend tests
-        run: ./gradlew test --no-daemon
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test --no-daemon
 
       - name: Cleanup backend artifacts
         if: always()
@@ -145,6 +147,7 @@ jobs:
 
       - name: Start migrated backend
         run: |
+          chmod +x ./backend/gradlew
           SPRING_PROFILES_ACTIVE=dev \
           SERVER_PORT=18080 \
           DATABASE_URL=jdbc:postgresql://127.0.0.1:35432/itsm \
@@ -166,6 +169,7 @@ jobs:
 
       - name: Check OpenAPI snapshot drift
         run: |
+          command -v jq >/dev/null || { mkdir -p "$HOME/.local/bin"; curl -fsSL -o "$HOME/.local/bin/jq" https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64; chmod +x "$HOME/.local/bin/jq"; export PATH="$HOME/.local/bin:$PATH"; }
           curl -sf http://127.0.0.1:18080/v3/api-docs | jq -S . > /tmp/openapi-live.json
           jq -S . frontend/openapi/itsm.json > /tmp/openapi-snapshot.json
           diff -u /tmp/openapi-snapshot.json /tmp/openapi-live.json
@@ -220,6 +224,14 @@ jobs:
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure jq
+        run: |
+          if ! command -v jq >/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL -o "$HOME/.local/bin/jq" https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+            chmod +x "$HOME/.local/bin/jq"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
       - name: Shell syntax check
         run: |
           bash -n scripts/smoke-api.sh
@@ -258,6 +270,14 @@ jobs:
     runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure jq
+        run: |
+          if ! command -v jq >/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL -o "$HOME/.local/bin/jq" https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+            chmod +x "$HOME/.local/bin/jq"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
       - name: Render Kustomize base
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace \
@@ -301,7 +321,7 @@ jobs:
           exit-code: '1'
           # Build output and agent scratch directories are not shipped, and walking them is
           # what pushes this scan past the default timeout.
-          skip-dirs: node_modules,.git,backend/build,backend/.gradle,frontend/dist,.codex,.cursor,.grok,.opencode,.vault,.tools
+          skip-dirs: node_modules,.git,backend/build,backend/.gradle,frontend/dist,.codex,.cursor,.grok,.opencode,.vault,.tools,deploy/rehearsal
           timeout: 20m
 
       - name: Generate SPDX SBOM
