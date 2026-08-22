@@ -1865,7 +1865,7 @@
     "urgencyHigh": "High",
     "urgencyMedium": "Medium",
     "urgencyLow": "Low",
-    "fields": "Fields",
+    "fieldsTitle": "Fields",
     "contextFields": "Context",
     "workbench": "Workbench",
     "activityStream": "Activity stream",

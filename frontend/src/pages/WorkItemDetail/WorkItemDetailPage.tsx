@@ -1031,7 +1031,7 @@ export function WorkItemDetailPage() {
             {formDef ? (
               <>
                 <div className="section-head section-head--tight">
-                  <h2>{t('workItem.fields')}</h2>
+                  <h2>{t('workItem.fieldsTitle')}</h2>
                   <span className="chip chip--muted" title={formDef.key}>
                     {t('form.engineChip', { v: formDef.version })}
                   </span>

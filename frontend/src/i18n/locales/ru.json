@@ -1865,7 +1865,7 @@
     "urgencyHigh": "Высокая",
     "urgencyMedium": "Средняя",
     "urgencyLow": "Низкая",
-    "fields": "Поля",
+    "fieldsTitle": "Поля",
     "contextFields": "Контекст",
     "workbench": "Рабочая область",
     "activityStream": "Лента активности",
