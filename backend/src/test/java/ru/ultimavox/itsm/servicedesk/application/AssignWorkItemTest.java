@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ultimavox.itsm.platform.audit.AuditTrail;
+import ru.ultimavox.itsm.platform.event.DomainEvent;
 import ru.ultimavox.itsm.platform.notification.NotificationRequest;
 import ru.ultimavox.itsm.platform.notification.NotificationService;
 import ru.ultimavox.itsm.platform.outbox.IntegrationEventOutbox;
@@ -67,6 +68,49 @@ class AssignWorkItemTest {
   }
 
   @Test
+  void null_assignee_unassigns_and_audits() {
+    when(store.requireById(id)).thenReturn(openItem("agent-7"));
+
+    WorkItem result = service.assign(
+        id,
+        new AssignWorkItem.Command(null, null),
+        "dispatcher-1"
+    );
+
+    assertThat(result.assigneeId()).isNull();
+    ArgumentCaptor<WorkItem> stored = ArgumentCaptor.forClass(WorkItem.class);
+    verify(store).update(stored.capture());
+    assertThat(stored.getValue().assigneeId()).isNull();
+
+    ArgumentCaptor<AuditTrail.Entry> auditCap = ArgumentCaptor.forClass(AuditTrail.Entry.class);
+    verify(audit).append(auditCap.capture());
+    assertThat(auditCap.getValue().action()).isEqualTo("work-item.unassigned");
+
+    ArgumentCaptor<DomainEvent> eventCap = ArgumentCaptor.forClass(DomainEvent.class);
+    verify(outbox).record(eventCap.capture());
+    assertThat(eventCap.getValue().type()).isEqualTo("work-item.unassigned");
+
+    ArgumentCaptor<NotificationRequest> cap = ArgumentCaptor.forClass(NotificationRequest.class);
+    verify(notifications).send(cap.capture());
+    assertThat(cap.getValue().templateKey()).isEqualTo("work-item.unassigned");
+    assertThat(cap.getValue().recipientSubject()).isEqualTo("agent-7");
+  }
+
+  @Test
+  void blank_assignee_unassigns_without_notifying_actor() {
+    when(store.requireById(id)).thenReturn(openItem("dispatcher-1"));
+
+    WorkItem result = service.assign(
+        id,
+        new AssignWorkItem.Command("  ", "sd-l1"),
+        "dispatcher-1"
+    );
+
+    assertThat(result.assigneeId()).isNull();
+    verify(notifications, never()).send(any());
+  }
+
+  @Test
   void closed_item_is_rejected() {
     WorkItem closed = openItem("agent-1")
         .transition(State.IN_PROGRESS, null, null, now)
@@ -82,6 +126,23 @@ class AssignWorkItemTest {
 
     verify(store, never()).update(any());
     verify(notifications, never()).send(any());
+  }
+
+  @Test
+  void closed_item_rejects_unassign() {
+    WorkItem closed = openItem("agent-1")
+        .transition(State.IN_PROGRESS, null, null, now)
+        .transition(State.RESOLVED, "FIXED", "done", now)
+        .transition(State.CLOSED, "FIXED", "done", now);
+    when(store.requireById(id)).thenReturn(closed);
+
+    assertThatThrownBy(() -> service.assign(
+        id,
+        new AssignWorkItem.Command(null, null),
+        "dispatcher-1"
+    )).isInstanceOf(IllegalStateException.class);
+
+    verify(store, never()).update(any());
   }
 
   private WorkItem openItem(String assigneeId) {

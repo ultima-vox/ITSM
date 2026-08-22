@@ -39,26 +39,25 @@ public class AssignWorkItem {
 
   @Transactional
   public WorkItem assign(UUID id, Command command, String actorId) {
-    if (command.assigneeId() == null || command.assigneeId().isBlank()) {
-      throw new IllegalArgumentException("assigneeId is required");
-    }
-
     WorkItem existing = store.requireById(id);
     if (!existing.isOpen()) {
       throw new IllegalStateException("Cannot assign a closed or cancelled work item");
     }
 
+    boolean unassign = command.assigneeId() == null || command.assigneeId().isBlank();
+    String assigneeId = unassign ? null : command.assigneeId().trim();
     Instant now = Instant.now();
     UUID correlationId = ru.ultimavox.itsm.platform.observability.CorrelationContext.currentOrCreate();
     String teamId = command.teamId() != null ? command.teamId() : existing.teamId();
-    WorkItem updated = existing.assign(command.assigneeId().trim(), teamId, now);
+    WorkItem updated = existing.assign(assigneeId, teamId, now);
     store.update(updated);
 
+    String action = unassign ? "work-item.unassigned" : "work-item.assigned";
     Map<String, Object> before = CreateWorkItem.snapshot(existing);
     Map<String, Object> after = CreateWorkItem.snapshot(updated);
     audit.append(new AuditTrail.Entry(
         actorId,
-        "work-item.assigned",
+        action,
         "work-item",
         id.toString(),
         before,
@@ -68,7 +67,7 @@ public class AssignWorkItem {
     ));
     outbox.record(new DomainEvent(
         UUID.randomUUID(),
-        "work-item.assigned",
+        action,
         1,
         now,
         correlationId,
@@ -76,9 +75,34 @@ public class AssignWorkItem {
         id.toString(),
         after
     ));
-    notifyAssigned(updated, actorId, correlationId);
-    notifyWatchers(updated, actorId, correlationId);
+    if (unassign) {
+      notifyUnassigned(existing, updated, actorId, correlationId);
+    } else {
+      notifyAssigned(updated, actorId, correlationId);
+      notifyWatchers(updated, actorId, correlationId);
+    }
     return updated;
+  }
+
+  private void notifyUnassigned(WorkItem before, WorkItem after, String actorId, UUID correlationId) {
+    String previous = before.assigneeId();
+    if (previous == null || previous.isBlank() || previous.equals(actorId)) {
+      return;
+    }
+    try {
+      Map<String, Object> variables = baseAssignVars(after, actorId);
+      variables.put("previousAssigneeId", previous);
+      notifications.send(new NotificationRequest(
+          correlationId,
+          "work-item.unassigned",
+          previous,
+          "ru",
+          variables,
+          NotificationRequest.Channel.IN_APP
+      ));
+    } catch (Exception ex) {
+      log.warn("Notification failed for work-item unassign {}: {}", after.id(), ex.toString());
+    }
   }
 
   private void notifyAssigned(WorkItem item, String actorId, UUID correlationId) {
@@ -131,8 +155,12 @@ public class AssignWorkItem {
     variables.put("workItemId", item.id().toString());
     variables.put("number", item.number());
     variables.put("title", item.title());
-    variables.put("assigneeId", item.assigneeId());
-    variables.put("teamId", item.teamId());
+    if (item.assigneeId() != null) {
+      variables.put("assigneeId", item.assigneeId());
+    }
+    if (item.teamId() != null) {
+      variables.put("teamId", item.teamId());
+    }
     variables.put("actorId", actorId);
     return variables;
   }

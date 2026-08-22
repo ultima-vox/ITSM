@@ -12,11 +12,12 @@ import {
   ArrowUp,
   ChevronUp,
 } from 'lucide-react';
-import type { Priority, WorkItem } from '@/types';
+import type { Priority, WorkItem, WorkItemStatus } from '@/types';
 import { useT } from '@/i18n';
 import { useDensity } from '@/hooks/useDensity';
 import { useToast } from '@/hooks/useToast';
-import { bulkAssignWorkItems, bulkSetPriority } from '@/api';
+import { bulkAssignWorkItems, bulkSetPriority, bulkTransitionWorkItems } from '@/api';
+import { mapFrontendState } from '@/api/mappers/workItem';
 import { Avatar, Button, EmptyState, SkeletonRows } from '@/components/ui';
 import { PriorityBadge } from './PriorityBadge';
 import { SlaMiniBar } from './SlaMiniBar';
@@ -74,7 +75,7 @@ export function OperatorGrid({
   const t = useT();
   const navigate = useNavigate();
   const { isCompact } = useDensity();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>('sla');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -157,6 +158,53 @@ export function OperatorGrid({
     setSelected(new Set());
   };
 
+  const handleBulkStatus = async (status: WorkItemStatus) => {
+    const ids = [...selected];
+    const fields =
+      status === 'resolved' || status === 'closed'
+        ? { resolutionCode: 'RESOLVED', resolutionNotes: '' }
+        : undefined;
+    try {
+      const result = await bulkTransitionWorkItems(ids, mapFrontendState(status), fields);
+      const skipped = result.results.filter((row) => !row.success);
+      if (result.succeeded === 0) {
+        const first = skipped[0];
+        toastError(
+          first
+            ? t('module.bulk.skippedDetail', {
+                n: skipped.length,
+                reason: t(
+                  first.errorCode === 'NOT_FOUND'
+                    ? 'module.errors.notFound'
+                    : 'module.errors.invalidTransition',
+                ),
+              })
+            : t('module.errors.bulkNoneSucceeded'),
+        );
+        return;
+      }
+      if (skipped.length > 0) {
+        success(
+          t('module.bulk.statusChangedPartial', {
+            n: result.succeeded,
+            skipped: skipped.length,
+            status: t(`status.${status}`),
+          }),
+        );
+      } else {
+        success(
+          t('module.bulk.statusChanged', {
+            n: result.succeeded,
+            status: t(`status.${status}`),
+          }),
+        );
+      }
+      setSelected(new Set());
+    } catch {
+      toastError(t('module.errors.bulkFailed'));
+    }
+  };
+
   const openItem = useCallback(
     (id: string) => navigate(`/work-items/${id}`),
     [navigate],
@@ -235,6 +283,19 @@ export function OperatorGrid({
                 onClick={() => handleBulkPriority(p)}
               >
                 {t(`priority.${p}`)}
+              </button>
+            ))}
+          </div>
+          <div className="bulk-bar__priority">
+            <span>{t('module.bulk.changeStatus')}</span>
+            {(['in_progress', 'waiting', 'resolved'] as WorkItemStatus[]).map((status) => (
+              <button
+                key={status}
+                type="button"
+                className="chip chip--toggle"
+                onClick={() => void handleBulkStatus(status)}
+              >
+                {t(`status.${status}`)}
               </button>
             ))}
           </div>

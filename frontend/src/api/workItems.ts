@@ -700,6 +700,54 @@ export async function bulkSetPriority(
   });
 }
 
+export interface BulkWorkItemTransitionResult {
+  id: string;
+  success: boolean;
+  status?: string | null;
+  errorCode?: string | null;
+}
+
+export interface BulkWorkItemTransitionResponse {
+  succeeded: number;
+  results: BulkWorkItemTransitionResult[];
+}
+
+export async function bulkTransitionWorkItems(
+  ids: string[],
+  targetState: string,
+  fields?: { resolutionCode?: string; resolutionNotes?: string },
+): Promise<BulkWorkItemTransitionResponse> {
+  if (isMockMode()) {
+    await delay(120);
+    const status = targetState.toLowerCase() === 'pending'
+      ? 'waiting'
+      : (targetState.toLowerCase().replace(/-/g, '_') as WorkItem['status']);
+    const results: BulkWorkItemTransitionResult[] = ids.map((id) => {
+      const item = storeUpdate(id, {
+        status,
+        resolutionNotes: fields?.resolutionNotes,
+      });
+      if (!item) {
+        return { id, success: false, errorCode: 'NOT_FOUND' };
+      }
+      return { id, success: true, status: targetState };
+    });
+    return {
+      succeeded: results.filter((row) => row.success).length,
+      results,
+    };
+  }
+  return apiRequest<BulkWorkItemTransitionResponse>('/work-items/bulk/transitions', {
+    method: 'POST',
+    body: {
+      ids,
+      targetState,
+      resolutionCode: fields?.resolutionCode,
+      resolutionNotes: fields?.resolutionNotes,
+    },
+  });
+}
+
 export async function assignWorkItemToMe(id: string): Promise<WorkItem | null> {
   if (isMockMode()) {
     await delay(120);
@@ -770,15 +818,11 @@ export async function patchWorkItem(
 
   // Assignment
   if (patch.assignee !== undefined) {
-    if (patch.assignee == null) {
-      // Backend assign requires assigneeId — skip unassign
-      return fetchWorkItem(id);
-    }
     const dto = await apiRequest<BackendWorkItem>(`/work-items/${id}/assign`, {
       method: 'POST',
       body: {
-        assigneeId: patch.assignee.id,
-        teamId: patch.teamId ?? patch.assignee.teamId,
+        assigneeId: patch.assignee?.id ?? null,
+        teamId: patch.teamId ?? patch.assignee?.teamId,
       },
     });
     return mapWorkItem(dto);

@@ -57,6 +57,9 @@ import ru.ultimavox.itsm.servicedesk.application.WorkItemCiLinkService;
 import ru.ultimavox.itsm.servicedesk.application.DuplicateWorkItemQuery;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemLinkService;
 import ru.ultimavox.itsm.servicedesk.application.WorkItemWatcherService;
+import ru.ultimavox.itsm.platform.workflow.WorkflowTransitionException;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemConcurrencyException;
+import ru.ultimavox.itsm.servicedesk.application.WorkItemNotFoundException;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItemLink;
 import ru.ultimavox.itsm.servicedesk.domain.WorkItem.Impact;
@@ -364,17 +367,47 @@ class WorkItemController {
   }
 
   @PostMapping("/bulk/transitions")
-  @Operation(summary = "Atomically transition up to 200 work items")
-  BulkWorkItemService.Result bulkTransition(
+  @Operation(summary = "Transition up to 100 work items with explicit per-item results")
+  BulkTransitionResponse bulkTransition(
       @Valid @RequestBody BulkTransitionRequest request, Authentication authentication
   ) {
     String actor = authentication.getName();
-    access.require(actor, "work-item.transition", "work-item", null);
+    String targetState = request.targetState().name();
     for (UUID id : request.ids()) {
-      requireRead(actor, id);
+      access.require(actor, "work-item.transition", "work-item", id.toString());
+      if (request.resolutionCode() != null) {
+        fieldAccess.requireWrite(actor, "work-item", id.toString(), "resolutionCode", targetState);
+      }
+      if (request.resolutionNotes() != null) {
+        fieldAccess.requireWrite(actor, "work-item", id.toString(), "resolutionNotes", targetState);
+      }
     }
-    return bulkWorkItems.transition(request.ids(), request.targetState(),
-        request.resolutionCode(), request.resolutionNotes(), actor);
+    List<BulkTransitionResult> results = request.ids().stream().map(id -> {
+      try {
+        WorkItem changed = transitionWorkItem.transition(
+            id,
+            new TransitionWorkItem.Command(
+                request.targetState(),
+                request.resolutionCode(),
+                request.resolutionNotes()
+            ),
+            actor
+        );
+        return new BulkTransitionResult(id, true, changed.state().name(), null);
+      } catch (WorkItemNotFoundException ex) {
+        return new BulkTransitionResult(id, false, null, "NOT_FOUND");
+      } catch (WorkItemConcurrencyException ex) {
+        return new BulkTransitionResult(id, false, null, "CONFLICT");
+      } catch (WorkflowTransitionException | IllegalStateException ex) {
+        return new BulkTransitionResult(id, false, null, "INVALID_TRANSITION");
+      } catch (IllegalArgumentException ex) {
+        return new BulkTransitionResult(id, false, null, "INVALID_TRANSITION");
+      }
+    }).toList();
+    return new BulkTransitionResponse(
+        results.stream().filter(BulkTransitionResult::success).count(),
+        results
+    );
   }
 
   @GetMapping("/{id}/major-incident")
@@ -623,7 +656,7 @@ class WorkItemController {
   ) {}
 
   record AssignRequest(
-      @NotBlank @Size(max = 128) String assigneeId,
+      @Size(max = 128) String assigneeId,
       @Size(max = 128) String teamId
   ) {}
 
@@ -672,11 +705,15 @@ class WorkItemController {
   ) {}
 
   record BulkTransitionRequest(
-      @NotEmpty @Size(max = 200) List<@NotNull UUID> ids,
+      @NotNull @Size(min = 1, max = 100) List<@NotNull UUID> ids,
       @NotNull State targetState,
       @Size(max = 80) String resolutionCode,
       @Size(max = 12000) String resolutionNotes
   ) {}
+
+  record BulkTransitionResult(UUID id, boolean success, String status, String errorCode) {}
+
+  record BulkTransitionResponse(long succeeded, List<BulkTransitionResult> results) {}
 
   record CreateLinkRequest(
       @NotNull UUID targetId,
