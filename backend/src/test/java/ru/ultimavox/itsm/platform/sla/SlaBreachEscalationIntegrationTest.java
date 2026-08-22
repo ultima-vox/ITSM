@@ -73,7 +73,8 @@ class SlaBreachEscalationIntegrationTest {
     WorkItemStore store = new WorkItemStore(jdbc);
     EscalateWorkItem escalateWorkItem = new EscalateWorkItem(
         store, mock(AuditTrail.class), mock(IntegrationEventOutbox.class), mock(NotificationService.class),
-        new WorkItemSearchIndexer(mock(SearchIndexService.class)));
+        new WorkItemSearchIndexer(mock(SearchIndexService.class)),
+        mock(ru.ultimavox.itsm.platform.oncall.OnCallDirectory.class));
     AllowlistedActionExecutor executor = new AllowlistedActionExecutor(
         mock(NotificationService.class), mock(SearchIndexService.class),
         List.of(new WorkItemEscalateAutomationAction(escalateWorkItem)));
