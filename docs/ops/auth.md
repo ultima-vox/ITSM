@@ -98,6 +98,40 @@ Manual token (without SPA login) still works:
 # Development only: VITE_API_TOKEN=<access_token> npm run dev
 ```
 
+## Backend audience
+
+Resource-server JWT validation requires claim `aud` to contain `itsm-backend` (override with
+`OIDC_AUDIENCE`). Missing or wrong audience is rejected. Local realm clients `itsm-spa` and
+`itsm-backend` already map that audience onto access tokens, so anna/admin password-grant smoke
+keeps working.
+
+```yaml
+spring.security.oauth2.resourceserver.jwt.audiences: ${OIDC_AUDIENCE:itsm-backend}
+```
+
+## Group-role mapping
+
+Table `group_role_mapping` maps IdP group names (and matching Keycloak realm roles) to
+`role.role_key` / `principal_role` assignments. Seeded mappings:
+
+| IdP group | ITSM role |
+| --- | --- |
+| `ITSM-Users` | `REQUESTER` |
+| `ITSM-ServiceDesk` | `SERVICE_DESK_AGENT` |
+| `ITSM-ServiceDesk-Managers` | `SERVICE_DESK_MANAGER` |
+| `ITSM-Change-Managers` | `CHANGE_MANAGER` |
+| `ITSM-CAB` | `CAB_MEMBER` |
+| `ITSM-Admins` | `ADMIN` |
+
+On each authenticated request the backend upserts `identity_account` from JWT `iss` + `sub` and
+grants mapped roles only. Unknown groups, including a bare `ADMIN` claim, do not grant `ADMIN`.
+Disable an account with `identity_account.enabled = false`; the next request is rejected.
+Demo users `anna` / `admin` still rely on V14 `principal_role` seeds plus the realm import — do
+not remove those password-grant users from `itsm-realm.json`.
+
+Active Directory / LDAP federation is **not** in this slice. Next identity work is Keycloak user
+federation over **LDAPS**. Do not treat the demo realm as directory-backed.
+
 ## Related
 
 - [local-dev.md](./local-dev.md) — compose, backend profiles, frontend modes  

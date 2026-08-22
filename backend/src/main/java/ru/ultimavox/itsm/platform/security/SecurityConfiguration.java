@@ -1,6 +1,8 @@
 package ru.ultimavox.itsm.platform.security;
 
+import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,17 +10,19 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import ru.ultimavox.itsm.platform.identity.IdentitySyncFilter;
+import ru.ultimavox.itsm.platform.identity.IdentitySyncService;
 
 /**
  * Production-oriented security (active when profile is not {@code dev}).
@@ -47,12 +51,16 @@ class SecurityConfiguration {
   @Value("${itsm.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
   private String allowedOrigins;
 
-  @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    Converter<Jwt, ? extends AbstractAuthenticationToken> jwtConverter =
-        new KeycloakJwtAuthenticationConverter();
+  @Value("${spring.security.oauth2.resourceserver.jwt.audiences:itsm-backend}")
+  private String[] jwtAudiences;
 
-    return http
+  @Bean
+  SecurityFilterChain securityFilterChain(
+      HttpSecurity http, ObjectProvider<IdentitySyncService> identitySync) throws Exception {
+    Converter<Jwt, ? extends AbstractAuthenticationToken> jwtConverter =
+        new KeycloakJwtAuthenticationConverter(expectedAudiences());
+
+    http
         .csrf(csrf -> csrf.disable())
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -81,8 +89,13 @@ class SecurityConfiguration {
         )
         .oauth2ResourceServer(oauth -> oauth
             .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
-        )
-        .build();
+        );
+
+    IdentitySyncService sync = identitySync.getIfAvailable();
+    if (sync != null) {
+      http.addFilterBefore(new IdentitySyncFilter(sync), AuthorizationFilter.class);
+    }
+    return http.build();
   }
 
   @Bean
@@ -97,5 +110,19 @@ class SecurityConfiguration {
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
     return source;
+  }
+
+  private List<String> expectedAudiences() {
+    if (jwtAudiences == null || jwtAudiences.length == 0) {
+      return List.of(KeycloakJwtAuthenticationConverter.DEFAULT_AUDIENCE);
+    }
+    List<String> values = Arrays.stream(jwtAudiences)
+        .flatMap(value -> Arrays.stream(value.split("[,\\s]+")))
+        .map(String::trim)
+        .filter(value -> !value.isBlank())
+        .toList();
+    return values.isEmpty()
+        ? List.of(KeycloakJwtAuthenticationConverter.DEFAULT_AUDIENCE)
+        : values;
   }
 }

@@ -3,6 +3,7 @@ package ru.ultimavox.itsm.platform.security;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -17,12 +18,36 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 /**
  * Maps Keycloak realm roles to {@code ROLE_*} authorities and OAuth scopes to {@code SCOPE_*}.
- * Used by production {@link SecurityConfiguration}.
+ * Used by production {@link SecurityConfiguration}. Rejects tokens whose {@code aud} does not
+ * contain the configured resource-server audience (missing {@code aud} is a rejection).
  */
 final class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
+  static final String DEFAULT_AUDIENCE = "itsm-backend";
+
+  private final Set<String> audiences;
+
+  KeycloakJwtAuthenticationConverter() {
+    this(List.of(DEFAULT_AUDIENCE));
+  }
+
+  KeycloakJwtAuthenticationConverter(Collection<String> audiences) {
+    Set<String> expected = audiences == null
+        ? Set.of()
+        : audiences.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .collect(Collectors.toUnmodifiableSet());
+    this.audiences = expected.isEmpty() ? Set.of(DEFAULT_AUDIENCE) : expected;
+  }
+
   @Override
   public AbstractAuthenticationToken convert(Jwt jwt) {
+    if (!hasExpectedAudience(jwt)) {
+      throw new InvalidBearerTokenException(
+          "Access token audience is missing or does not include " + audiences);
+    }
+
     Set<GrantedAuthority> authorities = new HashSet<>();
 
     Optional.ofNullable(jwt.getClaimAsString("scope")).stream()
@@ -47,5 +72,18 @@ final class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstrac
               + "'basic' client scope");
     }
     return new JwtAuthenticationToken(jwt, authorities, subject);
+  }
+
+  private boolean hasExpectedAudience(Jwt jwt) {
+    List<String> aud = jwt.getAudience();
+    if (aud == null || aud.isEmpty()) {
+      return false;
+    }
+    for (String value : aud) {
+      if (value != null && audiences.contains(value)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

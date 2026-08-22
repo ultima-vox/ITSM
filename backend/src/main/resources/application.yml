@@ -16,6 +16,7 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/itsm}
+          audiences: ${OIDC_AUDIENCE:itsm-backend}
   flyway:
     enabled: true
   rabbitmq:
