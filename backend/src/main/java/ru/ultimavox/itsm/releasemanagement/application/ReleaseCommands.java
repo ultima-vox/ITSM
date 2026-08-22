@@ -152,6 +152,9 @@ public class ReleaseCommands {
     Release current = require(id);
     long version = expectedVersion == null ? current.version() : expectedVersion;
     guardVersion(current, version);
+    // The aggregate's own gates answer first: they are cheaper, and they name the missing
+    // artefact precisely. Only a release that clears them is checked against its content.
+    Release updated = current.transition(target);
     if (target == Release.Status.DEPLOYING) {
       List<ReleaseContentService.ContentEntry> blocking = content.notReadyForDeployment(id);
       if (!blocking.isEmpty()) {
@@ -160,7 +163,6 @@ public class ReleaseCommands {
                 + blocking.stream().map(ReleaseContentService.ContentEntry::number).toList());
       }
     }
-    Release updated = current.transition(target);
     Instant now = Instant.now();
     UUID correlationId = CorrelationContext.currentOrCreate();
     workflows.enforceByTarget(

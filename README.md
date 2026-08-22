@@ -21,10 +21,10 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | Assets | Lifecycle, CI linkage, name/location |
 | Knowledge | Articles, publication, helpfulness votes |
 | Service Catalog | Items, requests, fulfillment foundations |
-| Release Management | Releases group approved changes; build/test/go-no-go gates, deploy blocked while a linked change is unapproved. Postgres-backed tests exist but have not been executed here — Docker was unavailable |
-| Time tracking | Per-work-item worklogs with billable split and author-or-manager edit rules; same verification gap as above |
-| On-call / Escalation | Rotations with overrides, escalation policies resolved to subjects, wired into work item escalation; same verification gap as above |
-| Announcements | Published broadcasts with severity, audience and window; shell banner and admin editor; same verification gap as above |
+| Release Management | Releases group approved changes; build/test/go-no-go gates, deploy blocked while a linked change is unapproved |
+| Time tracking | Per-work-item worklogs with billable split and author-or-manager edit rules |
+| On-call / Escalation | Rotations with overrides, escalation policies resolved to subjects, wired into work item escalation |
+| Announcements | Published broadcasts with severity, audience and window; shell banner and admin editor |
 | SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
 | Notifications | PostgreSQL-backed store + SSE |
 | Search | JDBC fallback and OpenSearch integration; the production stack requires credentials and TLS |

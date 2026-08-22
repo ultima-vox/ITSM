@@ -153,9 +153,8 @@ class ReleaseLifecycleIntegrationTest {
               requester_id, created_at, updated_at
             ) VALUES (?,?,?,?,?,?,?,?,?,?, now(), now())
             """,
-        id, OrganizationContext.current(), number + "-" + UUID.randomUUID(), "NORMAL", "MEDIUM",
+        id, OrganizationContext.current(), number, "NORMAL", "MEDIUM",
         status, title, "Deploy", "Rollback", "carol");
-    jdbc.update("UPDATE change_request SET number = ? WHERE id = ?", number, id);
     return id;
   }
 
