@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.authentication.DisabledException;
@@ -58,6 +60,58 @@ class IdentitySyncServiceTest {
     OrganizationContext.runAs("default", () -> {
       service.sync(jwt);
       assertThat(roles(subject)).containsExactly("REQUESTER");
+      return null;
+    });
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+      "ITSM-Users, REQUESTER",
+      "ITSM-ServiceDesk, SERVICE_DESK_AGENT",
+      "ITSM-ServiceDesk-Managers, SERVICE_DESK_MANAGER",
+      "ITSM-Change-Managers, CHANGE_MANAGER",
+      "ITSM-CAB, CAB_MEMBER",
+      "ITSM-Admins, ADMIN"
+  })
+  void mappingGrantsSeededIdpGroup(String group, String role) {
+    String subject = "sync-map-" + UUID.randomUUID();
+    Jwt jwt = jwt(subject, List.of(group), List.of());
+
+    OrganizationContext.runAs("default", () -> {
+      service.sync(jwt);
+      assertThat(roles(subject)).containsExactly(role);
+      return null;
+    });
+  }
+
+  @Test
+  void renameKeepsSingleAccountForSameSubject() {
+    String subject = "objectguid-" + UUID.randomUUID();
+    Jwt first = jwt(subject, List.of("ITSM-Users"), List.of());
+    Jwt renamed = Jwt.withTokenValue("token")
+        .header("alg", "none")
+        .issuer("http://localhost/realms/itsm")
+        .subject(subject)
+        .audience(List.of("itsm-backend"))
+        .issuedAt(Instant.now())
+        .expiresAt(Instant.now().plusSeconds(3600))
+        .claim("groups", List.of("ITSM-Users"))
+        .claim("preferred_username", "renamed-account")
+        .claim("realm_access", Map.of("roles", List.of()))
+        .build();
+
+    OrganizationContext.runAs("default", () -> {
+      service.sync(first);
+      service.sync(renamed);
+      assertThat(roles(subject)).containsExactly("REQUESTER");
+      Number accounts = jdbc.queryForObject(
+          "SELECT count(*) FROM identity_account WHERE idp = ? AND external_id = ?",
+          Number.class,
+          "http://localhost/realms/itsm",
+          subject
+      );
+      assertThat(accounts).isNotNull();
+      assertThat(accounts.intValue()).isEqualTo(1);
       return null;
     });
   }

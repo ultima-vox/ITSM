@@ -3,13 +3,20 @@
   "realm": "itsm",
   "displayName": "ITSM",
   "enabled": true,
-  "sslRequired": "external",
+  "sslRequired": "all",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": true,
+  "resetPasswordAllowed": false,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -17,6 +24,60 @@
   "accessCodeLifespan": 60,
   "accessCodeLifespanUserAction": 300,
   "accessCodeLifespanLogin": 1800,
+  "eventsEnabled": true,
+  "eventsListeners": [
+    "jboss-logging"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "otpSupportedApplications": [
+    "totpAppFreeOTPName",
+    "totpAppGoogleName",
+    "totpAppMicrosoftAuthenticatorName"
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 30,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
+    }
+  ],
   "roles": {
     "realm": [
       {
@@ -57,129 +118,63 @@
       }
     ]
   },
-  "users": [
+  "users": [],
+  "groups": [
     {
-      "id": "a0000000-0000-4000-8000-000000000001",
-      "username": "anna",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Anna",
-      "lastName": "Yakovleva",
-      "email": "anna@itsm.local",
-      "attributes": {
-        "organization_id": [
-          "default"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "anna",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "SERVICE_DESK_AGENT"
-      ],
-      "requiredActions": []
+      "name": "ITSM-Users",
+      "path": "/ITSM-Users"
     },
     {
-      "id": "a0000000-0000-4000-8000-000000000002",
-      "username": "admin",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Platform",
-      "lastName": "Admin",
-      "email": "admin@itsm.local",
-      "attributes": {
-        "organization_id": [
-          "default"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "admin",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ADMIN"
-      ],
-      "requiredActions": []
+      "name": "ITSM-ServiceDesk",
+      "path": "/ITSM-ServiceDesk"
     },
     {
-      "id": "a0000000-0000-4000-8000-000000000003",
-      "username": "requester",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Sample",
-      "lastName": "Requester",
-      "email": "requester@itsm.local",
-      "attributes": {
-        "organization_id": [
-          "default"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "requester",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "REQUESTER"
-      ],
-      "requiredActions": []
+      "name": "ITSM-ServiceDesk-Managers",
+      "path": "/ITSM-ServiceDesk-Managers"
+    },
+    {
+      "name": "ITSM-Change-Managers",
+      "path": "/ITSM-Change-Managers"
+    },
+    {
+      "name": "ITSM-CAB",
+      "path": "/ITSM-CAB"
+    },
+    {
+      "name": "ITSM-Admins",
+      "path": "/ITSM-Admins"
     }
   ],
   "clients": [
     {
       "clientId": "itsm-spa",
       "name": "ITSM SPA",
-      "description": "Public browser client for the Vite operator workspace",
+      "description": "Public browser client. Authorization code + PKCE only. Direct access grants disabled.",
       "enabled": true,
       "publicClient": true,
-      "secret": "",
       "protocol": "openid-connect",
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:5173/*",
-        "http://127.0.0.1:5173/*",
-        "http://localhost/*",
-        "http://127.0.0.1/*",
-        "http://localhost:*/*",
-        "http://127.0.0.1:*/*",
         "https://itsm.test/*",
         "https://itsm.test:8443/*"
       ],
       "webOrigins": [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost",
-        "http://127.0.0.1",
-        "+",
-        "http://localhost:28000",
-        "http://127.0.0.1:28000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
         "https://itsm.test",
         "https://itsm.test:8443"
       ],
-      "rootUrl": "http://localhost",
+      "rootUrl": "https://itsm.test",
       "baseUrl": "/",
       "adminUrl": "",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": true,
       "frontchannelLogout": true,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*##http://localhost/*##http://127.0.0.1/*##http://localhost:80/*##http://127.0.0.1:80/*"
+        "post.logout.redirect.uris": "https://itsm.test/*##https://itsm.test:8443/*"
       },
       "defaultClientScopes": [
         "basic",
@@ -208,23 +203,35 @@
             "access.token.claim": "true",
             "introspection.token.claim": "true"
           }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
         }
       ]
     },
     {
       "clientId": "itsm-backend",
       "name": "ITSM Backend",
-      "description": "Confidential client for password-grant testing and future machine clients",
+      "description": "Confidential client for machine callers. Client secret is generated on import; do not store it in git. Set it from a secret store if client-credentials are needed. Direct access grants disabled.",
       "enabled": true,
       "publicClient": false,
-      "secret": "itsm-backend-secret",
       "protocol": "openid-connect",
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [],
       "webOrigins": [],
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": true,
@@ -255,6 +262,19 @@
             "id.token.claim": "false",
             "access.token.claim": "true",
             "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
           }
         }
       ]
@@ -475,7 +495,7 @@
     },
     {
       "name": "web-origins",
-      "description": "OpenID Connect scope for add allowed web origins to the access token",
+      "description": "OpenID Connect scope for add allowed web origins to the token",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "false",

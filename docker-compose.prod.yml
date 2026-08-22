@@ -1,6 +1,8 @@
 # Production-shaped full stack. Default demo secrets are for local rehearsal only.
 # Real production must set DB_PASSWORD, S3_*, KC_*, HTTPS OIDC issuer, and
 # SPRING_PROFILES_ACTIVE=prod (ProductionSafetyGuard then requires HTTPS + non-demo secrets).
+# Keycloak imports infra/keycloak/itsm-realm-prod.json (no demo users, no password grant).
+# KC_ADMIN_PASSWORD has no default — set it in the environment.
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
@@ -131,7 +133,7 @@ services:
     command: ["start", "--import-realm"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?KC_ADMIN_PASSWORD must be set; do not use admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
       KC_DB_USERNAME: keycloak
@@ -140,7 +142,8 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
-    volumes: [./infra/keycloak:/opt/keycloak/data/import]
+    volumes:
+      - ./infra/keycloak/itsm-realm-prod.json:/opt/keycloak/data/import/itsm-realm.json:ro
     depends_on:
       keycloak-db: { condition: service_healthy }
     healthcheck:

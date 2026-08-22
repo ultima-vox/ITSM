@@ -1,15 +1,35 @@
 # Keycloak — ITSM realm
 
-Realm JSON: [`itsm-realm.json`](./itsm-realm.json)
+| File | Stack | Purpose |
+| --- | --- | --- |
+| [`itsm-realm.json`](./itsm-realm.json) | `docker-compose.yml` | Local / CI demo. Password grant. Users `anna` / `admin` / `requester`. |
+| [`itsm-realm-prod.json`](./itsm-realm-prod.json) | `docker-compose.prod.yml` | Production posture. No demo users, no password grant, no git-tracked client secret. |
 
-Imported automatically by `docker compose` via:
+Each compose file bind-mounts **one** JSON file to `/opt/keycloak/data/import/itsm-realm.json`.
+Do not mount this directory as a whole: both files use realm id `itsm`.
+
+Local / CI:
 
 ```yaml
 keycloak:
   command: start-dev --import-realm
   volumes:
-    - ./infra/keycloak:/opt/keycloak/data/import
+    - ./infra/keycloak/itsm-realm.json:/opt/keycloak/data/import/itsm-realm.json:ro
 ```
+
+Production-shaped (`start`, not `start-dev`):
+
+```yaml
+keycloak:
+  command: start --import-realm
+  environment:
+    KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?KC_ADMIN_PASSWORD must be set}
+  volumes:
+    - ./infra/keycloak/itsm-realm-prod.json:/opt/keycloak/data/import/itsm-realm.json:ro
+```
+
+LDAPS user federation, group mapping, and ADMIN OTP: [`docs/ops/ad-ldap.md`](../../docs/ops/ad-ldap.md).
+Break-glass bootstrap admin: [`docs/ops/auth.md`](../../docs/ops/auth.md).
 
 Keycloak only imports a realm when it does **not** already exist. To re-import after editing the JSON:
 

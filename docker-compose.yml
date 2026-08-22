@@ -121,7 +121,7 @@ services:
       KC_HEALTH_ENABLED: "true"
     ports: ["${ITSM_KEYCLOAK_PORT:-8081}:8080"]
     volumes:
-      - ./infra/keycloak:/opt/keycloak/data/import
+      - ./infra/keycloak/itsm-realm.json:/opt/keycloak/data/import/itsm-realm.json:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
       interval: 10s

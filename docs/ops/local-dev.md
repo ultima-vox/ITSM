@@ -124,7 +124,7 @@ Config: `frontend/playwright.config.ts` (`baseURL` `http://127.0.0.1:5173` / por
 
 ## Keycloak token flow
 
-Issuer: `http://localhost:8081/realms/itsm` (`OIDC_ISSUER_URI`). Realm import: `infra/keycloak/itsm-realm.json`.
+Issuer: `http://localhost:8081/realms/itsm` (`OIDC_ISSUER_URI`). Realm import: `infra/keycloak/itsm-realm.json` (demo). Production-shaped compose uses `itsm-realm-prod.json` — see [ad-ldap.md](./ad-ldap.md).
 
 Demo users: `anna`/`anna` (agent), `admin`/`admin`, `requester`/`requester`.
 

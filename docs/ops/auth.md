@@ -129,14 +129,37 @@ Disable an account with `identity_account.enabled = false`; the next request is 
 Demo users `anna` / `admin` still rely on V14 `principal_role` seeds plus the realm import — do
 not remove those password-grant users from `itsm-realm.json`.
 
-Active Directory / LDAP federation is **not** in this slice. Next identity work is Keycloak user
-federation over **LDAPS**. Do not treat the demo realm as directory-backed.
+Production Keycloak imports [`itsm-realm-prod.json`](../../infra/keycloak/itsm-realm-prod.json):
+no demo users, no password grant, no git-tracked `itsm-backend` secret. Directory join is
+Keycloak User Federation over **LDAPS** — see [ad-ldap.md](./ad-ldap.md). Do not treat the
+demo realm as directory-backed.
+
+## Break-glass (Keycloak bootstrap admin)
+
+The Keycloak **master** admin created by `KC_BOOTSTRAP_ADMIN_USERNAME` /
+`KC_BOOTSTRAP_ADMIN_PASSWORD` is a break-glass IdP operator, not an ITSM application user.
+It is not in the realm JSON and must never be `admin` / `admin` in production.
+
+| Control | Requirement |
+| --- | --- |
+| Secret | Set `KC_ADMIN_PASSWORD` in the environment or secret store. `docker-compose.prod.yml` has **no** default and refuses to start if the variable is unset or empty. |
+| Username | Prefer a unique `KC_ADMIN_USER`. Defaulting the local compose stack to `admin` is demo-only. |
+| TOTP | In the **master** realm, enroll `CONFIGURE_TOTP` on the bootstrap user before exposing the admin console. |
+| Audit | Prod realm has `eventsEnabled` + `adminEventsEnabled`. Ship Keycloak logs to the same audit sink as ITSM. |
+| After first start | Bootstrap credentials apply only when no master admin exists. Rotate in the admin console; changing env on a running volume does nothing. |
+| ITSM access | Break-glass for the **application** is an AD user in `ITSM-Admins` (see `group_role_mapping`), not this Keycloak master account. |
+
+Never bake `admin`/`admin` or `itsm-backend-secret` into prod images, compose defaults, or
+realm JSON. Retrieve the generated `itsm-backend` client secret from the admin console only
+if a machine client needs it; the resource server validates JWTs and does not use that secret.
 
 ## Related
 
+- [ad-ldap.md](./ad-ldap.md) — LDAPS user federation, group mapping, ADMIN OTP flow  
 - [local-dev.md](./local-dev.md) — compose, backend profiles, frontend modes  
 - [infra/keycloak/README.md](../../infra/keycloak/README.md) — realm, clients, users  
 - [authorization.md](../security/authorization.md) — RBAC / JWT roles  
+
 ## Organization claim
 
 Access tokens must include trusted string claim `organization_id`. Backend uses it for tenant

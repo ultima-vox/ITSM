@@ -67,6 +67,8 @@ It differs from `docker-compose.yml`:
 - all images are pinned by digest;
 - Keycloak runs `start` (not `start-dev`) against its own `keycloak-db` PostgreSQL service with a
   persistent volume, so realms, users, and sessions survive a restart;
+- Keycloak imports `infra/keycloak/itsm-realm-prod.json` (no demo users, password grant off).
+  `KC_ADMIN_PASSWORD` is required in the environment — there is no `admin` default;
 - RabbitMQ has a data volume and explicit credentials (`RABBITMQ_USER` / `RABBITMQ_PASSWORD`)
   instead of the `guest` account.
 
@@ -92,11 +94,15 @@ certificate that no client trusts by default, and there is no high availability.
 `deploy/kubernetes` with certificates from your own CA for an actual production rollout.
 
 Because Keycloak now stores state in `keycloak-db`, `--import-realm` only seeds a realm that does
-not exist yet. Editing `infra/keycloak/itsm-realm.json` and redeploying changes nothing on an
+not exist yet. Editing `infra/keycloak/itsm-realm-prod.json` and redeploying changes nothing on an
 existing installation: apply realm changes through the admin API/console, or recreate the
 `keycloak_db_data` volume in a throwaway environment. The SPA origin must appear in the client's
 Web Origins — Keycloak cannot derive it from a redirect URI that uses a wildcard port, and a
 missing origin fails the token exchange with a CORS error after an otherwise successful login.
+Do not import `itsm-realm.json` (demo users, password grant) into a production Keycloak.
+
+Directory join, `objectGUID` as the LDAP UUID, and ADMIN TOTP: [ad-ldap.md](./ad-ldap.md).
+Break-glass bootstrap admin: [auth.md](./auth.md).
 
 ## Rollout order
 
