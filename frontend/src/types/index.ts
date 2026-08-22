@@ -677,3 +677,65 @@ export interface WorklogSummary {
   totalMinutes: number;
   billableMinutes: number;
 }
+
+/* -- On-call rotations and escalation policies -- */
+
+export interface OnCallSchedule {
+  id: string;
+  scheduleKey: string;
+  name: string;
+  timeZone: string;
+  rotationHours: number;
+  rotationStart: string;
+  active: boolean;
+  participants: string[];
+}
+
+export interface OnCallScheduleInput {
+  scheduleKey: string;
+  name: string;
+  timeZone: string;
+  rotationHours: number;
+  rotationStart: string;
+  active: boolean;
+  participants: string[];
+}
+
+export interface OnCallOverride {
+  id: string;
+  subject: string;
+  startsAt: string;
+  endsAt: string;
+  reason?: string | null;
+}
+
+export type EscalationTargetType = 'SUBJECT' | 'SCHEDULE';
+
+export interface EscalationStep {
+  stepOrder: number;
+  delayMinutes: number;
+  targetType: EscalationTargetType;
+  targetRef: string;
+}
+
+export interface EscalationPolicy {
+  id: string;
+  policyKey: string;
+  name: string;
+  active: boolean;
+  steps: EscalationStep[];
+}
+
+export interface EscalationPolicyInput {
+  policyKey: string;
+  name: string;
+  active: boolean;
+  steps: EscalationStep[];
+}
+
+export interface EscalationResponder {
+  stepOrder: number;
+  delayMinutes: number;
+  subject: string;
+  source: string;
+}

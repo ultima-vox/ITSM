@@ -10813,3 +10813,23 @@ html[data-density='compact'] .module-table .data-table td,
 .worklog-form .field {
   min-width: 160px;
 }
+
+/* On-call rotations and escalation steps */
+.oncall-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vox-line);
+}
+
+.oncall-step .field {
+  min-width: 150px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

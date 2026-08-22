@@ -7,6 +7,7 @@ export * from './problems';
 export * from './changes';
 export * from './releases';
 export * from './worklogs';
+export * from './oncall';
 export * from './locale';
 export * from './attachments';
 export * from './search';

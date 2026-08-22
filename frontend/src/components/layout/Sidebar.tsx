@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Package,
   Rocket,
+  PhoneCall,
   Settings,
   ShieldCheck,
   TicketCheck,
@@ -55,6 +56,7 @@ const secondaryNav = [
   { to: '/admin/workflow', key: 'workflow', icon: Workflow },
   { to: '/admin/sla', key: 'sla', icon: Timer },
   { to: '/admin/rbac', key: 'rbac', icon: Shield },
+  { to: '/admin/oncall', key: 'oncall', icon: PhoneCall },
   { to: '/admin/audit', key: 'audit', icon: ScrollText },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;
