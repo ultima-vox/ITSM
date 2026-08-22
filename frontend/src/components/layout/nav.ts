@@ -7,6 +7,7 @@ import {
   Gauge,
   GitBranch,
   Grid2X2,
+  Home,
   LayoutDashboard,
   Megaphone,
   Package,
@@ -58,6 +59,7 @@ export const adminNav: readonly NavItem[] = [
 ];
 
 export const portalNav: readonly NavItem[] = [
+  { to: '/portal', key: 'home', icon: Home, end: true },
   { to: '/portal/catalog', key: 'catalog', icon: ClipboardList },
   { to: '/portal/knowledge', key: 'knowledge', icon: BookOpen },
   { to: '/portal/requests', key: 'myRequests', icon: TicketCheck, liveBadge: true },
@@ -95,7 +97,7 @@ export const crumbKeys: Record<string, string> = {
   '/releases': 'nav.releases',
   '/search': 'nav.search',
   '/notifications': 'nav.notifications',
-  '/portal': 'nav.catalog',
+  '/portal': 'nav.home',
   '/portal/catalog': 'nav.catalog',
   '/portal/knowledge': 'nav.knowledge',
   '/portal/requests': 'nav.myRequests',

@@ -4,6 +4,7 @@ import { I18nProvider } from '@/i18n';
 import { DensityProvider } from '@/hooks/useDensity';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { ToastProvider } from '@/hooks/useToast';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { router } from './router';
 
 export function App() {
@@ -13,7 +14,9 @@ export function App() {
         <ThemeProvider>
           <DensityProvider>
             <ToastProvider>
-              <RouterProvider router={router} />
+              <ErrorBoundary>
+                <RouterProvider router={router} />
+              </ErrorBoundary>
             </ToastProvider>
           </DensityProvider>
         </ThemeProvider>

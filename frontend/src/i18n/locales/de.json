@@ -61,7 +61,9 @@
     "emptyHint": "Sobald Daten vorliegen, erscheinen sie hier.",
     "getStarted": "Loslegen",
     "learnMore": "Mehr erfahren",
-    "select": "Auswählen"
+    "select": "Auswählen",
+    "crashTitle": "Dieser Bildschirm ist abgestürzt",
+    "crashHint": "Ein Anzeigefehler ist aufgetreten. Erneut versuchen, um den Bildschirm neu zu laden."
   },
   "command": {
     "title": "Befehlspalette",
@@ -172,7 +174,8 @@
     "search": "Suche",
     "notifications": "Benachrichtigungen",
     "settings": "Einstellungen",
-    "myRequests": "Meine Anfragen"
+    "myRequests": "Meine Anfragen",
+    "home": "Startseite"
   },
   "header": {
     "searchPlaceholder": "Anfragen, Services, Artikel suchen…",
@@ -189,6 +192,13 @@
     "createRequest": "Anfrage",
     "createIncidentHint": "Problem melden",
     "createRequestHint": "Service anfordern"
+  },
+  "portal": {
+    "homeTitle": "Willkommen",
+    "homeSubtitle": "Service anfordern, Antwort finden oder Tickets verfolgen.",
+    "catalogHint": "Zugänge, Hardware und Arbeitsplatz-Services.",
+    "knowledgeHint": "Artikel und Anleitungen.",
+    "requestsHint": "Status Ihrer Anfragen."
   },
   "locale": {
     "ru": "Русский",

@@ -2,12 +2,14 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import {
   createBrowserRouter,
   Navigate,
+  Outlet,
   useParams,
 } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { PortalShell } from '@/components/layout/PortalShell';
 import { PageLoader } from '@/components/ui/PageLoader';
+import { RouteErrorFallback } from '@/components/ui/ErrorBoundary';
 import { AuthCallbackPage } from '@/pages/Auth/CallbackPage';
 
 function ModuleIdRedirect({
@@ -95,12 +97,21 @@ const NotificationsPage = lazy(() =>
     default: m.NotificationsPage,
   })),
 );
+const PortalHomePage = lazy(() =>
+  import('@/pages/Portal/PortalHomePage').then((m) => ({
+    default: m.PortalHomePage,
+  })),
+);
 
 function LazyRoute({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
 export const router = createBrowserRouter([
+  {
+    element: <Outlet />,
+    errorElement: <RouteErrorFallback />,
+    children: [
   {
     path: '/auth/callback',
     element: <AuthCallbackPage />,
@@ -186,7 +197,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="catalog" replace />,
+        element: (
+          <LazyRoute>
+            <PortalHomePage />
+          </LazyRoute>
+        ),
       },
       {
         path: 'catalog',
@@ -212,7 +227,7 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
       },
-      { path: '*', element: <Navigate to="/portal/catalog" replace /> },
+      { path: '*', element: <Navigate to="/portal" replace /> },
     ],
   },
   {
@@ -360,6 +375,8 @@ export const router = createBrowserRouter([
         element: <ModuleIdRedirect base="/cmdb" param="ci" />,
       },
       { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
     ],
   },
 ]);

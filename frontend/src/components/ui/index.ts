@@ -7,6 +7,7 @@ export * from './Skeleton';
 export * from './PageLoader';
 export * from './EmptyState';
 export * from './ErrorState';
+export * from './ErrorBoundary';
 export * from './Modal';
 export * from './Tabs';
 export * from './Avatar';

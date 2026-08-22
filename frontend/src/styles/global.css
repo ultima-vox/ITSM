@@ -10973,3 +10973,17 @@ html[data-experience='portal'] .mobile-menu {
     padding: 20px 16px 40px;
   }
 }
+
+.error-boundary {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+.page--portal-home .service-card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+}

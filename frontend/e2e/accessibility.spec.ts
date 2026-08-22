@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-for (const route of ['/', '/queues', '/settings']) {
+for (const route of ['/', '/queues', '/settings', '/admin', '/portal']) {
   test(`has no serious accessibility violations: ${route}`, async ({ page }) => {
     await page.goto(route);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

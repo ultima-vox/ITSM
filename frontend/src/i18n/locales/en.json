@@ -61,7 +61,9 @@
     "emptyHint": "When data appears, it will show up here.",
     "getStarted": "Get started",
     "learnMore": "Learn more",
-    "select": "Select"
+    "select": "Select",
+    "crashTitle": "This screen crashed",
+    "crashHint": "A display error occurred. Retry to reload the screen."
   },
   "command": {
     "title": "Command palette",
@@ -172,7 +174,8 @@
     "search": "Search",
     "notifications": "Notifications",
     "settings": "Settings",
-    "myRequests": "My requests"
+    "myRequests": "My requests",
+    "home": "Home"
   },
   "header": {
     "searchPlaceholder": "Search requests, services, articles…",
@@ -189,6 +192,13 @@
     "createRequest": "Request",
     "createIncidentHint": "Report an issue",
     "createRequestHint": "Request a service"
+  },
+  "portal": {
+    "homeTitle": "Welcome",
+    "homeSubtitle": "Request a service, find an answer, or track your tickets.",
+    "catalogHint": "Access, hardware, and workplace services.",
+    "knowledgeHint": "Articles and how-tos.",
+    "requestsHint": "Status of your requests."
   },
   "locale": {
     "ru": "Русский",

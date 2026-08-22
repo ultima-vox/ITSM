@@ -17,7 +17,7 @@ export function PortalShell() {
   const { needsSignIn, login, loading: authLoading } = useAuth();
   const { menuOpen, setMenuOpen } = useDrawerMenu();
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const crumbs = useCrumbs('nav.catalog');
+  const crumbs = useCrumbs('nav.home');
 
   const openCommand = useCallback(() => undefined, []);
   const openCreate = useCallback(() => undefined, []);
