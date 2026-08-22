@@ -44,6 +44,11 @@ test.describe('smoke', () => {
 
   test('open command palette with Control+K or Meta+K', async ({ page }) => {
     await page.goto('/');
+    // The hotkey listener is registered by the shell, so wait for it to render before
+    // pressing — otherwise the key press lands before React mounts and is lost.
+    await expect(
+      page.getByRole('link', { name: /Обзор|Overview|Übersicht/i }),
+    ).toBeVisible();
     // Windows/Linux: Control+K; macOS: Meta+K (both handled by the app)
     const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
     await page.keyboard.press(`${modifier}+KeyK`);
