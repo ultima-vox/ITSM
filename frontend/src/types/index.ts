@@ -739,3 +739,39 @@ export interface EscalationResponder {
   subject: string;
   source: string;
 }
+
+/* -- Service announcements -- */
+
+export type AnnouncementSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
+
+export type AnnouncementAudience = 'ALL' | 'AGENTS' | 'REQUESTERS';
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  severity: AnnouncementSeverity;
+  audience: AnnouncementAudience;
+  startsAt: string;
+  endsAt: string | null;
+  published: boolean;
+  dismissible: boolean;
+  linkUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AnnouncementInput {
+  title: string;
+  body: string;
+  severity: AnnouncementSeverity;
+  audience: AnnouncementAudience;
+  startsAt: string;
+  endsAt?: string | null;
+  published: boolean;
+  dismissible: boolean;
+  linkUrl?: string | null;
+  expectedVersion?: number;
+}

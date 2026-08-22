@@ -13,6 +13,7 @@ import {
   Package,
   Rocket,
   PhoneCall,
+  Megaphone,
   Settings,
   ShieldCheck,
   TicketCheck,
@@ -57,6 +58,7 @@ const secondaryNav = [
   { to: '/admin/sla', key: 'sla', icon: Timer },
   { to: '/admin/rbac', key: 'rbac', icon: Shield },
   { to: '/admin/oncall', key: 'oncall', icon: PhoneCall },
+  { to: '/admin/announcements', key: 'announcements', icon: Megaphone },
   { to: '/admin/audit', key: 'audit', icon: ScrollText },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;

@@ -6,6 +6,7 @@ import { useT } from '@/i18n';
 import { Button } from '@/components/ui';
 import { Sidebar } from './Sidebar';
 import { Header, type CrumbItem } from './Header';
+import { AnnouncementBanner } from './AnnouncementBanner';
 import { CreateWorkItemModal } from '@/components/create/CreateWorkItemModal';
 import {
   CommandPalette,
@@ -31,6 +32,9 @@ const crumbMap: Record<string, string> = {
   '/admin/sla': 'nav.sla',
   '/admin/rbac': 'nav.rbac',
   '/admin/audit': 'nav.audit',
+  '/admin/oncall': 'nav.oncall',
+  '/admin/announcements': 'nav.announcements',
+  '/releases': 'nav.releases',
   '/search': 'nav.search',
   '/notifications': 'nav.notifications',
 };
@@ -125,6 +129,7 @@ export function AppShell() {
             </div>
           </div>
         )}
+        <AnnouncementBanner />
         <main id="main-content" className="shell__content" tabIndex={-1}>
           <Outlet
             context={{

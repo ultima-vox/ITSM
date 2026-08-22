@@ -8,6 +8,7 @@ export * from './changes';
 export * from './releases';
 export * from './worklogs';
 export * from './oncall';
+export * from './announcements';
 export * from './locale';
 export * from './attachments';
 export * from './search';
