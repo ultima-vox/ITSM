@@ -37,9 +37,15 @@ The target is a production-grade service-management platform, not an MVP. **The 
 A reasonable characterization is **pre-production alpha / integration-stage platform**.
 
 Verified on the status date, on the full Compose stack: `docker compose up -d --build` reaches all
-services healthy, `scripts/smoke-compose.sh` passes 13 checks, `./gradlew test` passes, the frontend
-typechecks/lints/tests clean, and a real Keycloak browser login loads live data
-(`frontend/e2e/oidc-login.spec.ts`).
+services healthy, `scripts/smoke-compose.sh` passes 13 checks, `scripts/smoke-modules.sh` passes 20
+checks against the release, worklog, on-call and announcement endpoints, `./gradlew test` passes
+414 tests with none skipped, the frontend typechecks/lints/tests clean, and a real Keycloak browser
+login loads live data (`frontend/e2e/oidc-login.spec.ts`).
+
+If the direct-backend checks answer with something that is not this application, a host process
+holds `127.0.0.1:8080` and wins over the container publish. Republish and point the smoke at it:
+`ITSM_BACKEND_PORT=18080 docker compose up -d backend` then
+`BACKEND_URL=http://127.0.0.1:18080 ./scripts/smoke-compose.sh`.
 
 Every CI job was also reproduced locally: Kustomize renders and validates, Prometheus rules check
 out, the live contract E2E passes against a `dev` backend, both container images scan clean, and the
