@@ -2,146 +2,135 @@
 
 Enterprise ITSM/ESM platform under active development.
 
-The project is being built as a **Java 25 / Spring Boot modular monolith** with a **React + TypeScript** web client, PostgreSQL as the transactional source of truth, and Redis, RabbitMQ, OpenSearch, MinIO and Keycloak as supporting infrastructure.
+**Product benchmark:**
 
-The target is a production-grade service-management platform, not an MVP. **The repository is not production-ready yet.**
+> **Vox ITSM = ServiceNow depth + JSM usability + Naumen enterprise practicality.**
+
+The objective is not to clone any proprietary product. Vox ITSM must use an original architecture and UX while matching or exceeding the useful qualities of those reference points:
+
+- **ServiceNow depth** — platform core, CMDB, workflow, automation, metadata, service catalog, governance, reporting, extensibility, integrations and enterprise administration;
+- **Jira Service Management usability** — fast operator workflows, strong queues and triage, keyboard productivity, clean information hierarchy, collaboration and low-friction daily work;
+- **Naumen enterprise practicality** — configurable enterprise processes, strong localization, realistic corporate deployment, directory/integration support and practical administration.
+
+The target is a **fully operational production-grade enterprise ITSM/ESM platform**, not an MVP, demo or ticket tracker.
+
+**The repository is not production-ready yet.**
 
 ## Current status
 
-**Status date:** 2026-08-19
+**Status date:** 2026-08-22
 
-The platform has moved beyond a UI prototype and now contains substantial live backend and frontend functionality. PR #19 (`production depth wave15`) is merged into `main`, but the full runtime and live-mode release path are still incomplete.
+The backend/platform foundation already contains substantial live functionality, but the current frontend must be treated as a **POC / design and interaction reference**, not as the final production UI.
 
-A reasonable current characterization is **pre-production alpha / integration-stage platform**.
+Existing useful frontend ideas and components may be retained, but no current screen, component or interaction is a compatibility constraint if it prevents the target product quality.
 
-### Readiness estimate
+A reasonable current characterization is:
 
-| Area | Current state | Approx. readiness |
-| --- | --- | ---: |
-| Architecture / modular-monolith foundation | Mature foundation; still being hardened | 85–90% |
-| Frontend operator UX | Broad functional coverage; some flows remain mock/dev or partially live | 75–85% |
-| Service Desk | Main lifecycle plus watchers/links/escalation/reopen/audit integrations implemented | 65–75% |
-| Change / CAB | Conflicts and CAB vote APIs exist; deeper lifecycle verification remains | 55–65% |
-| Problem Management | Resolution gates and core lifecycle foundations exist | 55–65% |
-| CMDB | Live create/relations/orphans/impact foundations exist | 55–65% |
-| Asset Management | Create/assign/status foundations exist; full lifecycle depth remains | 50–60% |
-| Knowledge | Live create/update/publish foundations exist | 55–65% |
-| Service Catalog | Foundation implemented; production workflow/approval depth incomplete | 35–45% |
-| SLA / Workflow / Metadata / Automation / RBAC admin | Core engines exist; several admin surfaces are still read-only or incomplete live mode | 45–55% |
-| Notifications | PostgreSQL-backed implementation merged; full live/restart/authorization verification pending | 60–70% |
-| Search | JDBC fallback + OpenSearch integration exist; production projection/recovery verification remains | 45–55% |
-| Attachments | S3/MinIO path and signature hardening exist; production quarantine/scanner pipeline incomplete | 40–50% |
-| Authentication / authorization | OIDC/RBAC foundations and production safety guard exist; full permission matrix pending | 50–60% |
-| Reports | PostgreSQL workload reporting exists; broader truth/authorization verification remains | 50–60% |
-| CI / full-stack verification | Unit/build/mock E2E exist; mandatory live Compose self-hosted gate is missing | 30–40% |
-| Production readiness | **Not ready** | **40–50%** |
+- backend/platform: advanced foundation under production hardening;
+- frontend: POC with broad functional coverage;
+- full product: pre-production / integration-stage;
+- production readiness: not yet achieved.
 
-Overall functional/platform readiness is approximately **60–65%**, while production readiness is lower because deployment, integration, security and release evidence are not yet complete.
+## Target product structure
 
-## Recent production-depth milestone
-
-PR #19 is merged into `main` and added significant server-side depth:
-
-- PostgreSQL-backed notifications with read/unread, dedupe and retention;
-- live audit API;
-- Service Desk watchers;
-- related work-item links;
-- work-item ↔ CI links;
-- escalation and reopen behavior;
-- CMDB relations, orphan detection and multi-hop impact;
-- Problem resolution gates;
-- Change schedule conflict detection;
-- CAB votes API;
-- PostgreSQL-backed workload reports;
-- Knowledge live write/publish paths;
-- Asset and CMDB create paths;
-- SLA / automation / workflow / RBAC live read APIs;
-- production safety guard against insecure dev authentication under production-like profiles;
-- stronger attachment content-signature checks;
-- expanded Flyway migrations and permissions.
-
-These capabilities are now part of `main`, but they are not considered release-qualified until verified through the full live stack.
-
-## Main blockers and release gates
-
-### Issue #20 — complete Docker Compose runtime
-
-Issue #20 is the immediate **P0 blocker**.
-
-The repository currently has infrastructure in `docker-compose.yml`, but backend and frontend are not yet part of one verified self-contained Compose runtime.
-
-Target runtime:
+Vox ITSM is being developed as three distinct user experiences sharing one design system and platform core:
 
 ```text
-vox-itsm
-├── backend
-├── frontend
-├── postgres
-├── rabbitmq
-├── redis
-├── opensearch
-├── minio
-├── minio-init
-└── keycloak
+Vox ITSM
+├── Operator Workspace
+│   └── dense, fast, keyboard-oriented, configurable
+│
+├── User Portal
+│   └── simple, friendly, branded, mobile-friendly
+│
+└── Administration Studio
+    └── powerful, safe, discoverable, no-code where practical
 ```
 
-Internal service traffic must use Compose DNS names:
+### Operator Workspace
 
-```text
-PostgreSQL  jdbc:postgresql://postgres:5432/itsm
-RabbitMQ    rabbitmq:5672
-Redis       redis:6379
-OpenSearch  http://opensearch:9200
-MinIO       http://minio:9000
-```
+The main Service Desk workspace must optimize daily operator productivity:
 
-`host.docker.internal:*` must not be the normal container-to-container path.
+- queues and saved views;
+- fast triage;
+- keyboard-first workflows;
+- split-pane/list/detail modes;
+- configurable columns and filters;
+- SLA prioritization;
+- activity timeline;
+- related CI / Problem / Change / Knowledge context;
+- bulk actions;
+- live backend truth only.
 
-The target startup command is:
+### User Portal
 
-```bash
-docker compose up -d --build
-```
+The requester-facing portal must behave like a modern digital product rather than an internal IT form:
 
-Issue #20 must not be closed until the complete runtime, clean Flyway migration, live smoke, persistence-after-restart and self-hosted CI evidence are all verified.
+- service catalog;
+- knowledge search;
+- request tracking;
+- approvals;
+- comments and attachments;
+- mobile/responsive UX;
+- organization branding;
+- localization;
+- business-friendly language.
 
-### Issue #21 — platform completion / production-readiness gate
+### Administration Studio
 
-Issue #21 is the umbrella release gate for the whole platform.
+Platform administration must not require editing SQL, source code or repository files for normal operations.
 
-It tracks mandatory completion and verification for:
+The target includes live administration of:
 
-- runtime/deployment;
-- database migration and backup/restore;
-- OIDC/RBAC and permission matrix;
-- Service Desk end-to-end lifecycle;
-- Service Catalog;
-- CMDB;
-- Assets;
-- Problems;
-- Changes/CAB;
-- Knowledge;
-- SLA;
-- Workflow/Metadata/Form/Automation/RBAC administration;
-- Notifications;
-- OpenSearch;
-- attachments and production malware scanning;
-- audit/outbox/RabbitMQ failure handling;
-- reports;
-- AI Gateway security;
-- frontend live-mode completeness;
-- self-hosted full-stack CI;
-- reliability/observability;
-- adversarial security review;
-- release documentation and evidence.
+- users / identity mappings / roles;
+- services and catalog;
+- metadata / objects / fields;
+- forms;
+- workflows;
+- SLA / OLA / calendars;
+- queues and assignment rules;
+- automation;
+- notifications;
+- dictionaries;
+- CMDB classes and relations;
+- integrations;
+- branding and localization;
+- system/security settings;
+- audit and configuration history.
 
-The platform must not be declared complete or production-ready until Issue #21 closure criteria are satisfied.
+## Architecture
 
-## What is implemented
+The platform is a **Java 25 / Spring Boot modular monolith** with a **React + TypeScript** web client.
 
-### Backend
+Core architectural rules:
 
-The Spring Boot modular monolith under `backend/` contains modules and platform capabilities for:
+- modular monolith first;
+- PostgreSQL as transactional source of truth;
+- server-side authorization and business-rule enforcement;
+- API-first contracts;
+- metadata-driven platform capabilities;
+- event-driven integration where appropriate;
+- derived stores must not silently become authoritative;
+- no hidden production fallback to mock/in-memory behavior;
+- secure defaults;
+- auditable mutations;
+- Russian-first UX with full i18n architecture;
+- accessibility and operator efficiency as first-class requirements.
+
+### Supporting infrastructure
+
+| Service | Purpose |
+| --- | --- |
+| PostgreSQL 17 | Transactional source of truth |
+| Redis | Cache / transient coordination |
+| RabbitMQ | Durable asynchronous events |
+| OpenSearch | Search projections / full-text search |
+| MinIO | S3-compatible attachment storage |
+| Keycloak | OIDC identity and federation boundary |
+
+## Implemented platform foundation
+
+The backend already contains substantial foundations for:
 
 - Service Desk work items;
 - Change Management;
@@ -158,149 +147,282 @@ The Spring Boot modular monolith under `backend/` contains modules and platform 
 - SLA;
 - audit trail;
 - transactional outbox;
-- persistent notifications;
+- PostgreSQL-backed notifications;
 - search abstraction with OpenSearch support;
 - attachment storage abstraction with S3-compatible support;
 - AI Gateway / Copilot boundary;
 - OpenAPI;
 - health/actuator endpoints.
 
-PostgreSQL is the intended authoritative system of record. Flyway is used for schema evolution.
+PR #19 (`production depth wave15`) is merged into `main` and added, among other things:
 
-### Frontend
+- PostgreSQL-backed notifications;
+- live audit API;
+- Service Desk watchers and related links;
+- work-item ↔ CI links;
+- escalation and reopen behavior;
+- CMDB relation editing, orphan detection and multi-hop impact;
+- Problem resolution gates;
+- Change schedule conflict detection;
+- CAB votes API;
+- PostgreSQL-backed workload reports;
+- Knowledge live write/publish paths;
+- Asset and CMDB create paths;
+- live read APIs for SLA / automation / workflow / RBAC administration;
+- production safety guard against insecure dev authentication;
+- stronger attachment content-signature checks;
+- expanded Flyway migrations and permissions.
 
-The React + TypeScript client under `frontend/` provides:
+These capabilities are part of `main`, but release acceptance requires full live-stack verification.
 
-- Russian default localization;
-- English and German locale resources;
-- dark, light and high-contrast themes;
-- responsive operator shell;
-- Service Desk queues and work-item surfaces;
-- CMDB graph-oriented UI;
-- Assets;
-- Problems;
-- Changes / CAB;
-- Knowledge;
-- Reports;
-- Notifications;
-- administrative surfaces for metadata, workflow, SLA, RBAC, automation and audit;
-- bulk operations;
-- deep links;
-- keyboard/accessibility work;
-- mock and live API modes.
+## Current major gaps
 
-**Important:** a visible frontend control or page is not evidence that the full backend behavior is release-complete. Live mode remains the source of truth for acceptance.
+The largest remaining gaps are not a lack of screens. They are productization, integration and production proof:
 
-## Infrastructure
+- full one-command Docker runtime;
+- mandatory self-hosted live CI;
+- production identity and AD/LDAP federation;
+- production frontend architecture and design system;
+- complete live Service Desk operator flow;
+- polished User Portal and Service Catalog;
+- full no-code Administration Studio;
+- CMDB/Asset enterprise depth;
+- advanced Problem/Change/CAB/Knowledge governance;
+- integration framework and production connectors;
+- white-label/rebranding;
+- reporting/observability/backup/performance;
+- security/HA/release qualification.
 
-The repository currently defines infrastructure services for:
+## Master roadmap
 
-| Service | Purpose |
-| --- | --- |
-| PostgreSQL 17 | Transactional source of truth |
-| Redis | Cache / transient coordination |
-| RabbitMQ | Durable asynchronous events |
-| OpenSearch | Search projections / full-text search |
-| MinIO | S3-compatible attachment storage |
-| Keycloak | OIDC identity provider for local/integration testing |
+The authoritative product roadmap is **Issue #23**:
 
-Their presence in Compose does **not** by itself prove full-platform readiness. Issue #20 covers completion of the application runtime around them.
+**`[MASTER ROADMAP] Vox ITSM — ServiceNow depth + JSM usability + Naumen enterprise practicality`**
+
+Later issues must not be started merely because they are open. The execution order and dependency gates in #23 are authoritative.
+
+## Mandatory execution order
+
+### Wave A — platform foundation
+
+1. **#20 — Stage 0: Runtime Foundation**
+   - complete Docker Compose runtime;
+   - backend + frontend + infrastructure in one project;
+   - Compose DNS instead of `host.docker.internal`;
+   - health/readiness;
+   - clean Flyway install;
+   - persistence verification;
+   - mandatory live CI on self-hosted GitHub Actions runners.
+
+2. After #20 is sufficiently stable, run in parallel:
+   - **#22 — Stage 1: Production Identity**;
+   - **#34 — Stage 1.5: Frontend Product Foundation**.
+
+### Wave B — core product
+
+3. **#24 — Stage 2: Service Desk Core**.
+
+4. Once #24 is structurally stable, run in parallel:
+   - **#25 — Stage 3: User Portal + Service Catalog**;
+   - **#26 — Stage 4: Administration Studio**.
+
+### Wave C — enterprise ITSM depth
+
+5. After the admin/configuration foundation is stable, run in parallel:
+   - **#27 — Stage 5: CMDB + Asset Management**;
+   - **#28 — Stage 6: Advanced ITSM — Problem, Change/CAB, Knowledge**.
+
+### Wave D — ecosystem and productization
+
+6. **#29 — Stage 7: Enterprise Integration Hub**.
+
+7. **#30 — Stage 8: Branding + Productization** may overlap late Stage 7 work when scopes do not conflict.
+
+### Wave E — operations and intelligence
+
+8. **#31 — Stage 9: Analytics + Operations**.
+
+9. **#32 — Stage 10: AI Copilot + Intelligent Automation** only after deterministic platform behavior is trustworthy. AI does not block the first production release unless explicitly included in release scope.
+
+### Wave F — production qualification
+
+10. **#33 — Stage 11: Security + HA + Release Qualification**.
+
+11. **#21 — final production-readiness gate** is closed last.
+
+## Stage issues
+
+| Issue | Stage | Purpose |
+| --- | --- | --- |
+| #20 | 0 | Unified full-stack Docker runtime and self-hosted live CI |
+| #22 | 1 | AD/LDAP federation, SSO, MFA, production Keycloak, enterprise RBAC |
+| #34 | 1.5 | Production frontend architecture, design system and shared UX foundation |
+| #24 | 2 | Production Service Desk operator workspace and ticket lifecycle |
+| #25 | 3 | User Portal and Service Catalog |
+| #26 | 4 | No-code Administration Studio |
+| #27 | 5 | CMDB and Asset Management enterprise depth |
+| #28 | 6 | Problem, Change/CAB, Knowledge and governance depth |
+| #29 | 7 | Integration Hub — AD, 1C, Bitrix24, email, REST/webhooks, monitoring and future connectors |
+| #30 | 8 | White-label, rebranding, localization and organization boundaries |
+| #31 | 9 | Reporting, analytics, observability, backup/restore and performance |
+| #32 | 10 | Governed AI Copilot and intelligent automation |
+| #33 | 11 | Security, HA, DR and final release qualification |
+| #21 | Final gate | Production-readiness acceptance and evidence |
+| #23 | Master | Product benchmark, execution order and roadmap |
+
+## Enterprise identity target
+
+Authentication must use Keycloak/OIDC as the identity boundary.
+
+Target architecture:
+
+```text
+Active Directory / LDAP / Entra ID / external IdP
+                      ↓
+                   Keycloak
+                      ↓ OIDC / PKCE
+              frontend / backend
+                      ↓
+                  ITSM RBAC
+```
+
+Required production capabilities include:
+
+- AD/LDAP federation over LDAPS;
+- deterministic user and group mapping;
+- AD group → ITSM role mapping;
+- MFA for privileged roles;
+- strict JWT issuer/audience/expiry validation;
+- production Keycloak with persistent storage;
+- no demo credentials or fixed secrets;
+- break-glass administrator procedure;
+- audited identity/role changes.
+
+## Enterprise integration target
+
+Vox ITSM must not accumulate hard-coded point-to-point integrations.
+
+Stage #29 builds a first-class Integration Hub with stable connector contracts, retries, idempotency, mapping, execution history, diagnostics and secure secret handling.
+
+Mandatory integration directions include:
+
+- Active Directory / LDAP;
+- 1C;
+- Bitrix24;
+- inbound/outbound email;
+- generic REST and webhooks;
+- monitoring/event sources such as Zabbix/Prometheus-class systems;
+- extensibility for Teams, Telegram, Slack, telephony and other enterprise systems.
+
+Customer-specific schemas must be configured through mapping rather than embedded into the platform domain model.
+
+## Branding and white-label target
+
+The platform must support rebranding without rebuilding frontend images.
+
+Target configuration includes:
+
+- product/company name;
+- logos;
+- favicon/app icon;
+- primary/secondary/accent colors;
+- portal/login hero assets;
+- light/dark/high-contrast variants;
+- email branding;
+- footer/legal/support links;
+- localized terminology/content;
+- custom domains through supported deployment configuration.
+
+The same central design-token source must feed Operator Workspace, User Portal and Administration Studio.
 
 ## Running the project today
 
-### Infrastructure-only development mode
+The current repository does **not yet** provide the final verified one-command production-shaped runtime.
 
-From the repository root:
+Infrastructure can currently be started from the repository root with:
 
 ```bash
 docker compose up -d
 ```
 
-At present this starts the infrastructure defined in the compose file. Backend/frontend development may then be run according to `docs/ops/`.
+Do not treat separately built `vox-itsm-backend-check` and `vox-itsm-frontend-check` containers as a complete ITSM deployment.
 
-Do not treat separately built `vox-itsm-backend-check` and `vox-itsm-frontend-check` containers as a complete deployment.
-
-If backend fails with:
+If backend fails with an error similar to:
 
 ```text
 Connection to host.docker.internal:15432 refused
 SQL State: 08001
 ```
 
-this indicates stale deployment configuration. The target Compose runtime must connect to PostgreSQL via `postgres:5432`.
+this indicates stale deployment configuration. The target Compose runtime must use service DNS such as `postgres:5432` for internal communication.
 
-## Authentication modes
+Issue #20 owns completion of the final runtime path:
 
-The project supports OIDC/Keycloak-based authentication plus a development profile.
-
-The `dev` profile deliberately relaxes normal JWT enforcement for local development and must never be used as a production configuration. A production safety guard exists to fail fast for unsafe profile combinations.
+```bash
+docker compose up -d --build
+```
 
 ## CI and testing
 
-Current CI verifies:
+Current CI provides useful fast feedback, including backend tests, frontend type checking/build and mock-mode Playwright smoke.
 
-- backend tests;
-- frontend type checking;
-- frontend build;
-- Playwright smoke in **mock mode**;
-- shell/script syntax.
+That is not sufficient for release qualification.
 
-The current Compose smoke job is still insufficient for release qualification because it is manual-only, runs on `ubuntu-latest`, and starts infrastructure rather than the complete backend+frontend stack.
+The target release pipeline requires mandatory **live full-stack E2E on self-hosted GitHub Actions runners** with Docker Engine and Docker Compose v2.
 
-Release qualification requires a **mandatory live full-stack job on self-hosted GitHub Actions agents** with Docker Engine and Docker Compose v2.
-
-The self-hosted gate must verify at least:
+The live gate must verify at least:
 
 - clean PostgreSQL startup;
-- full Flyway chain from an empty database;
-- backend and frontend health;
+- full Flyway chain;
+- backend/frontend health;
 - Keycloak/OIDC;
 - RabbitMQ;
-- Redis when enabled;
+- Redis where enabled;
 - OpenSearch;
 - MinIO and bucket initialization;
-- live Service Desk workflow;
+- live Service Desk lifecycle;
 - notifications and audit;
 - attachments;
 - persistence after restart;
-- safe cleanup and failure artifacts.
+- safe cleanup;
+- retained diagnostics/logs on failure.
+
+## Cross-cutting Definition of Done
+
+Every stage must satisfy, where applicable:
+
+- server-side authorization;
+- server-side business-rule enforcement;
+- PostgreSQL persistence for transactional state;
+- safe Flyway migrations;
+- auditability;
+- no mock/in-memory production-critical path;
+- correct loading/empty/error/degraded UI states;
+- Russian-first UX with full i18n architecture;
+- keyboard accessibility and usable focus behavior;
+- realistic live integration tests;
+- self-hosted CI where a complete Docker stack is required;
+- documentation and troubleshooting;
+- critical UX review against the benchmark in #23.
 
 ## Production-readiness rules
 
-The project must not be called production-ready until all of the following are true:
+Vox ITSM must not be described as production-ready until:
 
-- the entire platform starts with one documented command;
-- PostgreSQL is created automatically and becomes healthy;
-- the full Flyway chain succeeds on a clean database and supported upgrade path;
-- backend and frontend become healthy without restart loops;
-- `VITE_USE_MOCK=false` works for every release-critical flow;
-- OIDC authentication and authorization are verified end to end;
-- mandatory domain rules are enforced server-side;
-- production-critical persistence does not depend on in-memory stores;
-- attachment quarantine and malware scanning are production-grade;
-- OpenSearch behavior and recovery are verified;
-- audit/outbox transactional consistency is verified;
-- data survives service restarts;
-- full Compose integration CI is non-skipped, self-hosted and green;
+- #20 is closed with full runtime evidence;
+- required roadmap stages for the release are closed;
+- AD/enterprise identity is production-qualified;
+- Service Desk and User Portal work end to end in live mode;
+- administrators can configure release-critical behavior without source-code/SQL edits;
+- production-critical integrations are proven;
+- data survives restart and supported failure scenarios;
+- backup/restore and upgrade paths are tested;
 - Critical/High security findings are resolved;
-- browser acceptance, accessibility and major degraded/error states are verified;
-- backup/restore and upgrade procedures are documented and tested;
-- README and release documentation match the actual system.
-
-## Architecture principles
-
-- modular monolith first;
-- PostgreSQL as transactional source of truth;
-- server-side authorization;
-- API-first contracts;
-- metadata-driven platform capabilities;
-- event-driven integration where appropriate;
-- derived stores must not silently become authoritative;
-- no hidden production fallback to mock/in-memory behavior;
-- secure defaults;
-- auditable mutations;
-- Russian-first UX with internationalization built in;
-- accessibility and operator efficiency as product requirements.
+- performance and capacity assumptions are documented;
+- browser/accessibility acceptance passes;
+- mandatory self-hosted live CI is green;
+- Issue #33 qualification passes;
+- Issue #21 is closed against a specific tested release commit.
 
 ## Repository structure
 
@@ -317,37 +439,75 @@ ITSM/
 └── README.md
 ```
 
-## Key documentation
+## Key project references
 
 Start with:
 
+- **#23** — master product roadmap and mandatory execution order;
+- **#20** — full Docker runtime blocker;
+- **#22** — production identity / AD / MFA;
+- **#34** — frontend production foundation;
+- **#24** — Service Desk Core;
+- **#25** — User Portal + Service Catalog;
+- **#26** — Administration Studio;
+- **#29** — Enterprise Integration Hub;
+- **#30** — branding/productization;
+- **#33** — final production qualification;
+- **#21** — final release gate;
 - `INSTRUCTIONS.md` — implementation requirements and Definition of Done;
-- `AGENTS.md` — collaboration rules;
-- `docs/architecture/` — architecture decisions and boundaries;
+- `AGENTS.md` — collaboration and ownership rules;
+- `docs/architecture/` — architecture decisions;
 - `docs/security/` — security requirements;
-- `docs/ops/` — local/integration operation and troubleshooting;
-- `docs/ux/` — UX/design review material;
-- Issue #20 — full Docker runtime blocker;
-- Issue #21 — platform completion and production-readiness gate.
+- `docs/ops/` — runtime/operations documentation;
+- `docs/ux/` — UX/design material.
 
 ## Development priority
 
-The immediate priority is **not adding more superficial feature surface**. Convert the existing breadth into a deployable, persistent, secure and verifiably complete platform.
+The immediate priority is not adding more superficial screens.
 
-Priority order:
+The project must now convert existing breadth into a deployable, persistent, secure, configurable, integrable and pleasant enterprise product.
 
-1. complete Issue #20 — unified full-stack Compose runtime;
-2. make live full-stack CI mandatory on self-hosted runners;
-3. execute the Issue #21 end-to-end release scenario;
-4. close backend/live-mode gaps where the UI is ahead of server behavior;
-5. complete admin write paths for the metadata-driven platform where required by release scope;
-6. harden attachments, search, outbox, authorization and observability;
-7. perform adversarial security and browser acceptance testing;
-8. validate backup/restore, upgrade and restart persistence;
-9. only then qualify a release as production-ready.
+The first implementation sequence is therefore:
 
-## Target
+```text
+#20
+ ↓
+#22 + #34
+ ↓
+#24
+ ↓
+#25 + #26
+ ↓
+#27 + #28
+ ↓
+#29
+ ↓
+#30
+ ↓
+#31
+ ↓
+#33
+ ↓
+#21
+```
 
-The goal remains a complete enterprise ITSM/ESM platform comparable in operational depth to established service-management products while using an original implementation and architecture.
+`#32` AI/Copilot enters only after the deterministic core is stable enough to trust.
 
-Quality is measured by working end-to-end processes, maintainable architecture, secure authorization, persistence, observability, testability, coherent UX and reliable deployment — not by the number of screens or mock scenarios implemented.
+## Final target
+
+Vox ITSM should be judged by working enterprise journeys rather than the number of implemented pages.
+
+The intended result is a platform that is:
+
+- deep enough for enterprise process management;
+- faster and friendlier for operators than traditional heavyweight ITSM systems;
+- simple and attractive for requesters;
+- practical for administrators;
+- integrable with corporate systems;
+- brandable;
+- secure;
+- observable;
+- recoverable;
+- configurable without constant development work.
+
+**Vox ITSM = ServiceNow depth + JSM usability + Naumen enterprise practicality.**
