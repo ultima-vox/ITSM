@@ -18,7 +18,7 @@ Container-to-container traffic uses Compose DNS (`postgres:5432`, `redis:6379`, 
 Host ports are overrideable with `ITSM_POSTGRES_PORT`, `ITSM_REDIS_PORT`,
 `ITSM_RABBITMQ_PORT`, `ITSM_RABBITMQ_UI_PORT`, `ITSM_OPENSEARCH_PORT`,
 `ITSM_MINIO_PORT`, `ITSM_MINIO_UI_PORT`, `ITSM_KEYCLOAK_PORT`,
-`ITSM_BACKEND_PORT`, and `ITSM_FRONTEND_PORT`.
+`ITSM_BACKEND_PORT`, `ITSM_FRONTEND_PORT`, and `ITSM_CLAMAV_PORT`.
 
 **Full integrations (Redis cache + OpenSearch + MinIO)** — use profile `compose` (see [compose-integrations.md](./compose-integrations.md)):
 

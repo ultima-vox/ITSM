@@ -59,7 +59,7 @@ a cold deploy comes up without restarts, and a rolling restart served 400 of 400
 
 ## Quick start
 
-One command starts the complete local stack (PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Keycloak, backend, frontend):
+One command starts the complete local stack (PostgreSQL, Redis, RabbitMQ, OpenSearch, MinIO, Keycloak, ClamAV, backend, frontend):
 
 ```bash
 docker compose up -d --build
@@ -76,6 +76,7 @@ Then open **http://localhost**
 | RabbitMQ UI | http://localhost:15672 | guest / guest |
 | MinIO console | http://localhost:9001 | minioadmin / minioadmin |
 | OpenSearch | http://localhost:9200 | security plugin disabled — local stack only; the production stack requires authentication |
+| ClamAV | localhost:3310 | INSTREAM malware scan; override with `ITSM_CLAMAV_PORT` |
 
 Internal container DNS (never `host.docker.internal` for service-to-service traffic):
 

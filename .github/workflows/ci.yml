@@ -410,6 +410,7 @@ jobs:
       ITSM_KEYCLOAK_PORT: "28081"
       ITSM_BACKEND_PORT: "28080"
       ITSM_FRONTEND_PORT: "28000"
+      ITSM_CLAMAV_PORT: "23310"
       ITSM_KEYCLOAK_PUBLIC_URL: http://localhost:28081
       OIDC_ISSUER_URI: http://localhost:28081/realms/itsm
       VITE_OIDC_ISSUER: http://localhost:28081/realms/itsm
@@ -423,7 +424,9 @@ jobs:
           docker compose version
 
       - name: Build and start complete stack
-        run: docker compose up -d --build
+        run: |
+          docker compose down -v --remove-orphans || true
+          docker compose up -d --build
 
       - name: Wait for healthy services
         run: |
