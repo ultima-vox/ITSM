@@ -3,6 +3,7 @@
         "servicedesk",
         "changemanagement",
         "problemmanagement",
+        "releasemanagement",
         "cmdb",
         "assetmanagement",
         "platform::sla",

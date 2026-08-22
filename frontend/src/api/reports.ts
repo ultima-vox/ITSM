@@ -34,6 +34,18 @@ export interface WorkloadReport {
     inUse: number;
     inStock: number;
   };
+  releases?: {
+    inFlight: number;
+    deployed: number;
+    rolledBack: number;
+    successRate: number | null;
+  };
+  effort?: {
+    entries: number;
+    totalMinutes: number;
+    billableMinutes: number;
+    itemsWithEffort: number;
+  };
 }
 
 /**

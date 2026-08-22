@@ -11,7 +11,9 @@ import ru.ultimavox.itsm.changemanagement.ChangeReportQuery;
 import ru.ultimavox.itsm.cmdb.CmdbReportQuery;
 import ru.ultimavox.itsm.platform.sla.SlaReportQuery;
 import ru.ultimavox.itsm.problemmanagement.ProblemReportQuery;
+import ru.ultimavox.itsm.releasemanagement.ReleaseReportQuery;
 import ru.ultimavox.itsm.servicedesk.ServiceDeskReportQuery;
+import ru.ultimavox.itsm.servicedesk.WorkItemEffortQuery;
 
 class WorkloadReportServiceTest {
   @Test
@@ -22,6 +24,8 @@ class WorkloadReportServiceTest {
     ProblemReportQuery problems = mock(ProblemReportQuery.class);
     CmdbReportQuery cmdb = mock(CmdbReportQuery.class);
     AssetReportQuery assets = mock(AssetReportQuery.class);
+    ReleaseReportQuery releases = mock(ReleaseReportQuery.class);
+    WorkItemEffortQuery effort = mock(WorkItemEffortQuery.class);
     when(serviceDesk.snapshot()).thenReturn(new ServiceDeskReportQuery.Snapshot(
         12, 5, 3, 8.4, Map.of("HIGH", 4L), Map.of("NEW", 6L),
         Map.of("INCIDENT", 9L), Map.of("0_1d", 7L)));
@@ -30,8 +34,11 @@ class WorkloadReportServiceTest {
     when(problems.snapshot()).thenReturn(new ProblemReportQuery.Snapshot(3, 1, 6));
     when(cmdb.snapshot()).thenReturn(new CmdbReportQuery.Snapshot(40, 5, 22));
     when(assets.snapshot()).thenReturn(new AssetReportQuery.Snapshot(18, 11, 4));
+    when(releases.snapshot()).thenReturn(new ReleaseReportQuery.Snapshot(2, 7, 1, 87.5));
+    when(effort.snapshot()).thenReturn(new WorkItemEffortQuery.Snapshot(24, 930, 615, 9));
 
-    var report = new WorkloadReportService(serviceDesk, sla, changes, problems, cmdb, assets).snapshot();
+    var report = new WorkloadReportService(
+        serviceDesk, sla, changes, problems, cmdb, assets, releases, effort).snapshot();
 
     assertThat(report.open()).isEqualTo(12);
     assertThat(report.breached()).isEqualTo(2);
@@ -41,5 +48,8 @@ class WorkloadReportServiceTest {
     assertThat(report.problem().knownErrors()).isEqualTo(1);
     assertThat(report.cmdb().orphans()).isEqualTo(5);
     assertThat(report.assets().inUse()).isEqualTo(11);
+    assertThat(report.releases().successRate()).isEqualTo(87.5);
+    assertThat(report.effort().totalMinutes()).isEqualTo(930);
+    assertThat(report.effort().billableMinutes()).isEqualTo(615);
   }
 }

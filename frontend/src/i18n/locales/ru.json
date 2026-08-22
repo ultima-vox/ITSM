@@ -1200,7 +1200,11 @@
     "cmdb": "Конфигурационные единицы",
     "cmdbDetail": "{orphans} без связей",
     "assets": "Активы",
-    "assetsDetail": "в работе {inUse} · на складе {inStock}"
+    "assetsDetail": "в работе {inUse} · на складе {inStock}",
+    "releaseSuccess": "Успешность релизов",
+    "releaseSuccessDetail": "В работе: {inFlight} · откачено: {rolledBack}",
+    "effortLogged": "Записано времени",
+    "effortLoggedDetail": "Оплачиваемого: {billable} · заявок: {items}"
   },
   "settings": {
     "title": "Настройки",

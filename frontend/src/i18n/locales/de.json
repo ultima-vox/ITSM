@@ -1200,7 +1200,11 @@
     "cmdb": "Configuration Items",
     "cmdbDetail": "{orphans} ohne Beziehungen",
     "assets": "Assets",
-    "assetsDetail": "in Nutzung {inUse} · auf Lager {inStock}"
+    "assetsDetail": "in Nutzung {inUse} · auf Lager {inStock}",
+    "releaseSuccess": "Release-Erfolg",
+    "releaseSuccessDetail": "{inFlight} laufend · {rolledBack} zurückgerollt",
+    "effortLogged": "Erfasster Aufwand",
+    "effortLoggedDetail": "{billable} abrechenbar · {items} Vorgänge"
   },
   "settings": {
     "title": "Einstellungen",

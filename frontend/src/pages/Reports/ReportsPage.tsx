@@ -19,7 +19,9 @@ import {
   Share2,
   Package,
   Bug,
+  Rocket,
 } from 'lucide-react';
+import { formatMinutes } from '@/api/worklogs';
 import { useT, useI18n } from '@/i18n';
 import { useAsync } from '@/hooks/useAsync';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
@@ -622,6 +624,34 @@ export function ReportsPage() {
               inStock: workload.data.assets.inStock,
             })}
           />
+          {workload.data.releases && (
+            <MetricCard
+              icon={<Rocket size={18} />}
+              color="mint"
+              value={
+                workload.data.releases.successRate != null
+                  ? `${workload.data.releases.successRate}%`
+                  : '—'
+              }
+              label={t('reports.releaseSuccess')}
+              detail={t('reports.releaseSuccessDetail', {
+                inFlight: workload.data.releases.inFlight,
+                rolledBack: workload.data.releases.rolledBack,
+              })}
+            />
+          )}
+          {workload.data.effort && (
+            <MetricCard
+              icon={<Clock3 size={18} />}
+              color="violet"
+              value={formatMinutes(workload.data.effort.totalMinutes)}
+              label={t('reports.effortLogged')}
+              detail={t('reports.effortLoggedDetail', {
+                billable: formatMinutes(workload.data.effort.billableMinutes),
+                items: workload.data.effort.itemsWithEffort,
+              })}
+            />
+          )}
         </div>
       )}
 
