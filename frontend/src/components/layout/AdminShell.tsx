@@ -7,32 +7,27 @@ import { Button } from '@/components/ui';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { AnnouncementBanner } from './AnnouncementBanner';
-import { CreateWorkItemModal } from '@/components/create/CreateWorkItemModal';
 import {
   CommandPalette,
   useCommandPaletteHotkey,
 } from '@/components/command/CommandPalette';
-import { operatorNav, operatorSecondaryNav } from './nav';
+import { adminNav, adminSecondaryNav } from './nav';
 import { useExperience } from '@/hooks/useExperience';
 import { useCrumbs, useDrawerMenu, type ShellOutletContext } from '@/hooks/useShell';
-import type { CreateKind } from '@/types';
 
-export type { ShellOutletContext };
-
-export function AppShell() {
-  useExperience('operator');
+export function AdminShell() {
+  useExperience('admin');
   const t = useT();
   const { needsSignIn, login, loading: authLoading } = useAuth();
   const { menuOpen, setMenuOpen } = useDrawerMenu();
-  const [createKind, setCreateKind] = useState<CreateKind | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const crumbs = useCrumbs();
+  const crumbs = useCrumbs('nav.metadata');
 
   const openCommand = useCallback(() => setCmdOpen(true), []);
   useCommandPaletteHotkey(openCommand);
 
-  const openCreate = useCallback((kind: CreateKind) => setCreateKind(kind), []);
+  const openCreate = useCallback(() => undefined, []);
 
   if (authLoading) {
     return (
@@ -50,14 +45,15 @@ export function AppShell() {
       <Sidebar
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        items={operatorNav}
-        secondaryItems={operatorSecondaryNav}
+        items={adminNav}
+        secondaryItems={adminSecondaryNav}
       />
       <div className="shell__main">
         <Header
           onMenu={() => setMenuOpen(true)}
           crumbs={crumbs}
           onOpenCommand={openCommand}
+          homeTo="/admin"
         />
         {needsSignIn && !bannerDismissed && (
           <div className="auth-soft-banner" role="status">
@@ -89,10 +85,6 @@ export function AppShell() {
           />
         </main>
       </div>
-      <CreateWorkItemModal
-        kind={createKind}
-        onClose={() => setCreateKind(null)}
-      />
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}

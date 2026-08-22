@@ -95,7 +95,7 @@ export const motion = {
 } as const;
 
 export const layout = {
-  sidebarWidth: 264,
-  headerHeight: 72,
+  sidebarWidth: 256,
+  headerHeight: 56,
   contentMax: 1540,
 } as const;

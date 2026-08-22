@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, Contrast, Menu, Moon, Search, Sun } from 'lucide-react';
 import { useI18n, useT } from '@/i18n';
 import { useTheme } from '@/hooks/useTheme';
 import type { LocaleCode } from '@/types';
 import { NotificationMenu } from './NotificationMenu';
 import { ProfileMenu } from './ProfileMenu';
+import { Brand } from './Sidebar';
+import type { NavItem } from './nav';
 
 export interface CrumbItem {
   label: string;
@@ -15,10 +17,20 @@ export interface CrumbItem {
 interface HeaderProps {
   onMenu: () => void;
   crumbs: CrumbItem[];
-  onOpenCommand: () => void;
+  onOpenCommand?: () => void;
+  showBrand?: boolean;
+  homeTo?: string;
+  navItems?: readonly NavItem[];
 }
 
-export function Header({ onMenu, crumbs, onOpenCommand }: HeaderProps) {
+export function Header({
+  onMenu,
+  crumbs,
+  onOpenCommand,
+  showBrand = false,
+  homeTo = '/',
+  navItems,
+}: HeaderProps) {
   const t = useT();
   const { locale, setLocale, locales } = useI18n();
   const { theme, cycleTheme } = useTheme();
@@ -74,8 +86,25 @@ export function Header({ onMenu, crumbs, onOpenCommand }: HeaderProps) {
         <Menu size={20} />
       </button>
 
+      {showBrand && <Brand to={homeTo} />}
+
+      {navItems && navItems.length > 0 && (
+        <nav className="portal-header__nav" aria-label={t('app.primaryNav')}>
+          {navItems.map(({ to, key, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) => (isActive ? 'is-active' : undefined)}
+            >
+              {t(`nav.${key}`)}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
       <nav className="crumb" aria-label={t('header.breadcrumb')}>
-        <Link to="/" className="crumb__root">
+        <Link to={homeTo} className="crumb__root">
           {t('header.workspace')}
         </Link>
         {crumbs.map((c, i) => (
@@ -93,16 +122,18 @@ export function Header({ onMenu, crumbs, onOpenCommand }: HeaderProps) {
       </nav>
 
       <div className="header-actions">
-        <button
-          type="button"
-          className="search search--btn"
-          onClick={onOpenCommand}
-          aria-label={t('header.searchPlaceholder')}
-        >
-          <Search size={18} aria-hidden />
-          <span className="search__placeholder">{t('header.searchPlaceholder')}</span>
-          <kbd>{shortcut}</kbd>
-        </button>
+        {onOpenCommand && (
+          <button
+            type="button"
+            className="search search--btn"
+            onClick={onOpenCommand}
+            aria-label={t('header.searchPlaceholder')}
+          >
+            <Search size={18} aria-hidden />
+            <span className="search__placeholder">{t('header.searchPlaceholder')}</span>
+            <kbd>{shortcut}</kbd>
+          </button>
+        )}
 
         <NotificationMenu />
 

@@ -1,6 +1,8 @@
 {
   "app": {
     "name": "vox ITSM",
+    "brand": "vox",
+    "brandProduct": "ITSM",
     "skipToContent": "Zum Inhalt springen",
     "secureConnection": "Sichere Verbindung",
     "loading": "Wird geladen…",
@@ -169,7 +171,8 @@
     "audit": "Audit",
     "search": "Suche",
     "notifications": "Benachrichtigungen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "myRequests": "Meine Anfragen"
   },
   "header": {
     "searchPlaceholder": "Anfragen, Services, Artikel suchen…",

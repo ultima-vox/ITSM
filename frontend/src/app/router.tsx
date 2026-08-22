@@ -5,10 +5,11 @@ import {
   useParams,
 } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
+import { AdminShell } from '@/components/layout/AdminShell';
+import { PortalShell } from '@/components/layout/PortalShell';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { AuthCallbackPage } from '@/pages/Auth/CallbackPage';
 
-/** Redirect `/module/:id` → `/module?param=id` (S7 path-route remainder). */
 function ModuleIdRedirect({
   base,
   param,
@@ -21,7 +22,6 @@ function ModuleIdRedirect({
   return <Navigate to={`${base}${qs}`} replace />;
 }
 
-/* Eager: auth callback + shell. Pages are code-split. */
 const OverviewPage = lazy(() =>
   import('@/pages/Overview/OverviewPage').then((m) => ({ default: m.OverviewPage })),
 );
@@ -104,6 +104,116 @@ export const router = createBrowserRouter([
   {
     path: '/auth/callback',
     element: <AuthCallbackPage />,
+  },
+  {
+    path: '/admin',
+    element: <AdminShell />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="metadata" replace />,
+      },
+      {
+        path: 'metadata',
+        element: (
+          <LazyRoute>
+            <MetadataPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'automation',
+        element: (
+          <LazyRoute>
+            <AutomationPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'workflow',
+        element: (
+          <LazyRoute>
+            <WorkflowPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'sla',
+        element: (
+          <LazyRoute>
+            <SlaPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'audit',
+        element: (
+          <LazyRoute>
+            <AuditPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'rbac',
+        element: (
+          <LazyRoute>
+            <RbacPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'oncall',
+        element: (
+          <LazyRoute>
+            <OnCallPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'announcements',
+        element: (
+          <LazyRoute>
+            <AnnouncementsPage />
+          </LazyRoute>
+        ),
+      },
+      { path: '*', element: <Navigate to="/admin/metadata" replace /> },
+    ],
+  },
+  {
+    path: '/portal',
+    element: <PortalShell />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="catalog" replace />,
+      },
+      {
+        path: 'catalog',
+        element: (
+          <LazyRoute>
+            <CatalogPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'knowledge',
+        element: (
+          <LazyRoute>
+            <KnowledgePage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'requests',
+        element: (
+          <LazyRoute>
+            <MyWorkPage />
+          </LazyRoute>
+        ),
+      },
+      { path: '*', element: <Navigate to="/portal/catalog" replace /> },
+    ],
   },
   {
     path: '/',
@@ -206,70 +316,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/metadata',
-        element: (
-          <LazyRoute>
-            <MetadataPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/automation',
-        element: (
-          <LazyRoute>
-            <AutomationPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/workflow',
-        element: (
-          <LazyRoute>
-            <WorkflowPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/sla',
-        element: (
-          <LazyRoute>
-            <SlaPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/audit',
-        element: (
-          <LazyRoute>
-            <AuditPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/rbac',
-        element: (
-          <LazyRoute>
-            <RbacPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/oncall',
-        element: (
-          <LazyRoute>
-            <OnCallPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'admin/announcements',
-        element: (
-          <LazyRoute>
-            <AnnouncementsPage />
-          </LazyRoute>
-        ),
-      },
-      {
         path: 'search',
         element: (
           <LazyRoute>
@@ -293,7 +339,6 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
       },
-      /* S7: stable path routes → module query deep-links (shareable URLs) */
       {
         path: 'problems/:id',
         element: <ModuleIdRedirect base="/problems" param="id" />,

@@ -21,9 +21,13 @@ test.describe('module screens', () => {
     });
   });
 
-  test('sidebar links to releases, on-call and announcements', async ({ page }) => {
+  test('operator sidebar links to releases', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('link', { name: /Релизы|Releases/i })).toBeVisible();
+  });
+
+  test('admin sidebar links to on-call and announcements', async ({ page }) => {
+    await page.goto('/admin/oncall');
     await expect(
       page.getByRole('link', { name: /Дежурства|On-call|Rufbereitschaft/i }),
     ).toBeVisible();

@@ -7,32 +7,20 @@ import { Button } from '@/components/ui';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { AnnouncementBanner } from './AnnouncementBanner';
-import { CreateWorkItemModal } from '@/components/create/CreateWorkItemModal';
-import {
-  CommandPalette,
-  useCommandPaletteHotkey,
-} from '@/components/command/CommandPalette';
-import { operatorNav, operatorSecondaryNav } from './nav';
+import { portalNav } from './nav';
 import { useExperience } from '@/hooks/useExperience';
 import { useCrumbs, useDrawerMenu, type ShellOutletContext } from '@/hooks/useShell';
-import type { CreateKind } from '@/types';
 
-export type { ShellOutletContext };
-
-export function AppShell() {
-  useExperience('operator');
+export function PortalShell() {
+  useExperience('portal');
   const t = useT();
   const { needsSignIn, login, loading: authLoading } = useAuth();
   const { menuOpen, setMenuOpen } = useDrawerMenu();
-  const [createKind, setCreateKind] = useState<CreateKind | null>(null);
-  const [cmdOpen, setCmdOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const crumbs = useCrumbs();
+  const crumbs = useCrumbs('nav.catalog');
 
-  const openCommand = useCallback(() => setCmdOpen(true), []);
-  useCommandPaletteHotkey(openCommand);
-
-  const openCreate = useCallback((kind: CreateKind) => setCreateKind(kind), []);
+  const openCommand = useCallback(() => undefined, []);
+  const openCreate = useCallback(() => undefined, []);
 
   if (authLoading) {
     return (
@@ -43,21 +31,23 @@ export function AppShell() {
   }
 
   return (
-    <div className="shell">
+    <div className="shell shell--portal">
       <a href="#main-content" className="skip-link">
         {t('app.skipToContent')}
       </a>
       <Sidebar
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        items={operatorNav}
-        secondaryItems={operatorSecondaryNav}
+        items={portalNav}
+        showWorkspace={false}
       />
       <div className="shell__main">
         <Header
           onMenu={() => setMenuOpen(true)}
           crumbs={crumbs}
-          onOpenCommand={openCommand}
+          showBrand
+          homeTo="/portal"
+          navItems={portalNav}
         />
         {needsSignIn && !bannerDismissed && (
           <div className="auth-soft-banner" role="status">
@@ -89,15 +79,6 @@ export function AppShell() {
           />
         </main>
       </div>
-      <CreateWorkItemModal
-        kind={createKind}
-        onClose={() => setCreateKind(null)}
-      />
-      <CommandPalette
-        open={cmdOpen}
-        onClose={() => setCmdOpen(false)}
-        onCreate={openCreate}
-      />
     </div>
   );
 }

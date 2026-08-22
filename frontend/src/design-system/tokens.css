@@ -64,6 +64,23 @@
   --vox-success: var(--vox-mint-600);
   --vox-info: var(--vox-blue-500);
 
+  --brand-bg: var(--vox-bg);
+  --brand-surface: var(--vox-surface);
+  --brand-text: var(--vox-text);
+  --brand-text-secondary: var(--vox-text-secondary);
+  --brand-text-muted: var(--vox-text-muted);
+  --brand-border: var(--vox-border);
+  --brand-accent: var(--vox-accent);
+  --brand-accent-hover: var(--vox-accent-hover);
+  --brand-accent-soft: var(--vox-accent-soft);
+  --brand-focus: var(--vox-focus);
+  --brand-danger: var(--vox-danger);
+  --brand-warning: var(--vox-warning);
+  --brand-success: var(--vox-success);
+  --brand-info: var(--vox-info);
+  --brand-sidebar-bg: var(--vox-sidebar-bg);
+  --brand-sidebar-text: var(--vox-sidebar-text);
+
   /* Sidebar */
   --vox-sidebar-bg: var(--vox-navy-900);
   --vox-sidebar-text: #d4d9ed;
@@ -285,4 +302,13 @@ html[data-theme='high-contrast'] .command-palette {
 html[data-theme='high-contrast'] :focus-visible {
   outline: 3px solid var(--vox-focus) !important;
   outline-offset: 2px;
+}
+
+html[data-experience='portal'] {
+  --text-base: 1rem;
+  --text-md: 0.9375rem;
+  --text-sm: 0.8125rem;
+  --space-4: 18px;
+  --space-5: 22px;
+  --space-6: 28px;
 }

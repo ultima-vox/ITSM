@@ -10886,3 +10886,90 @@ html[data-density='compact'] .module-table .data-table td,
   background: var(--vox-danger-50, rgba(255, 76, 76, 0.12));
   border-color: var(--vox-danger-300, rgba(255, 76, 76, 0.4));
 }
+
+.portal-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.portal-header__nav a {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--vox-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.portal-header__nav a:hover,
+.portal-header__nav a.is-active {
+  color: var(--vox-text);
+  background: var(--vox-accent-soft);
+}
+
+.app-header .brand {
+  color: var(--vox-text);
+  height: auto;
+  padding: 0;
+  font-size: 18px;
+  letter-spacing: -1px;
+}
+
+.app-header .brand em {
+  color: var(--vox-text-muted);
+}
+
+html[data-experience='portal'] .crumb {
+  display: none;
+}
+
+html[data-experience='portal'] .page {
+  padding: 28px 20px 48px;
+}
+
+html[data-experience='portal'] .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translateX(-100%);
+  transition: transform var(--duration-slow) var(--ease-out);
+  box-shadow: var(--shadow-xl);
+}
+
+html[data-experience='portal'] .sidebar.is-open {
+  transform: translateX(0);
+}
+
+html[data-experience='portal'] .sidebar-overlay {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: #11162b66;
+  z-index: calc(var(--z-header) + 1);
+}
+
+html[data-experience='portal'] .sidebar.is-open {
+  z-index: calc(var(--z-header) + 2);
+}
+
+html[data-experience='portal'] .mobile-menu {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .portal-header__nav {
+    display: none;
+  }
+
+  html[data-experience='portal'] .mobile-menu {
+    display: grid;
+  }
+
+  html[data-experience='portal'] .page {
+    padding: 20px 16px 40px;
+  }
+}
