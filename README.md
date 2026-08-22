@@ -8,11 +8,11 @@ The target is a production-grade service-management platform, not an MVP. **The 
 
 ## Current status
 
-**Status date:** 2026-08-20
+**Status date:** 2026-08-22
 
 | Area | Current state |
 | --- | --- |
-| Architecture | Modular monolith with Flyway V1–V77; still being hardened |
+| Architecture | Modular monolith with Flyway V1–V81; still being hardened |
 | Frontend | Broad operator coverage; live API mode wired at the API layer |
 | Service Desk | Incidents, requests, tasks, assignment, comments, links, SLA clocks |
 | Change / CAB | Lifecycle, votes, schedule windows; calendar/CAB depth still evolving |
@@ -21,6 +21,10 @@ The target is a production-grade service-management platform, not an MVP. **The 
 | Assets | Lifecycle, CI linkage, name/location |
 | Knowledge | Articles, publication, helpfulness votes |
 | Service Catalog | Items, requests, fulfillment foundations |
+| Release Management | Releases group approved changes; build/test/go-no-go gates, deploy blocked while a linked change is unapproved. Postgres-backed tests exist but have not been executed here — Docker was unavailable |
+| Time tracking | Per-work-item worklogs with billable split and author-or-manager edit rules; same verification gap as above |
+| On-call / Escalation | Rotations with overrides, escalation policies resolved to subjects, wired into work item escalation; same verification gap as above |
+| Announcements | Published broadcasts with severity, audience and window; shell banner and admin editor; same verification gap as above |
 | SLA / Workflow / Automation | Persistent engines exist; operational hardening continues |
 | Notifications | PostgreSQL-backed store + SSE |
 | Search | JDBC fallback and OpenSearch integration; the production stack requires credentials and TLS |
@@ -143,7 +147,7 @@ Open **http://localhost:5173**. Profile `dev` disables JWT enforcement — never
 ├─────────────────────────────────────────────────────────┤
 │  Infrastructure                                         │
 │  PostgreSQL · Redis · RabbitMQ · OpenSearch · MinIO     │
-│  Keycloak (OIDC) · Flyway V1–V77                        │
+│  Keycloak (OIDC) · Flyway V1–V81                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -153,7 +157,7 @@ Open **http://localhost:5173**. Profile `dev` disables JWT enforcement — never
 |-------|-----------|
 | Backend | Java 25, Spring Boot 3.5, Spring Modulith, Gradle, Flyway |
 | Frontend | React 18, TypeScript 5.6, Vite 8.2, React Router 7 |
-| Database | PostgreSQL 17, Flyway (V1–V77) |
+| Database | PostgreSQL 17, Flyway (V1–V81) |
 | Cache | Redis 7 (optional; AOF) |
 | Messaging | RabbitMQ 4 (outbox pattern) |
 | Search | OpenSearch 2.19 (JDBC fallback when unset) |

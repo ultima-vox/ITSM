@@ -20,8 +20,9 @@ Modules live under `ru.ultimavox.itsm.*`:
 - `assetmanagement` — asset lifecycle, inventory, CI linkage
 - `knowledgebase` — articles, drafts, publication, voting, localization
 - `servicecatalog` — catalog items, request forms, fulfillment
+- `releasemanagement` — releases, build/test/go-no-go gates, release content
 - `reporting` — workload, SLA, and operator metrics
-- `platform` — RBAC, audit, SLA, workflow engine, metadata, form engine, search, notifications, automation, AI gateway, outbox, events, user profiles
+- `platform` — RBAC, audit, SLA, workflow engine, metadata, form engine, search, notifications, on-call and escalation, announcements, automation, AI gateway, outbox, events, user profiles
 
 Each module follows: `domain/` (records, enums, state machines) → `application/` (commands, queries, services) → `api/` (REST controllers, DTOs).
 
@@ -40,7 +41,7 @@ Shared infrastructure: `authorization/` (AccessControl, PermissionChecker chain)
 
 ### Database
 
-Flyway migrations in `backend/src/main/resources/db/migration/`. Current chain: V1–V77. Never edit released migrations. Forward-only.
+Flyway migrations in `backend/src/main/resources/db/migration/`. Current chain: V1–V81. Never edit released migrations. Forward-only.
 
 ### CI/CD
 

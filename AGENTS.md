@@ -25,6 +25,7 @@ backend/src/main/java/ru/ultimavox/itsm/
   assetmanagement/      — asset lifecycle
   knowledgebase/        — articles, voting
   servicecatalog/       — catalog items, fulfillment
+  releasemanagement/    — releases, deployment gates, release content
   reporting/            — workload and SLA reports
   platform/             — shared infrastructure (RBAC, audit, SLA, workflow, etc.)
 
@@ -38,7 +39,7 @@ frontend/src/
   types/                — TypeScript types
   i18n/locales/         — ru (default), en, de
 
-backend/src/main/resources/db/migration/  — Flyway SQL (V1–V77)
+backend/src/main/resources/db/migration/  — Flyway SQL (V1–V81)
 infra/                  — Keycloak realm
 docker-compose.yml      — full local stack (infra + backend + frontend)
 ```
