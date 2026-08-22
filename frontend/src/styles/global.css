@@ -10565,6 +10565,7 @@ html[data-density='compact'] .module-table .data-table td,
   color: var(--vox-ink-700, #343c51);
 }
 
+.rbac-admin-section-label h2,
 .rbac-admin-section-label h3 {
   margin: 0;
   font-size: 13px;

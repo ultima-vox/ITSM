@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   ScrollText,
   Shield,
+  Fingerprint,
   Timer,
   Workflow,
   Zap,
@@ -285,6 +286,15 @@ export function CommandPalette({ open, onClose, onCreate }: CommandPaletteProps)
         icon: Shield,
         run: () => go('/admin/rbac'),
         keywords: 'rbac roles permissions users access control admin security',
+      },
+      {
+        id: 'nav-identity',
+        kind: 'nav',
+        label: t('nav.identity'),
+        hint: t('command.navigate'),
+        icon: Fingerprint,
+        run: () => go('/admin/identity'),
+        keywords: 'identity idp accounts sync groups ldap ad sso admin',
       },
       {
         id: 'nav-audit',

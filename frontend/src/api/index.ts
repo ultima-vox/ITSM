@@ -23,4 +23,5 @@ export * from './sla';
 export * from './automation';
 export * from './workflow';
 export * from './rbac';
+export * from './identity';
 export * from './queueViews';
