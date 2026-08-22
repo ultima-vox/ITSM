@@ -248,7 +248,8 @@ jobs:
       - name: Validate Compose files
         run: |
           docker compose -f docker-compose.yml config --quiet
-          docker compose -f docker-compose.prod.yml config --quiet
+          KC_ADMIN_PASSWORD=ci-config-check-not-for-runtime \
+            docker compose -f docker-compose.prod.yml config --quiet
       - name: Validate Keycloak organization claims
         run: |
           jq -e '
