@@ -49,6 +49,9 @@ const ProblemsPage = lazy(() =>
 const ChangesPage = lazy(() =>
   import('@/pages/Changes/ChangesPage').then((m) => ({ default: m.ChangesPage })),
 );
+const ReleasesPage = lazy(() =>
+  import('@/pages/Releases/ReleasesPage').then((m) => ({ default: m.ReleasesPage })),
+);
 const SettingsPage = lazy(() =>
   import('@/pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -169,6 +172,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <ChangesPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'releases',
+        element: (
+          <LazyRoute>
+            <ReleasesPage />
           </LazyRoute>
         ),
       },

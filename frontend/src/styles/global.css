@@ -10719,3 +10719,75 @@ html[data-density='compact'] .module-table .data-table td,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Releases -- planning table, detail drawer, deployment gates */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filter-bar .field {
+  min-width: 180px;
+}
+
+.release-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.release-detail__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.release-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vox-line);
+}
+
+.release-detail__section h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vox-ink-700);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+
+.detail-grid dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vox-ink-700);
+}
+
+.detail-grid dd {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page--releases .data-table tbody tr {
+  cursor: pointer;
+}

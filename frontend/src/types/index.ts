@@ -589,3 +589,71 @@ export interface RbacUser {
   /** Optional fixed Keycloak `sub` for demo principals */
   subjectId?: string;
 }
+
+/* ── Release and deployment management ── */
+
+export type ReleaseStatus =
+  | 'PLANNING'
+  | 'BUILD'
+  | 'TESTING'
+  | 'GO_NO_GO'
+  | 'DEPLOYING'
+  | 'DEPLOYED'
+  | 'ROLLED_BACK'
+  | 'CLOSED'
+  | 'CANCELLED';
+
+export type ReleaseType = 'MAJOR' | 'MINOR' | 'PATCH' | 'EMERGENCY';
+
+export type ReleaseGoDecision = 'GO' | 'NO_GO';
+
+export interface Release {
+  id: string;
+  number: string;
+  name: string;
+  type: ReleaseType;
+  status: ReleaseStatus;
+  description?: string | null;
+  deploymentPlan?: string | null;
+  rollbackPlan?: string | null;
+  testSummary?: string | null;
+  goDecision?: ReleaseGoDecision | null;
+  goDecisionNotes?: string | null;
+  goDecidedBy?: string | null;
+  goDecidedAt?: string | null;
+  releaseManager?: string | null;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  actualStart?: string | null;
+  actualEnd?: string | null;
+  version: number;
+}
+
+export interface ReleaseContentEntry {
+  changeId: string;
+  number: string;
+  title: string;
+  type: string;
+  status: string;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  deployable: boolean;
+}
+
+export interface ReleaseContent {
+  items: ReleaseContentEntry[];
+  total: number;
+  blocking: number;
+  deployable: boolean;
+}
+
+export interface CreateReleasePayload {
+  name: string;
+  type: ReleaseType;
+  description?: string;
+  deploymentPlan?: string;
+  rollbackPlan?: string;
+  releaseManager?: string;
+  plannedStart?: string;
+  plannedEnd?: string;
+}

@@ -11,6 +11,7 @@ import {
   Grid2X2,
   LayoutDashboard,
   Package,
+  Rocket,
   Settings,
   ShieldCheck,
   TicketCheck,
@@ -44,6 +45,7 @@ const primaryNav = [
   { to: '/assets', key: 'assets', icon: Package },
   { to: '/problems', key: 'problems', icon: AlertOctagon },
   { to: '/changes', key: 'changes', icon: GitBranch },
+  { to: '/releases', key: 'releases', icon: Rocket },
 ] as const;
 
 /** Management section — Metadata / Automation / Workflow / SLA / RBAC / Audit for demo configurability. */
