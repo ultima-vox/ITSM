@@ -10791,3 +10791,25 @@ html[data-density='compact'] .module-table .data-table td,
 .page--releases .data-table tbody tr {
   cursor: pointer;
 }
+
+/* Work item time tracking */
+.worklog-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.worklog-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vox-line);
+}
+
+.worklog-form .field {
+  min-width: 160px;
+}

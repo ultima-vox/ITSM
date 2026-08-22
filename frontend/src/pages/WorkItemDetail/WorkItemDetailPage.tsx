@@ -25,6 +25,7 @@ import {
 import { useT, useI18n } from '@/i18n';
 import { useAuth } from '@/auth';
 import { useAsync } from '@/hooks/useAsync';
+import { WorklogPanel } from '@/components/modules/WorklogPanel';
 import { useWorkItemsSync } from '@/hooks/useWorkItemsSync';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -636,6 +637,9 @@ export function WorkItemDetailPage() {
   const canUseInternalComments = principalPermissions.some(
     (permission) => permission === 'work-item.comment.internal' || permission === 'admin.full',
   );
+  const canLogTime = principalPermissions.some(
+    (permission) => permission === 'work-item.worklog' || permission === 'admin.full',
+  );
 
   // Active workflow (session) → next transitions; falls back when inactive.
   // workflowTick invalidates after admin active-version toggle.
@@ -1016,6 +1020,7 @@ export function WorkItemDetailPage() {
             count: allComments.length,
           },
           { id: 'related', label: t('workItem.related') },
+          { id: 'time', label: t('workItem.time') },
           { id: 'sla', label: t('workItem.sla') },
         ]}
       />
@@ -1640,6 +1645,10 @@ export function WorkItemDetailPage() {
                   </ul>
                 </RelatedBlock>
               </section>
+            )}
+
+            {tab === 'time' && (
+              <WorklogPanel workItemId={wi.id} canLogTime={canLogTime} />
             )}
 
             {tab === 'sla' && (

@@ -657,3 +657,23 @@ export interface CreateReleasePayload {
   plannedStart?: string;
   plannedEnd?: string;
 }
+
+/* -- Work item time tracking -- */
+
+export interface Worklog {
+  id: string;
+  workItemId: string;
+  authorSubject: string;
+  minutes: number;
+  startedAt: string;
+  note?: string | null;
+  billable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorklogSummary {
+  items: Worklog[];
+  totalMinutes: number;
+  billableMinutes: number;
+}

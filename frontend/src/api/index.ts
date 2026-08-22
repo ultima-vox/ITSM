@@ -6,6 +6,7 @@ export * from './cmdb';
 export * from './problems';
 export * from './changes';
 export * from './releases';
+export * from './worklogs';
 export * from './locale';
 export * from './attachments';
 export * from './search';
