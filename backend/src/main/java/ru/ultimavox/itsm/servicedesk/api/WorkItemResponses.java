@@ -159,9 +159,16 @@ final class WorkItemResponses {
     }
   }
 
-  record StatsResponse(long open, long dueToday, long breached, Double csat) {
+  record StatsResponse(long open, long mine, long unassigned, long dueToday, long breached, Double csat) {
     static StatsResponse from(WorkItemStatsQuery.Stats stats) {
-      return new StatsResponse(stats.open(), stats.dueToday(), stats.breached(), stats.csat());
+      return new StatsResponse(
+          stats.open(),
+          stats.mine(),
+          stats.unassigned(),
+          stats.dueToday(),
+          stats.breached(),
+          stats.csat()
+      );
     }
   }
 }

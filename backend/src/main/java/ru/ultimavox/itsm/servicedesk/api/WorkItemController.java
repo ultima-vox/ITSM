@@ -183,6 +183,11 @@ class WorkItemController {
       @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 2000) String q,
       @RequestParam(required = false) String sortBy,
       @RequestParam(required = false, defaultValue = "true") boolean sortDesc,
+      @RequestParam(required = false) Boolean unassigned,
+      @RequestParam(required = false) String teamId,
+      @RequestParam(required = false) Boolean escalated,
+      @RequestParam(required = false) String service,
+      @RequestParam(required = false) Boolean breached,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
       Authentication authentication
@@ -194,15 +199,18 @@ class WorkItemController {
         sortBy != null ? new ru.ultimavox.itsm.servicedesk.application.WorkItemQuery.SortBy(sortBy, sortDesc) : null;
     return WorkItemPageResponse.from(
         workItemQuery.search(new WorkItemQuery.Filter(
-            state, type, assigneeId, priority, q, unrestricted ? null : actor, sort), page, size)
+            state, type, assigneeId, priority, q, unrestricted ? null : actor, sort,
+            unassigned, teamId, escalated, service, breached), page, size)
     );
   }
 
   @GetMapping("/stats")
-  @Operation(summary = "Operator dashboard counters")
+  @Operation(summary = "Queue and dashboard counters")
   StatsResponse stats(Authentication authentication) {
-    access.require(authentication.getName(), "work-item.read.any", "work-item", null);
-    return StatsResponse.from(statsQuery.stats());
+    String actor = authentication.getName();
+    access.require(actor, "work-item.read", "work-item", null);
+    boolean unrestricted = access.isAllowed(actor, "work-item.read.any", "work-item", null);
+    return StatsResponse.from(statsQuery.stats(actor, unrestricted ? null : actor));
   }
 
   @GetMapping("/{id}")

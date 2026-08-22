@@ -63,6 +63,28 @@ class WorkItemQueryTest {
     assertThat(filterCaptor.getValue().priority()).isEqualTo(Priority.CRITICAL);
     assertThat(filterCaptor.getValue().query()).isEqualTo("VPN");
     assertThat(filterCaptor.getValue().requesterId()).isEqualTo("requester-1");
+    assertThat(filterCaptor.getValue().unassigned()).isNull();
+    assertThat(filterCaptor.getValue().teamId()).isNull();
+    assertThat(filterCaptor.getValue().escalated()).isNull();
+    assertThat(filterCaptor.getValue().service()).isNull();
+  }
+
+  @Test
+  void search_forwards_unassigned_team_escalated_and_service() {
+    WorkItemQuery.Filter filter = new WorkItemQuery.Filter(
+        null, null, null, null, null, null, null, true, "sd-l1", true, "Workplace", null);
+    when(store.count(filter)).thenReturn(0L);
+    when(store.search(filter, 0, 20)).thenReturn(List.of());
+
+    query.search(filter, 0, 20);
+
+    ArgumentCaptor<WorkItemQuery.Filter> filterCaptor = ArgumentCaptor.forClass(WorkItemQuery.Filter.class);
+    verify(store).count(filterCaptor.capture());
+    assertThat(filterCaptor.getValue().unassigned()).isTrue();
+    assertThat(filterCaptor.getValue().teamId()).isEqualTo("sd-l1");
+    assertThat(filterCaptor.getValue().escalated()).isTrue();
+    assertThat(filterCaptor.getValue().service()).isEqualTo("Workplace");
+    assertThat(filterCaptor.getValue().breached()).isNull();
   }
 
   @Test

@@ -6,6 +6,7 @@ import {
   mapFrontendLevel,
   mapFrontendState,
   mapFrontendType,
+  mapQueueStats,
   mapStats,
   mapWorkItem,
   type BackendActivity,
@@ -42,16 +43,56 @@ import type {
   WorkItemComment,
 } from '@/types';
 
-const LIST_PAGE_SIZE = 200;
-const LIST_MAX_ITEMS = 2000;
+export const WORK_ITEM_LIST_PAGE_SIZE = 50;
 
-export function shouldFetchNextWorkItemPage(
-  loaded: number,
-  batchLength: number,
-  total: number,
-  max = LIST_MAX_ITEMS,
-): boolean {
-  return batchLength > 0 && loaded < total && loaded < max;
+export interface WorkItemListParams {
+  assigneeId?: string;
+  queue?: string;
+  q?: string;
+  state?: string;
+  type?: string;
+  priority?: string;
+  unassigned?: boolean;
+  teamId?: string;
+  escalated?: boolean;
+  service?: string;
+  breached?: boolean;
+  page?: number;
+  size?: number;
+}
+
+export interface WorkItemListPage {
+  items: WorkItem[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface WorkItemQueueStats {
+  open: number;
+  mine: number;
+  unassigned: number;
+  breached: number;
+}
+
+export function buildWorkItemListSearchParams(params?: WorkItemListParams): URLSearchParams {
+  const qs = new URLSearchParams();
+  if (params?.assigneeId) qs.set('assigneeId', params.assigneeId);
+  if (params?.q) qs.set('q', params.q);
+  const state = toBackendWorkItemFilter('state', params?.state);
+  const type = toBackendWorkItemFilter('type', params?.type);
+  const priority = toBackendWorkItemFilter('priority', params?.priority);
+  if (state) qs.set('state', state);
+  if (type) qs.set('type', type);
+  if (priority) qs.set('priority', priority);
+  if (params?.unassigned) qs.set('unassigned', 'true');
+  if (params?.teamId) qs.set('teamId', params.teamId);
+  if (params?.escalated) qs.set('escalated', 'true');
+  if (params?.service) qs.set('service', params.service);
+  if (params?.breached) qs.set('breached', 'true');
+  qs.set('page', String(params?.page ?? 0));
+  qs.set('size', String(params?.size ?? WORK_ITEM_LIST_PAGE_SIZE));
+  return qs;
 }
 
 function toBackendWorkItemFilter(
@@ -231,44 +272,56 @@ export async function resolveMajorIncident(id: string): Promise<MajorIncident> {
   });
 }
 
-export async function fetchWorkItems(params?: {
-  assigneeId?: string;
-  queue?: string;
-  q?: string;
-  state?: string;
-  type?: string;
-  priority?: string;
-}): Promise<WorkItem[]> {
+export async function fetchWorkItemPage(
+  params?: WorkItemListParams,
+): Promise<WorkItemListPage> {
   if (isMockMode()) {
     await delay();
-    return listWorkItems(params);
+    const items = listWorkItems(params);
+    return {
+      items,
+      total: items.length,
+      page: params?.page ?? 0,
+      size: params?.size ?? items.length,
+    };
   }
-  const qs = new URLSearchParams();
-  if (params?.assigneeId) qs.set('assigneeId', params.assigneeId);
-  if (params?.q) qs.set('q', params.q);
-  const state = toBackendWorkItemFilter('state', params?.state);
-  const type = toBackendWorkItemFilter('type', params?.type);
-  const priority = toBackendWorkItemFilter('priority', params?.priority);
-  if (state) qs.set('state', state);
-  if (type) qs.set('type', type);
-  if (priority) qs.set('priority', priority);
-  qs.set('size', String(LIST_PAGE_SIZE));
-  const collected: WorkItem[] = [];
-  let pageNum = 0;
-  for (;;) {
-    qs.set('page', String(pageNum));
-    const page = await apiRequest<BackendWorkItemPage>(`/work-items?${qs}`);
-    const batch = (page.items ?? []).map(mapWorkItem);
-    collected.push(...batch);
-    const total = page.total ?? collected.length;
-    if (!shouldFetchNextWorkItemPage(collected.length, batch.length, total)) {
-      break;
-    }
-    pageNum += 1;
-  }
-  const sids = collected.flatMap((w) => [w.assignee?.id, w.requester?.id].filter(Boolean) as string[]);
+  const qs = buildWorkItemListSearchParams(params);
+  const page = await apiRequest<BackendWorkItemPage>(`/work-items?${qs}`);
+  const items = (page.items ?? []).map(mapWorkItem);
+  const sids = items.flatMap((w) => [w.assignee?.id, w.requester?.id].filter(Boolean) as string[]);
   if (sids.length > 0) await preloadUserProfiles(sids);
-  return collected;
+  return {
+    items,
+    total: page.total ?? items.length,
+    page: page.page ?? (params?.page ?? 0),
+    size: page.size ?? (params?.size ?? WORK_ITEM_LIST_PAGE_SIZE),
+  };
+}
+
+export async function fetchWorkItems(params?: WorkItemListParams): Promise<WorkItem[]> {
+  const page = await fetchWorkItemPage(params);
+  return page.items;
+}
+
+function isOpenQueueItem(w: WorkItem): boolean {
+  return w.status !== 'closed' && w.status !== 'cancelled';
+}
+
+export async function fetchWorkItemQueueStats(): Promise<WorkItemQueueStats> {
+  if (isMockMode()) {
+    await delay();
+    const list = listWorkItems();
+    const actor = currentUser.id;
+    const open = list.filter(isOpenQueueItem);
+    return {
+      open: open.length,
+      mine: open.filter((w) => w.assignee?.id === actor).length,
+      unassigned: open.filter((w) => !w.assignee).length,
+      breached: open.filter((w) => w.slaState === 'breached').length,
+    };
+  }
+  const stats = await apiRequest<BackendStats>('/work-items/stats');
+  return mapQueueStats(stats);
 }
 
 export async function fetchMyOpenCount(): Promise<number> {

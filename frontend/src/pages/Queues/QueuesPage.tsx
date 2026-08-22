@@ -10,8 +10,11 @@ import {
   createQueueSavedView,
   deleteQueueSavedView,
   fetchQueueSavedViews,
-  fetchWorkItems,
+  fetchWorkItemPage,
+  fetchWorkItemQueueStats,
   isMockMode,
+  type WorkItemListParams,
+  type WorkItemQueueStats,
 } from '@/api';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -22,7 +25,7 @@ import {
 } from '@/api/queuePredicates';
 import { ErrorState, Select, Tabs } from '@/components/ui';
 import { OperatorGrid } from '@/components/data-display';
-import type { Priority, QueueSavedView, SlaState, WorkItemStatus, WorkItemType } from '@/types';
+import type { Priority, QueueSavedView, SlaState, WorkItem, WorkItemStatus, WorkItemType } from '@/types';
 
 type QueueTab = 'unassigned' | 'mygroup' | 'escalated' | 'breached' | 'all';
 
@@ -61,6 +64,55 @@ const DEFAULT_VIEWS: QueueSavedView[] = [
 
 function isQueueTab(v: string | null): v is QueueTab {
   return !!v && (QUEUE_TABS as string[]).includes(v);
+}
+
+function queueListParams(
+  tab: QueueTab,
+  user: { id: string; teamId?: string },
+  filters: { priority: string; type: string; status: string; sla: string },
+): WorkItemListParams {
+  const params: WorkItemListParams = { page: 0, size: 50 };
+  if (filters.priority) params.priority = filters.priority;
+  if (filters.type) params.type = filters.type;
+  if (filters.status) params.state = filters.status;
+  if (tab === 'unassigned') params.unassigned = true;
+  if (tab === 'mygroup') {
+    if (user.teamId) params.teamId = user.teamId;
+    else if (user.id) params.assigneeId = user.id;
+  }
+  if (tab === 'escalated') params.escalated = true;
+  if (tab === 'breached' || filters.sla === 'breached') params.breached = true;
+  return params;
+}
+
+function queueTabCounts(
+  list: WorkItem[] | null,
+  stats: WorkItemQueueStats | null,
+  teamId?: string,
+): {
+  unassigned: number;
+  mygroup: number;
+  escalated: number;
+  breached: number;
+  all: number;
+} {
+  if (isMockMode()) {
+    const rows = list ?? [];
+    return {
+      unassigned: rows.filter(isUnassigned).length,
+      mygroup: rows.filter((w) => isMyGroup(w, teamId)).length,
+      escalated: rows.filter(isEscalated).length,
+      breached: rows.filter(isBreached).length,
+      all: rows.length,
+    };
+  }
+  return {
+    unassigned: stats?.unassigned ?? 0,
+    mygroup: stats?.mine ?? 0,
+    escalated: (list ?? []).filter(isEscalated).length,
+    breached: stats?.breached ?? 0,
+    all: stats?.open ?? 0,
+  };
 }
 
 function loadSavedViews(): QueueSavedView[] {
@@ -104,7 +156,27 @@ export function QueuesPage() {
   const status = params.get('status') ?? '';
   const sla = params.get('sla') ?? '';
 
-  const { data, loading, error, reload } = useAsync(() => fetchWorkItems(), []);
+  const listParams = useMemo(
+    () =>
+      queueListParams(tab, currentUser, { priority, type, status, sla }),
+    [tab, currentUser, priority, type, status, sla],
+  );
+  const {
+    data: page,
+    loading,
+    error,
+    reload: reloadList,
+  } = useAsync(() => fetchWorkItemPage(isMockMode() ? undefined : listParams), [
+    isMockMode() ? 'mock' : JSON.stringify(listParams),
+  ]);
+  const { data: stats, reload: reloadStats } = useAsync(
+    () => fetchWorkItemQueueStats(),
+    [currentUser.id],
+  );
+  const reload = useCallback(() => {
+    reloadList();
+    reloadStats();
+  }, [reloadList, reloadStats]);
   useWorkItemsSync(reload);
 
   const setFilter = useCallback(
@@ -228,20 +300,20 @@ export function QueuesPage() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [viewsOpen]);
 
-  // Real queue predicates from store helpers
-  const counts = useMemo(() => {
-    const list = data ?? [];
-    return {
-      unassigned: list.filter(isUnassigned).length,
-      mygroup: list.filter((w) => isMyGroup(w, currentUser.teamId)).length,
-      escalated: list.filter(isEscalated).length,
-      breached: list.filter(isBreached).length,
-      all: list.length,
-    };
-  }, [data, currentUser.teamId]);
+  const data = page?.items ?? null;
+
+  const counts = useMemo(
+    () => queueTabCounts(data, stats, currentUser.teamId),
+    [data, stats, currentUser.teamId],
+  );
 
   const filtered = useMemo(() => {
-    return (data ?? []).filter((w) => {
+    const list = data ?? [];
+    if (!isMockMode()) {
+      if (!sla || sla === 'breached') return list;
+      return list.filter((w) => w.slaState === (sla as SlaState));
+    }
+    return list.filter((w) => {
       if (tab === 'unassigned' && !isUnassigned(w)) return false;
       if (tab === 'mygroup' && !isMyGroup(w, currentUser.teamId)) return false;
       if (tab === 'escalated' && !isEscalated(w)) return false;
@@ -309,7 +381,7 @@ export function QueuesPage() {
           <p className="page-subtitle">{t('queues.subtitle')}</p>
         </div>
         <div className="page-head__meta">
-          <span className="chip">{t('queues.showing', { n: filtered.length })}</span>
+          <span className="chip">{t('queues.showing', { n: isMockMode() || sla ? filtered.length : (page?.total ?? filtered.length) })}</span>
           <div className="saved-views">
             <button
               type="button"

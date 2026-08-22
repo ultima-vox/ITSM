@@ -192,9 +192,19 @@ export function listWorkItems(params?: {
   assigneeId?: string;
   queue?: string;
   q?: string;
+  state?: string;
+  type?: string;
+  priority?: string;
+  unassigned?: boolean;
+  teamId?: string;
+  escalated?: boolean;
+  service?: string;
+  breached?: boolean;
 }): WorkItem[] {
   let list = items.map(cloneItem);
-  if (params?.assigneeId) {
+  if (params?.unassigned) {
+    list = list.filter((w) => !w.assignee);
+  } else if (params?.assigneeId) {
     list = list.filter((w) => w.assignee?.id === params.assigneeId);
   }
   if (params?.queue) {
@@ -208,6 +218,27 @@ export function listWorkItems(params?: {
         w.title.toLowerCase().includes(q) ||
         w.service.toLowerCase().includes(q),
     );
+  }
+  if (params?.teamId) {
+    list = list.filter((w) => w.teamId === params.teamId);
+  }
+  if (params?.escalated) {
+    list = list.filter(isEscalated);
+  }
+  if (params?.breached) {
+    list = list.filter(isBreached);
+  }
+  if (params?.service) {
+    list = list.filter((w) => w.service === params.service);
+  }
+  if (params?.state) {
+    list = list.filter((w) => w.status === params.state);
+  }
+  if (params?.type) {
+    list = list.filter((w) => w.type === params.type);
+  }
+  if (params?.priority) {
+    list = list.filter((w) => w.priority === params.priority);
   }
   return list;
 }

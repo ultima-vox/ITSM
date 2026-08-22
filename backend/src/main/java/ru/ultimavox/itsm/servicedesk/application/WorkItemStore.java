@@ -246,14 +246,40 @@ public class WorkItemStore {
   }
 
   long countOpen() {
-    Long n = jdbc.queryForObject(
+    return countOpen(null);
+  }
+
+  long countOpen(String requesterId) {
+    return countByOpenClause("TRUE", requesterId);
+  }
+
+  long countMine(String assigneeId, String requesterId) {
+    if (assigneeId == null || assigneeId.isBlank()) {
+      return 0L;
+    }
+    return countByOpenClause("assignee_id = ?", requesterId, assigneeId);
+  }
+
+  long countUnassigned(String requesterId) {
+    return countByOpenClause("assignee_id IS NULL", requesterId);
+  }
+
+  private long countByOpenClause(String extraSql, String requesterId, Object... extraArgs) {
+    StringBuilder sql = new StringBuilder(
         """
         SELECT count(*) FROM work_item
-        WHERE org_id = ? AND state NOT IN ('CLOSED', 'CANCELLED')
-        """,
-        Long.class,
-        OrganizationContext.current()
+        WHERE org_id = ? AND state NOT IN ('CLOSED', 'CANCELLED') AND (
+        """
     );
+    sql.append(extraSql).append(')');
+    List<Object> args = new ArrayList<>();
+    args.add(OrganizationContext.current());
+    args.addAll(List.of(extraArgs));
+    if (requesterId != null && !requesterId.isBlank()) {
+      sql.append(" AND requester_id = ?");
+      args.add(requesterId);
+    }
+    Long n = jdbc.queryForObject(sql.toString(), Long.class, args.toArray());
     return n == null ? 0L : n;
   }
 
@@ -279,8 +305,12 @@ public class WorkItemStore {
   }
 
   long countSlaBreached() {
+    return countSlaBreached(null);
+  }
+
+  long countSlaBreached(String requesterId) {
     try {
-      Long n = jdbc.queryForObject(
+      StringBuilder sql = new StringBuilder(
           """
           SELECT count(DISTINCT sc.aggregate_id)
           FROM sla_clock sc
@@ -288,10 +318,15 @@ public class WorkItemStore {
           WHERE sc.state = 'BREACHED'
             AND wi.org_id = ?
             AND wi.state NOT IN ('CLOSED', 'CANCELLED')
-          """,
-          Long.class,
-          OrganizationContext.current()
+          """
       );
+      List<Object> args = new ArrayList<>();
+      args.add(OrganizationContext.current());
+      if (requesterId != null && !requesterId.isBlank()) {
+        sql.append(" AND wi.requester_id = ?");
+        args.add(requesterId);
+      }
+      Long n = jdbc.queryForObject(sql.toString(), Long.class, args.toArray());
       return n == null ? 0L : n;
     } catch (Exception ignored) {
       return 0L;
@@ -360,9 +395,34 @@ public class WorkItemStore {
       sql.append(" AND type = ?");
       args.add(filter.type().name());
     }
-    if (filter.assigneeId() != null && !filter.assigneeId().isBlank()) {
+    if (Boolean.TRUE.equals(filter.unassigned())) {
+      sql.append(" AND assignee_id IS NULL");
+    } else if (filter.assigneeId() != null && !filter.assigneeId().isBlank()) {
       sql.append(" AND assignee_id = ?");
       args.add(filter.assigneeId());
+    }
+    if (filter.teamId() != null && !filter.teamId().isBlank()) {
+      sql.append(" AND team_id = ?");
+      args.add(filter.teamId());
+    }
+    if (filter.escalated() != null) {
+      sql.append(" AND escalated = ?");
+      args.add(filter.escalated());
+    }
+    if (filter.service() != null && !filter.service().isBlank()) {
+      sql.append(" AND service = ?");
+      args.add(filter.service());
+    }
+    if (Boolean.TRUE.equals(filter.breached())) {
+      sql.append(
+          """
+           AND state NOT IN ('CLOSED', 'CANCELLED')
+           AND EXISTS (
+             SELECT 1 FROM sla_clock sc
+             WHERE sc.aggregate_id = work_item.id AND sc.state = 'BREACHED'
+           )
+          """
+      );
     }
     if (filter.priority() != null) {
       sql.append(" AND priority = ?");

@@ -15,13 +15,26 @@ public class WorkItemStatsQuery {
   }
 
   public Stats stats() {
+    return stats(null, null);
+  }
+
+  public Stats stats(String actorId, String requesterScope) {
     return new Stats(
-        store.countOpen(),
+        store.countOpen(requesterScope),
+        store.countMine(actorId, requesterScope),
+        store.countUnassigned(requesterScope),
         store.countSlaDueToday(),
-        store.countSlaBreached(),
+        store.countSlaBreached(requesterScope),
         store.averageCsatSince(Instant.now().minus(30, ChronoUnit.DAYS))
     );
   }
 
-  public record Stats(long open, long dueToday, long breached, Double csat) {}
+  public record Stats(
+      long open,
+      long mine,
+      long unassigned,
+      long dueToday,
+      long breached,
+      Double csat
+  ) {}
 }

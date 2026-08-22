@@ -72,6 +72,8 @@ export interface BackendActivity {
 
 export interface BackendStats {
   open: number;
+  mine?: number;
+  unassigned?: number;
   dueToday: number;
   breached: number;
   csat?: number | null;
@@ -198,17 +200,16 @@ export function mapFrontendLevel(level: ImpactLevel | UrgencyLevel): string {
 }
 
 /**
- * No SLA fields on WorkItemResponse — derive a simple heuristic.
- * Closed/resolved → met; critical open → at_risk; else on_track.
+ * Fallback only when the server omitted slaState (list skips clocks to avoid N+1).
+ * Terminal items match GET; open items stay on_track — never a priority heuristic.
  */
 export function deriveSlaState(
   state: WorkItemStatus,
-  priority: Priority,
+  _priority?: Priority,
 ): SlaState {
   if (state === 'resolved' || state === 'closed' || state === 'cancelled') {
     return 'met';
   }
-  if (priority === 'critical') return 'at_risk';
   return 'on_track';
 }
 
@@ -251,7 +252,7 @@ export function mapWorkItem(dto: BackendWorkItem): WorkItem {
     requester,
     service: dto.service,
     slaTarget: slaTargetFor(priority, status),
-    slaState: dto.slaState ?? deriveSlaState(status, priority),
+    slaState: dto.slaState ?? deriveSlaState(status),
     slaDueAt: dto.slaDueAt ?? undefined,
     slaWarningAt: dto.slaWarningAt ?? undefined,
     updatedAt: dto.updatedAt,
@@ -304,6 +305,20 @@ export function mapActivity(dto: BackendActivity): WorkItemActivity {
     text: action,
     before: dto.before ?? undefined,
     after: dto.after ?? undefined,
+  };
+}
+
+export function mapQueueStats(dto: BackendStats): {
+  open: number;
+  mine: number;
+  unassigned: number;
+  breached: number;
+} {
+  return {
+    open: Number(dto.open) || 0,
+    mine: Number(dto.mine) || 0,
+    unassigned: Number(dto.unassigned) || 0,
+    breached: Number(dto.breached) || 0,
   };
 }
 

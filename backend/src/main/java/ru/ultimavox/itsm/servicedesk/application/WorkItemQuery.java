@@ -36,8 +36,25 @@ public class WorkItemQuery {
       Priority priority,
       String query,
       String requesterId,
-      SortBy sort
-  ) {}
+      SortBy sort,
+      Boolean unassigned,
+      String teamId,
+      Boolean escalated,
+      String service,
+      Boolean breached
+  ) {
+    public Filter(
+        State state,
+        Type type,
+        String assigneeId,
+        Priority priority,
+        String query,
+        String requesterId,
+        SortBy sort
+    ) {
+      this(state, type, assigneeId, priority, query, requesterId, sort, null, null, null, null, null);
+    }
+  }
 
   public record SortBy(String field, boolean desc) {
     private static final java.util.Set<String> ALLOWED = java.util.Set.of(

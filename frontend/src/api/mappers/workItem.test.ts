@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapWorkItem, mapComment, mapActivity, mapStats } from './workItem';
+import { mapWorkItem, mapComment, mapActivity, mapStats, mapQueueStats } from './workItem';
 
 describe('mapWorkItem', () => {
   it('maps backend enums to frontend lowercase', () => {
@@ -42,6 +42,40 @@ describe('mapWorkItem', () => {
     expect(result.priority).toBe('low');
     expect(result.assignee).toBeNull();
     expect(result.status).toBe('resolved');
+    expect(result.slaState).toBe('met');
+  });
+
+  it('does not invent at_risk from priority when server omitted slaState', () => {
+    const result = mapWorkItem({
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      number: 'INC-003',
+      title: 'Critical outage',
+      description: '',
+      service: 'VPN',
+      type: 'INCIDENT',
+      priority: 'CRITICAL',
+      state: 'IN_PROGRESS',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+    });
+    expect(result.slaState).toBe('on_track');
+  });
+
+  it('keeps server slaState on list rows', () => {
+    const result = mapWorkItem({
+      id: '550e8400-e29b-41d4-a716-446655440003',
+      number: 'INC-004',
+      title: 'Breached',
+      description: '',
+      service: 'VPN',
+      type: 'INCIDENT',
+      priority: 'LOW',
+      state: 'NEW',
+      slaState: 'breached',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+    });
+    expect(result.slaState).toBe('breached');
   });
 });
 
@@ -101,5 +135,22 @@ describe('mapStats', () => {
 
   it('maps numeric CSAT', () => {
     expect(mapStats({ open: 3, dueToday: 1, breached: 0, csat: 84 }).satisfaction).toBe(84);
+  });
+});
+
+describe('mapQueueStats', () => {
+  it('maps open mine unassigned breached', () => {
+    expect(
+      mapQueueStats({ open: 12, mine: 4, unassigned: 3, dueToday: 1, breached: 2 }),
+    ).toEqual({ open: 12, mine: 4, unassigned: 3, breached: 2 });
+  });
+
+  it('treats missing mine and unassigned as zero', () => {
+    expect(mapQueueStats({ open: 5, dueToday: 0, breached: 1 })).toEqual({
+      open: 5,
+      mine: 0,
+      unassigned: 0,
+      breached: 1,
+    });
   });
 });
